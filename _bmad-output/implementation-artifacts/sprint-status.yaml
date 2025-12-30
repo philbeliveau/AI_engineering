@@ -42,7 +42,7 @@ story_location: _bmad-output/implementation-artifacts
 development_status:
   # Epic 1: Project Foundation & Development Environment
   epic-1: in-progress
-  1-1-initialize-monorepo-structure: ready-for-dev
+  1-1-initialize-monorepo-structure: done
   1-2-docker-compose-infrastructure-setup: ready-for-dev
   1-3-pydantic-models-for-core-entities: ready-for-dev
   1-4-mongodb-storage-client: ready-for-dev
@@ -50,20 +50,20 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Document Ingestion Pipeline
-  epic-2: backlog
-  2-1-base-source-adapter-interface: backlog
-  2-2-pdf-document-adapter: backlog
-  2-3-markdown-document-adapter: backlog
-  2-4-text-chunking-processor: backlog
-  2-5-local-embedding-generator: backlog
-  2-6-end-to-end-ingestion-pipeline: backlog
+  epic-2: in-progress
+  2-1-base-source-adapter-interface: ready-for-dev
+  2-2-pdf-document-adapter: ready-for-dev
+  2-3-markdown-document-adapter: ready-for-dev
+  2-4-text-chunking-processor: ready-for-dev
+  2-5-local-embedding-generator: ready-for-dev
+  2-6-end-to-end-ingestion-pipeline: ready-for-dev
   epic-2-retrospective: optional
 
   # Epic 3: Knowledge Extraction System
-  epic-3: backlog
-  3-1-base-extractor-interface-and-extraction-models: backlog
-  3-2-decision-extractor: backlog
-  3-3-pattern-extractor: backlog
+  epic-3: in-progress
+  3-1-base-extractor-interface-and-extraction-models: ready-for-dev
+  3-2-decision-extractor: ready-for-dev
+  3-3-pattern-extractor: ready-for-dev
   3-4-warning-extractor: backlog
   3-5-methodology-and-process-extractors: backlog
   3-6-extraction-storage-and-embedding: backlog

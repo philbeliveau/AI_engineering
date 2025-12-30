@@ -1,103 +1,93 @@
-# AI Engineering Workflows - Claude Development Notes
+# Knowledge Pipeline - Claude Development Notes
 
 ## Project Overview
 
-Building an executable AI engineering knowledge system that transforms methodology books into interactive, context-aware workflows.
+Building an AI engineering knowledge system that extracts structured knowledge from methodology books and serves it via MCP to Claude Code users.
 
-**Core Philosophy:** AI doesn't answer - it structures thought and reduces the space where the solution exists.
+**Core Philosophy:** Extractions are for NAVIGATION, Claude is for SYNTHESIS.
 
 ## Current Status
 
-**Phase:** Concept/Planning
-**Brief:** `_bmad-output/AI-Engineering-Workflows-Brief.md`
-**Started:** December 30, 2025
+**Phase:** Implementation Ready
+**Current Work:** Epic 1 - Foundation Setup
+**Next Story:** 1.1 - Initialize Monorepo Structure (ready-for-dev)
 
-## What We're Building
+## Key Artifacts
 
-A BMAD module (`aie`) that:
-- Guides practitioners through AI engineering decisions
-- Generates structured artifacts (specs, architectures, configs)
-- Integrates multiple knowledge sources (books, papers, case studies)
-- Updates continuously as AI landscape evolves
+| Document | Purpose | Status |
+|----------|---------|--------|
+| `_bmad-output/architecture.md` | All technical decisions | Complete |
+| `_bmad-output/prd.md` | Product requirements | Complete |
+| `_bmad-output/epics.md` | Implementation roadmap | Complete |
+| `_bmad-output/project-context.md` | AI agent implementation rules | Complete |
+| `_bmad-output/implementation-artifacts/` | Story files | In Progress |
 
-### Dual Entry Points
-1. **Discovery:** Problem → Solution (framing → assessment → implementation)
-2. **Implementation:** Direct to specific patterns (RAG, fine-tuning, deployment)
+## Architecture Summary
 
-## Monetization Model
-
-**Free Tier:** Core workflows, embedded methodology, public MCP access
-**Pro ($19/mo):** Enterprise case studies, advanced workflows, monthly updates
-**Enterprise ($99+/mo):** Private MCP, custom workflows, team training
-
-### Protection Strategy
-1. Server-side MCP with authentication (primary)
-2. Encrypted premium workflows (secondary)
-3. Continuous monthly value (retention)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 packages/pipeline (batch)                    │
+│   Adapters → Processors → Extractors → Storage (WRITE)      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+        ┌──────────┐                   ┌──────────┐
+        │ MongoDB  │                   │  Qdrant  │
+        └──────────┘                   └──────────┘
+                              │
+┌─────────────────────────────┼───────────────────────────────┐
+│                             ▼                                │
+│                packages/mcp-server (server)                  │
+│     Middleware → Tools → Storage (READ) → FastAPI-MCP       │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## Technical Stack
 
-**Repository:**
-- BMAD module structure (`_bmad/aie/`)
-- Agents: ai-architect, llm-specialist, data-engineer, mlops-expert
-- Workflows: discovery, rag-systems, fine-tuning, production
+- **Runtime:** Python 3.11, uv package manager
+- **API:** FastAPI + fastapi-mcp
+- **Storage:** MongoDB 7 + Qdrant (384d vectors)
+- **Embeddings:** all-MiniLM-L6-v2 (local)
 
-**MCP Servers:**
-- Scholar MCP (research papers)
-- GitHub MCP (code examples)
-- Premium MCP (enterprise content, authenticated)
+## For AI Agents
 
-## Source Knowledge
+**Before implementing any code, read:**
+`_bmad-output/project-context.md`
 
-### Books Being Encoded
-- LLM Engineer's Handbook (Paul Iusztin, Maxime Labonne) - 800 pages
-- LLMs in Production (Christopher Brousseau, Matthew Sharp)
+This contains 85+ critical implementation rules covering:
+- Naming conventions and async patterns
+- API response formats (MANDATORY)
+- Testing and code quality rules
+- Anti-patterns to avoid
 
-### Additional Sources
-- Research papers (via Scholar MCP)
-- Medium articles and blog posts
-- Enterprise case studies
-- GitHub repositories
+## Project Structure (Target)
 
-## Connection to Spec-Forecasting
-
-This project applies the spec-forecasting philosophy to AI engineering:
 ```
-decision = f(
-    previous_decisions,
-    project_context,
-    constraints,
-    dataset_characteristics,
-    business_requirements
-)
+packages/
+├── pipeline/          # Batch ingestion & extraction (WRITE)
+│   ├── src/
+│   │   ├── adapters/  # PDF, Markdown, arXiv
+│   │   ├── extractors/# Decision, Pattern, Warning, Methodology
+│   │   └── storage/   # MongoDB, Qdrant clients
+│   └── scripts/
+└── mcp-server/        # Real-time query server (READ)
+    └── src/
+        ├── tools/     # MCP tools (search, get_decisions, etc.)
+        └── middleware/# Rate limiting, auth
 ```
 
-Like spec-forecasting reduces time series decision space, this system reduces AI engineering decision space.
+## Current Priority
 
-## Next Steps
+**Story 1.1: Initialize Monorepo Structure**
+- Restructure directories to `packages/` layout
+- Create pyproject.toml for both packages
+- Set up docker-compose (MongoDB + Qdrant)
+- Initialize uv with all dependencies
 
-1. Validate demand with AI engineers
-2. Build first workflows (problem-framing, rag-architecture)
-3. Set up MCP server infrastructure
-4. Launch public repo (free tier)
-5. Build Pro tier with enterprise content
-
-## Working with Claude/BMAD
-
-Using BMAD Builder agent to:
-- Create the `aie` module structure
-- Design workflows with proper artifact passing
-- Integrate knowledge sources effectively
-- Follow BMAD best practices
-
-## Open Questions
-
-1. Product name? (AI Engineering Workflows vs Spec-Forecasting for AI)
-2. Positioning? (Methodology, platform, or knowledge commons)
-3. First 5 workflows to build?
-4. Community platform? (Discord vs Slack)
-5. Content sourcing strategy?
+See: `_bmad-output/implementation-artifacts/1-1-initialize-monorepo-structure.md`
 
 ---
 
-**For full details, see:** `_bmad-output/AI-Engineering-Workflows-Brief.md`
+**Full architecture:** `_bmad-output/architecture.md`
+**Implementation rules:** `_bmad-output/project-context.md`

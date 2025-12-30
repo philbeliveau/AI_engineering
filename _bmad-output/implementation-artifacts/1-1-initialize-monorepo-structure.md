@@ -1,6 +1,6 @@
 # Story 1.1: Initialize Monorepo Structure
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -44,49 +44,49 @@ So that I have a properly structured project with all dependencies installed and
 
 ## Tasks / Subtasks
 
-- [ ] Verify uv is installed (AC: System-level)
-  - [ ] Check `uv --version` (minimum version requirement from architecture)
-  - [ ] If not installed, provide installation guidance
+- [x] Verify uv is installed (AC: System-level)
+  - [x] Check `uv --version` (minimum version requirement from architecture)
+  - [x] If not installed, provide installation guidance
 
-- [ ] Restructure directories to match new architecture (AC: Structure matches architecture)
-  - [ ] Create `packages/` directory at monorepo root
-  - [ ] Move `knowledge-pipeline/` → `packages/pipeline/`
-  - [ ] Move `knowledge-mcp/` → `packages/mcp-server/`
-  - [ ] Move `knowledge-store/` → `data/`
-  - [ ] Verify all existing files preserved after move
+- [x] Restructure directories to match new architecture (AC: Structure matches architecture)
+  - [x] Create `packages/` directory at monorepo root
+  - [x] Move `knowledge-pipeline/` → `packages/pipeline/`
+  - [x] Move `knowledge-mcp/` → `packages/mcp-server/`
+  - [x] Move `knowledge-store/` → `data/`
+  - [x] Verify all existing files preserved after move
 
-- [ ] Create packages/pipeline/pyproject.toml (AC: Both packages exist with pyproject.toml)
-  - [ ] Match structure of packages/mcp-server/pyproject.toml
-  - [ ] Include all dependencies from architecture: fastapi, uvicorn, pymongo, qdrant-client, sentence-transformers, pymupdf, pydantic, pydantic-settings
-  - [ ] Include dev dependencies: pytest, pytest-asyncio, ruff, mypy
-  - [ ] Set Python version requirement >=3.11
+- [x] Create packages/pipeline/pyproject.toml (AC: Both packages exist with pyproject.toml)
+  - [x] Match structure of packages/mcp-server/pyproject.toml
+  - [x] Include all dependencies from architecture: fastapi, uvicorn, pymongo, qdrant-client, sentence-transformers, pymupdf, pydantic, pydantic-settings
+  - [x] Include dev dependencies: pytest, pytest-asyncio, ruff, mypy
+  - [x] Set Python version requirement >=3.11
 
-- [ ] Initialize uv for packages/pipeline (AC: uv.lock exists)
-  - [ ] Run `cd packages/pipeline && uv python pin 3.11`
-  - [ ] Run `uv sync` to generate uv.lock and install dependencies
-  - [ ] Verify .venv created
+- [x] Initialize uv for packages/pipeline (AC: uv.lock exists)
+  - [x] Run `cd packages/pipeline && uv python pin 3.11`
+  - [x] Run `uv sync` to generate uv.lock and install dependencies
+  - [x] Verify .venv created
 
-- [ ] Initialize uv for packages/mcp-server (AC: uv.lock exists)
-  - [ ] Run `cd packages/mcp-server && uv python pin 3.11`
-  - [ ] Run `uv sync` to generate uv.lock and install dependencies
-  - [ ] Verify .venv created
+- [x] Initialize uv for packages/mcp-server (AC: uv.lock exists)
+  - [x] Run `cd packages/mcp-server && uv python pin 3.11`
+  - [x] Run `uv sync` to generate uv.lock and install dependencies
+  - [x] Verify .venv created
 
-- [ ] Create docker-compose.yaml at monorepo root (AC: Docker infrastructure)
-  - [ ] MongoDB service on port 27017
-  - [ ] Qdrant service on port 6333
-  - [ ] Volume persistence for both services
-  - [ ] Match architecture specification exactly
+- [x] Create docker-compose.yaml at monorepo root (AC: Docker infrastructure)
+  - [x] MongoDB service on port 27017
+  - [x] Qdrant service on port 6333
+  - [x] Volume persistence for both services
+  - [x] Match architecture specification exactly
 
-- [ ] Verify complete project structure (AC: Structure matches architecture)
-  - [ ] Verify all directories from architecture exist
-  - [ ] Verify both packages are installable
-  - [ ] Document any deviations from architecture
+- [x] Verify complete project structure (AC: Structure matches architecture)
+  - [x] Verify all directories from architecture exist
+  - [x] Verify both packages are installable
+  - [x] Document any deviations from architecture
 
-- [ ] Update .gitignore (AC: Clean git status)
-  - [ ] Add .venv/ (both packages)
-  - [ ] Add uv.lock (or commit, per team decision)
-  - [ ] Add .env files
-  - [ ] Add data/raw/ and data/processed/
+- [x] Update .gitignore (AC: Clean git status)
+  - [x] Add .venv/ (both packages)
+  - [x] Add uv.lock (or commit, per team decision)
+  - [x] Add .env files
+  - [x] Add data/raw/ and data/processed/
 
 ## Dev Notes
 
@@ -300,10 +300,10 @@ Test organization for FUTURE stories (not this story):
 - **Decision:** Move directories to new structure (`packages/pipeline/`, `packages/mcp-server/`, `data/`)
 - **Validation:** Ensure all existing files preserved after move
 
-**Issue 2: fastapi-mcp Version Mismatch**
-- **Current:** `packages/mcp-server/pyproject.toml` has `fastapi-mcp>=0.1.0`
+**Issue 2: fastapi-mcp Version Mismatch** ✅ RESOLVED
+- **Previous:** `packages/mcp-server/pyproject.toml` had `fastapi-mcp>=0.1.0`
 - **Architecture:** Specifies `fastapi-mcp>=0.4.0`
-- **Decision:** Flag for user review - may need update or architecture correction
+- **Resolution:** Fixed during code review - pyproject.toml now specifies correct versions per architecture.md:198-209
 
 **Issue 3: Git Tracking**
 - **Decision Needed:** Should `uv.lock` be committed or gitignored?
@@ -313,25 +313,77 @@ Test organization for FUTURE stories (not this story):
 
 ### Agent Model Used
 
-_To be filled by dev agent_
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
-_To be filled by dev agent_
+- uv version verified: 0.8.5
+- Both packages sync successfully with Python 3.11.13
+- docker-compose.yaml validates successfully
+- Docker daemon not running during test (expected on this system)
 
 ### Completion Notes List
 
-_To be filled by dev agent_
+1. **Directory Restructuring Complete**: Moved `knowledge-pipeline/` → `packages/pipeline/`, `knowledge-mcp/` → `packages/mcp-server/`, `knowledge-store/` → `data/`. All files preserved.
+
+2. **Pipeline Package Initialized**: Created `pyproject.toml` with all architecture-specified dependencies (fastapi>=0.115, sentence-transformers>=5.0, pymupdf, qdrant-client>=1.13, etc.). uv.lock generated with 60 packages installed.
+
+3. **MCP Server Package Initialized**: Existing `pyproject.toml` used. Created README.md (required by hatchling). uv.lock generated with 77 packages installed. Note: fastapi-mcp resolved to 0.4.0 (matching architecture spec) despite pyproject.toml specifying >=0.1.0.
+
+4. **Docker Compose Created**: MongoDB 7 on port 27017, Qdrant latest on ports 6333/6334, with volume persistence. Config validates successfully.
+
+5. **Gitignore Updated**: Added .venv/, __pycache__/, .env files, data subdirectories.
+
+6. **Issue 2 FIXED (Code Review)**: Updated `packages/mcp-server/pyproject.toml` with correct version constraints per architecture.md:198-209:
+   - `fastapi>=0.115` (was >=0.109.0)
+   - `fastapi-mcp>=0.4.0` (was >=0.1.0)
+   - `qdrant-client>=1.13` (was >=1.7.0)
+   - `pydantic>=2.0` (was >=2.5.0, relaxed to match architecture)
+   - Re-ran `uv sync` to regenerate lock file with correct constraints.
+
+7. **Decision on Issue 3 (uv.lock tracking)**: Lock files NOT gitignored - they should be committed for reproducibility per uv best practices.
+
+8. **Git State Cleaned (Code Review)**: Staged all changes properly so git recognizes renames instead of separate delete+add operations.
+
+9. **Note on data/embeddings/ directory**: This directory exists but is NOT in architecture.md. It's gitignored so no immediate issue, but should be added to architecture if intentional.
+
+### Change Log
+
+- 2025-12-30: Story implementation completed. All 8 tasks/subtasks marked complete. Directory restructured, both packages initialized with uv, docker-compose created, .gitignore updated.
+- 2025-12-30: **Code Review Fixes Applied** - Fixed mcp-server dependency versions, cleaned git state, verified docker-compose config.
 
 ### File List
 
-_To be filled by dev agent - list all files created/modified:_
-- packages/ (new directory)
-- packages/pipeline/ (moved from knowledge-pipeline/)
-- packages/pipeline/pyproject.toml (created)
-- packages/pipeline/uv.lock (created)
-- packages/mcp-server/ (moved from knowledge-mcp/)
-- packages/mcp-server/uv.lock (created)
-- data/ (moved from knowledge-store/)
-- docker-compose.yaml (created)
-- .gitignore (updated)
+**Created:**
+- packages/ (directory)
+- packages/pipeline/pyproject.toml
+- packages/pipeline/uv.lock
+- packages/pipeline/.python-version
+- packages/pipeline/.venv/ (directory with installed packages)
+- packages/pipeline/README.md
+- packages/mcp-server/uv.lock
+- packages/mcp-server/.python-version
+- packages/mcp-server/.venv/ (directory with installed packages)
+- packages/mcp-server/README.md
+- docker-compose.yaml
+- data/embeddings/ (directory - not in architecture, gitignored)
+- data/manifests/ (directory)
+- data/raw/ (directory, gitignored)
+- data/processed/ (directory, gitignored)
+
+**Moved (git tracks as renames):**
+- knowledge-pipeline/src/__init__.py → packages/pipeline/src/__init__.py
+- knowledge-pipeline/src/adapters/ → packages/pipeline/src/adapters/
+- knowledge-pipeline/src/extractors/ → packages/pipeline/src/extractors/
+- knowledge-pipeline/src/models/ → packages/pipeline/src/models/
+- knowledge-pipeline/src/processors/ → packages/pipeline/src/processors/
+- knowledge-pipeline/src/storage/ → packages/pipeline/src/storage/
+- knowledge-pipeline/scripts/ → packages/pipeline/scripts/
+- knowledge-mcp/pyproject.toml → packages/mcp-server/pyproject.toml
+- knowledge-mcp/src/__init__.py → packages/mcp-server/src/__init__.py
+- knowledge-mcp/src/tools/ → packages/mcp-server/src/tools/
+- knowledge-store/ → data/
+
+**Modified:**
+- .gitignore (added Python, env, and data patterns)
+- packages/mcp-server/pyproject.toml (fixed dependency versions during code review)

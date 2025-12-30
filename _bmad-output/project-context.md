@@ -2,7 +2,10 @@
 project_name: 'AI_engineering'
 user_name: 'Philippebeliveau'
 date: '2025-12-30'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality']
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules']
+status: 'complete'
+rule_count: 85
+optimized_for_llm: true
 ---
 
 # Project Context for AI Agents
@@ -173,3 +176,87 @@ print(f"Search completed: {query}")
 - Dates as ISO 8601 strings: `"2025-12-30T10:30:00Z"`
 - IDs as strings (MongoDB ObjectId compatibility)
 
+### Development Workflow Rules
+
+#### Package Management (uv)
+- ALWAYS use `uv run` - never `python` or `pip` directly
+- Never manually activate venv
+- Commit `uv.lock` files for reproducibility
+- Add dependencies: `uv add <package>`
+- Dev dependencies: `uv add --dev <package>`
+
+#### Local Development Commands
+```bash
+# Infrastructure
+docker-compose up -d              # Start MongoDB + Qdrant
+
+# Pipeline package
+cd packages/pipeline
+uv run scripts/ingest.py <file>   # Run ingestion
+uv run pytest                     # Run tests
+
+# MCP Server package
+cd packages/mcp-server
+uv run uvicorn src.server:app --reload  # Dev server
+```
+
+#### Environment Files
+- `.env` for local development (gitignored)
+- `.env.example` committed as template
+- Never commit secrets or API keys
+- Use `pydantic-settings` to load env vars
+
+#### Git Workflow
+- Commit lock files (`uv.lock`)
+- Gitignore: `.venv/`, `.env`, `data/raw/`, `data/processed/`
+- Track: `data/manifests/` (ingestion records)
+
+---
+
+## Critical Don't-Miss Rules
+
+### Anti-Patterns (NEVER DO)
+- NEVER write to databases from `packages/mcp-server` (read-only)
+- NEVER use `print()` - always `structlog`
+- NEVER hardcode connection strings - use Settings
+- NEVER return bare results - always wrap in `{results, metadata}`
+- NEVER catch bare `Exception` - use specific types
+- NEVER use `pip` or manual venv - always `uv run`
+- NEVER commit `.env` files or secrets
+
+### Edge Cases to Handle
+- Qdrant vectors MUST be exactly 384 dimensions
+- MongoDB ObjectIds → convert to strings in API responses
+- Every extraction MUST have `source_id` AND `chunk_id` for traceability
+- Empty search results → still return `{results: [], metadata: {...}}`
+
+### Security Rules
+- API keys in `X-API-Key` header only
+- Never log credentials or API keys
+- Rate limit public endpoints: 100 req/hr per IP
+- Validate all user input at API boundary
+
+### Schema Versioning
+- All documents include `schema_version` field
+- Check version on read, migrate if needed
+- Never break existing document structure without migration
+
+---
+
+## Usage Guidelines
+
+**For AI Agents:**
+- Read this file before implementing any code
+- Follow ALL rules exactly as documented
+- When in doubt, prefer the more restrictive option
+- Update this file if new patterns emerge
+
+**For Humans:**
+- Keep this file lean and focused on agent needs
+- Update when technology stack changes
+- Review quarterly for outdated rules
+- Remove rules that become obvious over time
+
+---
+
+_Last Updated: 2025-12-30_
