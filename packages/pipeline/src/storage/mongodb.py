@@ -1,0 +1,694 @@
+"""MongoDB storage client for knowledge base operations.
+
+This module provides a sync MongoDB client for the knowledge pipeline.
+pymongo is not async-native, so sync methods are used.
+"""
+
+from typing import Optional
+
+import structlog
+from bson import ObjectId
+from bson.errors import InvalidId
+from pymongo import ASCENDING, MongoClient
+from pymongo.database import Database
+from pymongo.errors import PyMongoError
+
+from src.config import settings
+from src.exceptions import NotFoundError, StorageError, ValidationError
+from src.models import Chunk, Extraction, Source
+
+logger = structlog.get_logger()
+
+
+class MongoDBClient:
+    """MongoDB client for knowledge base storage operations.
+
+    Sync MongoDB client - pymongo is not async-native.
+
+    Provides CRUD operations for sources, chunks, and extractions collections.
+    """
+
+    @staticmethod
+    def _validate_object_id(id_str: str, resource: str) -> ObjectId:
+        """Validate and convert string to ObjectId.
+
+        Args:
+            id_str: The string to convert to ObjectId.
+            resource: Resource name for error messages (e.g., 'source', 'chunk').
+
+        Returns:
+            Valid ObjectId.
+
+        Raises:
+            ValidationError: If id_str is not a valid 24-character hex string.
+        """
+        try:
+            return ObjectId(id_str)
+        except InvalidId as e:
+            raise ValidationError(
+                f"Invalid {resource} ID format: '{id_str}'",
+                details={"id": id_str, "resource": resource, "error": str(e)},
+            ) from e
+
+    def __init__(self, uri: str | None = None, database: str | None = None):
+        """Initialize MongoDB client.
+
+        Args:
+            uri: MongoDB connection URI. Defaults to settings.mongodb_uri.
+            database: Database name. Defaults to settings.mongodb_database.
+        """
+        self._uri = uri or settings.mongodb_uri
+        self._database_name = database or settings.mongodb_database
+        self._client: MongoClient | None = None
+        self._db: Database | None = None
+
+    def connect(self) -> None:
+        """Establish connection to MongoDB and ensure indexes."""
+        try:
+            self._client = MongoClient(self._uri)
+            self._db = self._client[self._database_name]
+            self._ensure_indexes()
+            logger.info("mongodb_connected", database=self._database_name)
+        except PyMongoError as e:
+            logger.error("mongodb_connection_failed", error=str(e))
+            raise StorageError("connect", {"error": str(e)}) from e
+
+    def close(self) -> None:
+        """Close MongoDB connection."""
+        if self._client:
+            self._client.close()
+            self._client = None
+            self._db = None
+            logger.info("mongodb_disconnected")
+
+    def ping(self) -> bool:
+        """Verify connection health.
+
+        Returns:
+            True if connection is healthy, False otherwise.
+        """
+        try:
+            if self._client is None:
+                return False
+            self._client.admin.command("ping")
+            return True
+        except PyMongoError:
+            return False
+
+    def __enter__(self) -> "MongoDBClient":
+        """Context manager entry."""
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        """Context manager exit."""
+        self.close()
+        return False
+
+    # =========================================================================
+    # Index Management
+    # =========================================================================
+
+    def _ensure_indexes(self) -> None:
+        """Create required indexes for all collections.
+
+        Creates indexes with background=True for non-blocking creation.
+        Index naming convention: idx_{collection}_{field}
+        """
+        if self._db is None:
+            raise StorageError("_ensure_indexes", {"error": "Not connected"})
+
+        try:
+            # Sources indexes
+            self._db.sources.create_index(
+                [("status", ASCENDING)],
+                name="idx_sources_status",
+                background=True,
+            )
+
+            # Chunks indexes
+            self._db.chunks.create_index(
+                [("source_id", ASCENDING)],
+                name="idx_chunks_source_id",
+                background=True,
+            )
+
+            # Extractions indexes
+            self._db.extractions.create_index(
+                [("type", ASCENDING), ("topics", ASCENDING)],
+                name="idx_extractions_type_topics",
+                background=True,
+            )
+            self._db.extractions.create_index(
+                [("source_id", ASCENDING)],
+                name="idx_extractions_source_id",
+                background=True,
+            )
+
+            logger.info("mongodb_indexes_ensured")
+        except PyMongoError as e:
+            logger.error("mongodb_index_creation_failed", error=str(e))
+            raise StorageError("_ensure_indexes", {"error": str(e)}) from e
+
+    # =========================================================================
+    # Sources CRUD Operations
+    # =========================================================================
+
+    def create_source(self, source: Source) -> str:
+        """Create a new source document.
+
+        Args:
+            source: Source model to insert.
+
+        Returns:
+            The inserted document's ObjectId as string.
+
+        Raises:
+            StorageError: If insertion fails.
+        """
+        if self._db is None:
+            raise StorageError("create_source", {"error": "Not connected"})
+
+        try:
+            doc = source.model_dump()
+            # Generate new ObjectId if not provided or replace the string id
+            doc["_id"] = ObjectId()
+            if "id" in doc:
+                del doc["id"]
+
+            result = self._db.sources.insert_one(doc)
+            source_id = str(result.inserted_id)
+            logger.info("source_created", source_id=source_id, type=source.type)
+            return source_id
+        except PyMongoError as e:
+            logger.error("source_creation_failed", error=str(e))
+            raise StorageError("create_source", {"error": str(e)}) from e
+
+    def get_source(self, source_id: str) -> Source:
+        """Get a source by ID.
+
+        Args:
+            source_id: The source ObjectId as string.
+
+        Returns:
+            The Source model.
+
+        Raises:
+            ValidationError: If source_id is not a valid ObjectId format.
+            NotFoundError: If source not found.
+            StorageError: If query fails.
+        """
+        if self._db is None:
+            raise StorageError("get_source", {"error": "Not connected"})
+
+        oid = self._validate_object_id(source_id, "source")
+
+        try:
+            doc = self._db.sources.find_one({"_id": oid})
+            if not doc:
+                raise NotFoundError("source", source_id)
+            # Convert MongoDB _id to string id for Pydantic model
+            doc["id"] = str(doc.pop("_id"))
+            return Source.model_validate(doc)
+        except NotFoundError:
+            raise
+        except PyMongoError as e:
+            logger.error("source_get_failed", source_id=source_id, error=str(e))
+            raise StorageError("get_source", {"error": str(e)}) from e
+
+    def update_source(self, source_id: str, updates: dict) -> Source:
+        """Update a source document.
+
+        Args:
+            source_id: The source ObjectId as string.
+            updates: Dictionary of fields to update (must not be empty).
+
+        Returns:
+            The updated Source model.
+
+        Raises:
+            ValidationError: If source_id is invalid or updates is empty.
+            NotFoundError: If source not found.
+            StorageError: If update fails.
+        """
+        if self._db is None:
+            raise StorageError("update_source", {"error": "Not connected"})
+
+        oid = self._validate_object_id(source_id, "source")
+
+        # Don't allow updating _id or id
+        updates.pop("_id", None)
+        updates.pop("id", None)
+
+        # Validate updates is not empty after removing protected fields
+        if not updates:
+            raise ValidationError(
+                "Updates dictionary cannot be empty",
+                details={"source_id": source_id},
+            )
+
+        try:
+            result = self._db.sources.update_one(
+                {"_id": oid},
+                {"$set": updates},
+            )
+            if result.matched_count == 0:
+                raise NotFoundError("source", source_id)
+
+            logger.info("source_updated", source_id=source_id, fields=list(updates.keys()))
+            return self.get_source(source_id)
+        except NotFoundError:
+            raise
+        except PyMongoError as e:
+            logger.error("source_update_failed", source_id=source_id, error=str(e))
+            raise StorageError("update_source", {"error": str(e)}) from e
+
+    def delete_source(self, source_id: str) -> bool:
+        """Delete a source document.
+
+        Args:
+            source_id: The source ObjectId as string.
+
+        Returns:
+            True if deleted, False if not found.
+
+        Raises:
+            ValidationError: If source_id is not a valid ObjectId format.
+            StorageError: If deletion fails.
+        """
+        if self._db is None:
+            raise StorageError("delete_source", {"error": "Not connected"})
+
+        oid = self._validate_object_id(source_id, "source")
+
+        try:
+            result = self._db.sources.delete_one({"_id": oid})
+            deleted = result.deleted_count > 0
+            if deleted:
+                logger.info("source_deleted", source_id=source_id)
+            return deleted
+        except PyMongoError as e:
+            logger.error("source_delete_failed", source_id=source_id, error=str(e))
+            raise StorageError("delete_source", {"error": str(e)}) from e
+
+    def list_sources(self, status: Optional[str] = None) -> list[Source]:
+        """List all sources with optional status filter.
+
+        Args:
+            status: Optional status to filter by.
+
+        Returns:
+            List of Source models.
+
+        Raises:
+            StorageError: If query fails.
+        """
+        if self._db is None:
+            raise StorageError("list_sources", {"error": "Not connected"})
+
+        try:
+            query = {}
+            if status:
+                query["status"] = status
+
+            sources = []
+            for doc in self._db.sources.find(query):
+                doc["id"] = str(doc.pop("_id"))
+                sources.append(Source.model_validate(doc))
+            return sources
+        except PyMongoError as e:
+            logger.error("sources_list_failed", error=str(e))
+            raise StorageError("list_sources", {"error": str(e)}) from e
+
+    # =========================================================================
+    # Chunks CRUD Operations
+    # =========================================================================
+
+    def create_chunk(self, chunk: Chunk) -> str:
+        """Create a new chunk document.
+
+        Args:
+            chunk: Chunk model to insert.
+
+        Returns:
+            The inserted document's ObjectId as string.
+
+        Raises:
+            StorageError: If insertion fails.
+        """
+        if self._db is None:
+            raise StorageError("create_chunk", {"error": "Not connected"})
+
+        try:
+            doc = chunk.model_dump()
+            doc["_id"] = ObjectId()
+            if "id" in doc:
+                del doc["id"]
+
+            result = self._db.chunks.insert_one(doc)
+            chunk_id = str(result.inserted_id)
+            logger.info("chunk_created", chunk_id=chunk_id, source_id=chunk.source_id)
+            return chunk_id
+        except PyMongoError as e:
+            logger.error("chunk_creation_failed", error=str(e))
+            raise StorageError("create_chunk", {"error": str(e)}) from e
+
+    def get_chunk(self, chunk_id: str) -> Chunk:
+        """Get a chunk by ID.
+
+        Args:
+            chunk_id: The chunk ObjectId as string.
+
+        Returns:
+            The Chunk model.
+
+        Raises:
+            ValidationError: If chunk_id is not a valid ObjectId format.
+            NotFoundError: If chunk not found.
+            StorageError: If query fails.
+        """
+        if self._db is None:
+            raise StorageError("get_chunk", {"error": "Not connected"})
+
+        oid = self._validate_object_id(chunk_id, "chunk")
+
+        try:
+            doc = self._db.chunks.find_one({"_id": oid})
+            if not doc:
+                raise NotFoundError("chunk", chunk_id)
+            doc["id"] = str(doc.pop("_id"))
+            return Chunk.model_validate(doc)
+        except NotFoundError:
+            raise
+        except PyMongoError as e:
+            logger.error("chunk_get_failed", chunk_id=chunk_id, error=str(e))
+            raise StorageError("get_chunk", {"error": str(e)}) from e
+
+    def get_chunks_by_source(self, source_id: str) -> list[Chunk]:
+        """Get all chunks for a source.
+
+        Args:
+            source_id: The source ObjectId as string.
+
+        Returns:
+            List of Chunk models.
+
+        Raises:
+            StorageError: If query fails.
+        """
+        if self._db is None:
+            raise StorageError("get_chunks_by_source", {"error": "Not connected"})
+
+        try:
+            chunks = []
+            for doc in self._db.chunks.find({"source_id": source_id}):
+                doc["id"] = str(doc.pop("_id"))
+                chunks.append(Chunk.model_validate(doc))
+            return chunks
+        except PyMongoError as e:
+            logger.error("chunks_by_source_failed", source_id=source_id, error=str(e))
+            raise StorageError("get_chunks_by_source", {"error": str(e)}) from e
+
+    def delete_chunks_by_source(self, source_id: str) -> int:
+        """Delete all chunks for a source.
+
+        Args:
+            source_id: The source ObjectId as string.
+
+        Returns:
+            Number of chunks deleted.
+
+        Raises:
+            StorageError: If deletion fails.
+        """
+        if self._db is None:
+            raise StorageError("delete_chunks_by_source", {"error": "Not connected"})
+
+        try:
+            result = self._db.chunks.delete_many({"source_id": source_id})
+            deleted_count = result.deleted_count
+            logger.info("chunks_deleted_by_source", source_id=source_id, count=deleted_count)
+            return deleted_count
+        except PyMongoError as e:
+            logger.error("chunks_delete_by_source_failed", source_id=source_id, error=str(e))
+            raise StorageError("delete_chunks_by_source", {"error": str(e)}) from e
+
+    def count_chunks_by_source(self, source_id: str) -> int:
+        """Count chunks for a source.
+
+        Args:
+            source_id: The source ObjectId as string.
+
+        Returns:
+            Number of chunks for the source.
+
+        Raises:
+            StorageError: If count fails.
+        """
+        if self._db is None:
+            raise StorageError("count_chunks_by_source", {"error": "Not connected"})
+
+        try:
+            return self._db.chunks.count_documents({"source_id": source_id})
+        except PyMongoError as e:
+            logger.error("chunks_count_by_source_failed", source_id=source_id, error=str(e))
+            raise StorageError("count_chunks_by_source", {"error": str(e)}) from e
+
+    # =========================================================================
+    # Extractions CRUD Operations
+    # =========================================================================
+
+    def create_extraction(self, extraction: Extraction) -> str:
+        """Create a new extraction document.
+
+        Args:
+            extraction: Extraction model to insert.
+
+        Returns:
+            The inserted document's ObjectId as string.
+
+        Raises:
+            StorageError: If insertion fails.
+        """
+        if self._db is None:
+            raise StorageError("create_extraction", {"error": "Not connected"})
+
+        try:
+            doc = extraction.model_dump()
+            doc["_id"] = ObjectId()
+            if "id" in doc:
+                del doc["id"]
+
+            result = self._db.extractions.insert_one(doc)
+            extraction_id = str(result.inserted_id)
+            logger.info(
+                "extraction_created",
+                extraction_id=extraction_id,
+                type=extraction.type,
+                source_id=extraction.source_id,
+            )
+            return extraction_id
+        except PyMongoError as e:
+            logger.error("extraction_creation_failed", error=str(e))
+            raise StorageError("create_extraction", {"error": str(e)}) from e
+
+    def get_extraction(self, extraction_id: str) -> Extraction:
+        """Get an extraction by ID.
+
+        Args:
+            extraction_id: The extraction ObjectId as string.
+
+        Returns:
+            The Extraction model.
+
+        Raises:
+            ValidationError: If extraction_id is not a valid ObjectId format.
+            NotFoundError: If extraction not found.
+            StorageError: If query fails.
+        """
+        if self._db is None:
+            raise StorageError("get_extraction", {"error": "Not connected"})
+
+        oid = self._validate_object_id(extraction_id, "extraction")
+
+        try:
+            doc = self._db.extractions.find_one({"_id": oid})
+            if not doc:
+                raise NotFoundError("extraction", extraction_id)
+            doc["id"] = str(doc.pop("_id"))
+            return Extraction.model_validate(doc)
+        except NotFoundError:
+            raise
+        except PyMongoError as e:
+            logger.error("extraction_get_failed", extraction_id=extraction_id, error=str(e))
+            raise StorageError("get_extraction", {"error": str(e)}) from e
+
+    def get_extractions_by_source(self, source_id: str) -> list[Extraction]:
+        """Get all extractions for a source.
+
+        Args:
+            source_id: The source ObjectId as string.
+
+        Returns:
+            List of Extraction models.
+
+        Raises:
+            StorageError: If query fails.
+        """
+        if self._db is None:
+            raise StorageError("get_extractions_by_source", {"error": "Not connected"})
+
+        try:
+            extractions = []
+            for doc in self._db.extractions.find({"source_id": source_id}):
+                doc["id"] = str(doc.pop("_id"))
+                extractions.append(Extraction.model_validate(doc))
+            return extractions
+        except PyMongoError as e:
+            logger.error("extractions_by_source_failed", source_id=source_id, error=str(e))
+            raise StorageError("get_extractions_by_source", {"error": str(e)}) from e
+
+    def get_extractions_by_type(
+        self, extraction_type: str, topics: Optional[list[str]] = None
+    ) -> list[Extraction]:
+        """Get extractions by type with optional topic filter.
+
+        Uses compound index on (type, topics) for efficient querying.
+
+        Args:
+            extraction_type: Type of extraction (decision, pattern, warning, etc.).
+            topics: Optional list of topics to filter by (matches any).
+
+        Returns:
+            List of Extraction models.
+
+        Raises:
+            StorageError: If query fails.
+        """
+        if self._db is None:
+            raise StorageError("get_extractions_by_type", {"error": "Not connected"})
+
+        try:
+            query = {"type": extraction_type}
+            if topics:
+                query["topics"] = {"$in": topics}
+
+            extractions = []
+            for doc in self._db.extractions.find(query):
+                doc["id"] = str(doc.pop("_id"))
+                extractions.append(Extraction.model_validate(doc))
+            return extractions
+        except PyMongoError as e:
+            logger.error(
+                "extractions_by_type_failed",
+                type=extraction_type,
+                topics=topics,
+                error=str(e),
+            )
+            raise StorageError("get_extractions_by_type", {"error": str(e)}) from e
+
+    def delete_extractions_by_source(self, source_id: str) -> int:
+        """Delete all extractions for a source.
+
+        Args:
+            source_id: The source ObjectId as string.
+
+        Returns:
+            Number of extractions deleted.
+
+        Raises:
+            StorageError: If deletion fails.
+        """
+        if self._db is None:
+            raise StorageError("delete_extractions_by_source", {"error": "Not connected"})
+
+        try:
+            result = self._db.extractions.delete_many({"source_id": source_id})
+            deleted_count = result.deleted_count
+            logger.info(
+                "extractions_deleted_by_source", source_id=source_id, count=deleted_count
+            )
+            return deleted_count
+        except PyMongoError as e:
+            logger.error(
+                "extractions_delete_by_source_failed", source_id=source_id, error=str(e)
+            )
+            raise StorageError("delete_extractions_by_source", {"error": str(e)}) from e
+
+    # =========================================================================
+    # Bulk Operations
+    # =========================================================================
+
+    def create_chunks_bulk(self, chunks: list[Chunk]) -> list[str]:
+        """Bulk insert multiple chunks.
+
+        Uses insert_many for efficient batch insertion.
+
+        Args:
+            chunks: List of Chunk models to insert.
+
+        Returns:
+            List of inserted ObjectIds as strings.
+
+        Raises:
+            StorageError: If bulk insertion fails.
+        """
+        if self._db is None:
+            raise StorageError("create_chunks_bulk", {"error": "Not connected"})
+
+        if not chunks:
+            return []
+
+        try:
+            docs = []
+            for chunk in chunks:
+                doc = chunk.model_dump()
+                doc["_id"] = ObjectId()
+                if "id" in doc:
+                    del doc["id"]
+                docs.append(doc)
+
+            result = self._db.chunks.insert_many(docs, ordered=False)
+            chunk_ids = [str(oid) for oid in result.inserted_ids]
+            logger.info("chunks_bulk_created", count=len(chunk_ids))
+            return chunk_ids
+        except PyMongoError as e:
+            logger.error("chunks_bulk_creation_failed", error=str(e))
+            raise StorageError("create_chunks_bulk", {"error": str(e)}) from e
+
+    def create_extractions_bulk(self, extractions: list[Extraction]) -> list[str]:
+        """Bulk insert multiple extractions.
+
+        Uses insert_many for efficient batch insertion.
+
+        Args:
+            extractions: List of Extraction models to insert.
+
+        Returns:
+            List of inserted ObjectIds as strings.
+
+        Raises:
+            StorageError: If bulk insertion fails.
+        """
+        if self._db is None:
+            raise StorageError("create_extractions_bulk", {"error": "Not connected"})
+
+        if not extractions:
+            return []
+
+        try:
+            docs = []
+            for extraction in extractions:
+                doc = extraction.model_dump()
+                doc["_id"] = ObjectId()
+                if "id" in doc:
+                    del doc["id"]
+                docs.append(doc)
+
+            result = self._db.extractions.insert_many(docs, ordered=False)
+            extraction_ids = [str(oid) for oid in result.inserted_ids]
+            logger.info("extractions_bulk_created", count=len(extraction_ids))
+            return extraction_ids
+        except PyMongoError as e:
+            logger.error("extractions_bulk_creation_failed", error=str(e))
+            raise StorageError("create_extractions_bulk", {"error": str(e)}) from e

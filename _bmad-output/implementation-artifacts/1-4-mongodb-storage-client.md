@@ -1,6 +1,6 @@
 # Story 1.4: MongoDB Storage Client
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -40,93 +40,93 @@ So that I can persist and retrieve knowledge base data from MongoDB.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Verify Prerequisites** (AC: Dependencies available)
-  - [ ] Confirm Story 1.1 complete: `ls packages/pipeline/pyproject.toml`
-  - [ ] Confirm Story 1.2 complete: `docker-compose ps` shows mongodb running
-  - [ ] Confirm Story 1.3 complete: `from src.models import Source, Chunk, Extraction` works
-  - [ ] Confirm pymongo installed: `cd packages/pipeline && uv run python -c "import pymongo; print(pymongo.version)"`
+- [x] **Task 1: Verify Prerequisites** (AC: Dependencies available)
+  - [x] Confirm Story 1.1 complete: `ls packages/pipeline/pyproject.toml`
+  - [x] Confirm Story 1.2 complete: `docker-compose ps` shows mongodb running
+  - [x] Confirm Story 1.3 complete: `from src.models import Source, Chunk, Extraction` works
+  - [x] Confirm pymongo installed: `cd packages/pipeline && uv run python -c "import pymongo; print(pymongo.version)"`
 
-- [ ] **Task 2: Create Storage Module Structure** (AC: Module exists)
-  - [ ] Create `packages/pipeline/src/storage/` directory
-  - [ ] Create `packages/pipeline/src/storage/__init__.py`
-  - [ ] Create `packages/pipeline/src/storage/mongodb.py`
+- [x] **Task 2: Create Storage Module Structure** (AC: Module exists)
+  - [x] Create `packages/pipeline/src/storage/` directory
+  - [x] Create `packages/pipeline/src/storage/__init__.py`
+  - [x] Create `packages/pipeline/src/storage/mongodb.py`
 
-- [ ] **Task 3: Create Exceptions Module** (AC: Error handling)
-  - [ ] Create `packages/pipeline/src/exceptions.py`
-  - [ ] Define `KnowledgeError` base exception with `code`, `message`, `details`
-  - [ ] Define `NotFoundError` for missing resources
-  - [ ] Define `StorageError` for database operation failures
-  - [ ] Define `ValidationError` for data validation failures
+- [x] **Task 3: Create Exceptions Module** (AC: Error handling)
+  - [x] Create `packages/pipeline/src/exceptions.py`
+  - [x] Define `KnowledgeError` base exception with `code`, `message`, `details`
+  - [x] Define `NotFoundError` for missing resources
+  - [x] Define `StorageError` for database operation failures
+  - [x] Define `ValidationError` for data validation failures
 
-- [ ] **Task 4: Create Configuration Module** (AC: Settings management)
-  - [ ] Create `packages/pipeline/src/config.py`
-  - [ ] Define `Settings` class using `pydantic_settings.BaseSettings`
-  - [ ] Add `mongodb_uri: str = "mongodb://localhost:27017"` field
-  - [ ] Add `mongodb_database: str = "knowledge_db"` field
-  - [ ] Load from `.env` file
-  - [ ] Export singleton: `settings = Settings()`
+- [x] **Task 4: Create Configuration Module** (AC: Settings management)
+  - [x] Create `packages/pipeline/src/config.py`
+  - [x] Define `Settings` class using `pydantic_settings.BaseSettings`
+  - [x] Add `mongodb_uri: str = "mongodb://localhost:27017"` field
+  - [x] Add `mongodb_database: str = "knowledge_db"` field
+  - [x] Load from `.env` file
+  - [x] Export singleton: `settings = Settings()`
 
-- [ ] **Task 5: Implement MongoDB Client Base** (AC: Client connects)
-  - [ ] Create `MongoDBClient` class in `mongodb.py`
-  - [ ] Implement `__init__(self, uri: str, database: str)` constructor
-  - [ ] Store `_client: MongoClient` and `_db: Database` as instance variables
-  - [ ] Implement `connect()` method to establish connection
-  - [ ] Implement `close()` method to close connection
-  - [ ] Implement `ping()` method to verify connection health
-  - [ ] Implement context manager (`__enter__`, `__exit__`) for connection management
+- [x] **Task 5: Implement MongoDB Client Base** (AC: Client connects)
+  - [x] Create `MongoDBClient` class in `mongodb.py`
+  - [x] Implement `__init__(self, uri: str, database: str)` constructor
+  - [x] Store `_client: MongoClient` and `_db: Database` as instance variables
+  - [x] Implement `connect()` method to establish connection
+  - [x] Implement `close()` method to close connection
+  - [x] Implement `ping()` method to verify connection health
+  - [x] Implement context manager (`__enter__`, `__exit__`) for connection management
 
-- [ ] **Task 6: Implement Index Creation** (AC: Compound indexes created)
-  - [ ] Implement `_ensure_indexes()` private method
-  - [ ] Create index on `sources.status` for status filtering
-  - [ ] Create index on `chunks.source_id` for source-based queries
-  - [ ] Create compound index on `extractions.type + extractions.topics` per architecture
-  - [ ] Create index on `extractions.source_id` for source-based queries
-  - [ ] Call `_ensure_indexes()` from `connect()` method
-  - [ ] Use `create_index()` with `background=True` for non-blocking creation
+- [x] **Task 6: Implement Index Creation** (AC: Compound indexes created)
+  - [x] Implement `_ensure_indexes()` private method
+  - [x] Create index on `sources.status` for status filtering
+  - [x] Create index on `chunks.source_id` for source-based queries
+  - [x] Create compound index on `extractions.type + extractions.topics` per architecture
+  - [x] Create index on `extractions.source_id` for source-based queries
+  - [x] Call `_ensure_indexes()` from `connect()` method
+  - [x] Use `create_index()` with `background=True` for non-blocking creation
 
-- [ ] **Task 7: Implement Sources CRUD Operations** (AC: Sources stored correctly)
-  - [ ] Implement `create_source(source: Source) -> str` - returns inserted ObjectId
-  - [ ] Implement `get_source(source_id: str) -> Source` - raises NotFoundError if missing
-  - [ ] Implement `update_source(source_id: str, updates: dict) -> Source` - partial update
-  - [ ] Implement `delete_source(source_id: str) -> bool` - returns success status
-  - [ ] Implement `list_sources(status: Optional[str] = None) -> list[Source]` - with optional filter
-  - [ ] Use Pydantic `model_dump()` for MongoDB insertion
-  - [ ] Use Pydantic `model_validate()` for document-to-model conversion
+- [x] **Task 7: Implement Sources CRUD Operations** (AC: Sources stored correctly)
+  - [x] Implement `create_source(source: Source) -> str` - returns inserted ObjectId
+  - [x] Implement `get_source(source_id: str) -> Source` - raises NotFoundError if missing
+  - [x] Implement `update_source(source_id: str, updates: dict) -> Source` - partial update
+  - [x] Implement `delete_source(source_id: str) -> bool` - returns success status
+  - [x] Implement `list_sources(status: Optional[str] = None) -> list[Source]` - with optional filter
+  - [x] Use Pydantic `model_dump()` for MongoDB insertion
+  - [x] Use Pydantic `model_validate()` for document-to-model conversion
 
-- [ ] **Task 8: Implement Chunks CRUD Operations** (AC: Chunks stored correctly)
-  - [ ] Implement `create_chunk(chunk: Chunk) -> str` - returns inserted ObjectId
-  - [ ] Implement `get_chunk(chunk_id: str) -> Chunk` - raises NotFoundError if missing
-  - [ ] Implement `get_chunks_by_source(source_id: str) -> list[Chunk]` - all chunks for source
-  - [ ] Implement `delete_chunks_by_source(source_id: str) -> int` - returns deleted count
-  - [ ] Implement `count_chunks_by_source(source_id: str) -> int` - returns count
-  - [ ] Use Pydantic models for validation
+- [x] **Task 8: Implement Chunks CRUD Operations** (AC: Chunks stored correctly)
+  - [x] Implement `create_chunk(chunk: Chunk) -> str` - returns inserted ObjectId
+  - [x] Implement `get_chunk(chunk_id: str) -> Chunk` - raises NotFoundError if missing
+  - [x] Implement `get_chunks_by_source(source_id: str) -> list[Chunk]` - all chunks for source
+  - [x] Implement `delete_chunks_by_source(source_id: str) -> int` - returns deleted count
+  - [x] Implement `count_chunks_by_source(source_id: str) -> int` - returns count
+  - [x] Use Pydantic models for validation
 
-- [ ] **Task 9: Implement Extractions CRUD Operations** (AC: Extractions stored correctly)
-  - [ ] Implement `create_extraction(extraction: Extraction) -> str` - returns inserted ObjectId
-  - [ ] Implement `get_extraction(extraction_id: str) -> Extraction` - raises NotFoundError if missing
-  - [ ] Implement `get_extractions_by_source(source_id: str) -> list[Extraction]` - all extractions for source
-  - [ ] Implement `get_extractions_by_type(type: str, topics: Optional[list[str]] = None) -> list[Extraction]`
-  - [ ] Implement `delete_extractions_by_source(source_id: str) -> int` - returns deleted count
-  - [ ] Use Pydantic models for validation
+- [x] **Task 9: Implement Extractions CRUD Operations** (AC: Extractions stored correctly)
+  - [x] Implement `create_extraction(extraction: Extraction) -> str` - returns inserted ObjectId
+  - [x] Implement `get_extraction(extraction_id: str) -> Extraction` - raises NotFoundError if missing
+  - [x] Implement `get_extractions_by_source(source_id: str) -> list[Extraction]` - all extractions for source
+  - [x] Implement `get_extractions_by_type(type: str, topics: Optional[list[str]] = None) -> list[Extraction]`
+  - [x] Implement `delete_extractions_by_source(source_id: str) -> int` - returns deleted count
+  - [x] Use Pydantic models for validation
 
-- [ ] **Task 10: Implement Bulk Operations** (AC: Efficient batch processing)
-  - [ ] Implement `create_chunks_bulk(chunks: list[Chunk]) -> list[str]` - batch insert
-  - [ ] Implement `create_extractions_bulk(extractions: list[Extraction]) -> list[str]` - batch insert
-  - [ ] Use `insert_many()` for efficient bulk operations
-  - [ ] Handle partial failures appropriately
+- [x] **Task 10: Implement Bulk Operations** (AC: Efficient batch processing)
+  - [x] Implement `create_chunks_bulk(chunks: list[Chunk]) -> list[str]` - batch insert
+  - [x] Implement `create_extractions_bulk(extractions: list[Extraction]) -> list[str]` - batch insert
+  - [x] Use `insert_many()` for efficient bulk operations
+  - [x] Handle partial failures appropriately
 
-- [ ] **Task 11: Create Module Exports** (AC: Clean imports)
-  - [ ] Export `MongoDBClient` from `packages/pipeline/src/storage/__init__.py`
-  - [ ] Verify imports work: `from src.storage import MongoDBClient`
+- [x] **Task 11: Create Module Exports** (AC: Clean imports)
+  - [x] Export `MongoDBClient` from `packages/pipeline/src/storage/__init__.py`
+  - [x] Verify imports work: `from src.storage import MongoDBClient`
 
-- [ ] **Task 12: Basic Client Tests** (AC: CRUD works)
-  - [ ] Create `packages/pipeline/tests/test_storage/` directory
-  - [ ] Create `packages/pipeline/tests/test_storage/conftest.py` with MongoDB fixtures
-  - [ ] Create `packages/pipeline/tests/test_storage/test_mongodb.py`
-  - [ ] Test connection/ping works
-  - [ ] Test CRUD operations for each collection
-  - [ ] Test error handling (NotFoundError, etc.)
-  - [ ] Document test results in completion notes
+- [x] **Task 12: Basic Client Tests** (AC: CRUD works)
+  - [x] Create `packages/pipeline/tests/test_storage/` directory
+  - [x] Create `packages/pipeline/tests/test_storage/conftest.py` with MongoDB fixtures
+  - [x] Create `packages/pipeline/tests/test_storage/test_mongodb.py`
+  - [x] Test connection/ping works
+  - [x] Test CRUD operations for each collection
+  - [x] Test error handling (NotFoundError, etc.)
+  - [x] Document test results in completion notes
 
 ## Dev Notes
 
@@ -492,18 +492,90 @@ MongoDB is available at:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+N/A - No debug issues encountered during implementation.
+
 ### Completion Notes List
+
+**Implementation Summary:**
+- Implemented complete MongoDB client with CRUD operations for sources, chunks, and extractions collections
+- Created structured exception hierarchy (KnowledgeError, NotFoundError, StorageError, ValidationError)
+- Created Settings class with pydantic-settings for configuration management
+- All indexes created per architecture specification:
+  - `idx_sources_status` on sources.status
+  - `idx_chunks_source_id` on chunks.source_id
+  - `idx_extractions_type_topics` compound index on extractions.type + topics
+  - `idx_extractions_source_id` on extractions.source_id
+- Proper MongoDB ObjectId to Pydantic string id conversion implemented
+- Context manager support for connection management
+- Bulk operations use `insert_many()` with `ordered=False` for efficient batch processing
+- All operations use structlog for structured logging
+
+**Test Results:**
+- 34 tests written covering all CRUD operations
+- All 34 tests pass (100%)
+- Test coverage includes:
+  - Connection management (connect, ping, context manager)
+  - Sources CRUD (create, get, update, delete, list with filter)
+  - Chunks CRUD (create, get, get_by_source, delete_by_source, count)
+  - Extractions CRUD (create, get, get_by_source, get_by_type with topic filter, delete)
+  - Bulk operations (create_chunks_bulk, create_extractions_bulk)
+  - Index verification
+  - Error handling (NotFoundError, StorageError)
+
+**Dependencies Verified:**
+- pymongo v4.15.5 installed and working
+- MongoDB running healthy on localhost:27017
+- Story 1.3 Pydantic models import successfully
+
+### Change Log
+
+- 2025-12-30: Initial implementation of MongoDB storage client (Story 1.4)
+- 2025-12-30: Code review fixes (H1, M1, M2, M3) - added validation, tests, fixed deprecation
 
 ### File List
 
-_To be filled by dev agent - list all files created/modified:_
-- packages/pipeline/src/config.py (CREATE)
-- packages/pipeline/src/exceptions.py (CREATE)
-- packages/pipeline/src/storage/__init__.py (CREATE)
-- packages/pipeline/src/storage/mongodb.py (CREATE)
-- packages/pipeline/tests/test_storage/conftest.py (CREATE)
-- packages/pipeline/tests/test_storage/test_mongodb.py (CREATE)
+- packages/pipeline/src/config.py (CREATE) - Settings class with pydantic-settings
+- packages/pipeline/src/exceptions.py (CREATE) - Custom exception hierarchy
+- packages/pipeline/src/storage/__init__.py (MODIFY) - Export MongoDBClient
+- packages/pipeline/src/storage/mongodb.py (CREATE) - MongoDB client with full CRUD
+- packages/pipeline/tests/test_storage/__init__.py (CREATE) - Test package init
+- packages/pipeline/tests/test_storage/conftest.py (CREATE) - MongoDB test fixtures
+- packages/pipeline/tests/test_storage/test_mongodb.py (CREATE) - 41 comprehensive tests (was 34)
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2025-12-30
+**Outcome:** ✅ Approved (with fixes applied)
+
+### Issues Found and Fixed
+
+| # | Severity | Issue | Resolution |
+|---|----------|-------|------------|
+| H1 | HIGH | Pydantic `class Config` deprecated | Migrated to `SettingsConfigDict` pattern |
+| M1 | MEDIUM | Invalid ObjectId throws raw bson error | Added `_validate_object_id()` helper, raises `ValidationError` |
+| M2 | MEDIUM | Empty updates dict not validated | Added validation in `update_source()` |
+| M3 | MEDIUM | Missing connection failure test | Added `test_connection_failure_bad_uri` |
+
+### Issues Noted (Not Fixed)
+
+| # | Severity | Issue | Reason |
+|---|----------|-------|--------|
+| M4 | MEDIUM | Qdrant exceptions in exceptions.py | Scope creep from Story 1.5, but leaving as-is to avoid breaking changes |
+| L1-L3 | LOW | Minor style/consistency issues | Not blocking, can address later |
+
+### Tests Summary
+
+- **Before review:** 34 tests
+- **After review:** 41 tests (+7 validation and error handling tests)
+- **All tests passing:** ✅
+
+### Code Quality
+
+- No linting errors (ruff check passes)
+- No deprecation warnings after fix
+- Architecture compliance verified
