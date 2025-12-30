@@ -51,7 +51,7 @@ development_status:
 
   # Epic 2: Document Ingestion Pipeline
   epic-2: in-progress
-  2-1-base-source-adapter-interface: in-progress
+  2-1-base-source-adapter-interface: review
   2-2-pdf-document-adapter: ready-for-dev
   2-3-markdown-document-adapter: ready-for-dev
   2-4-text-chunking-processor: ready-for-dev
