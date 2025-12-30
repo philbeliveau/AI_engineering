@@ -43,7 +43,7 @@ development_status:
   # Epic 1: Project Foundation & Development Environment
   epic-1: in-progress
   1-1-initialize-monorepo-structure: done
-  1-2-docker-compose-infrastructure-setup: ready-for-dev
+  1-2-docker-compose-infrastructure-setup: done
   1-3-pydantic-models-for-core-entities: ready-for-dev
   1-4-mongodb-storage-client: ready-for-dev
   1-5-qdrant-storage-client: ready-for-dev
@@ -64,17 +64,17 @@ development_status:
   3-1-base-extractor-interface-and-extraction-models: ready-for-dev
   3-2-decision-extractor: ready-for-dev
   3-3-pattern-extractor: ready-for-dev
-  3-4-warning-extractor: backlog
-  3-5-methodology-and-process-extractors: backlog
+  3-4-warning-extractor: ready-for-dev
+  3-5-methodology-and-process-extractors: ready-for-dev
   3-6-extraction-storage-and-embedding: backlog
-  3-7-extraction-pipeline-cli: backlog
+  3-7-extraction-pipeline-cli: ready-for-dev
   epic-3-retrospective: optional
 
   # Epic 4: Knowledge Query Interface (MCP Tools)
-  epic-4: backlog
-  4-1-fastapi-server-with-mcp-integration: backlog
-  4-2-semantic-search-tool-search-knowledge: backlog
-  4-3-extraction-query-tools-get-decisions-get-patterns-get-warnings: backlog
+  epic-4: in-progress
+  4-1-fastapi-server-with-mcp-integration: ready-for-dev
+  4-2-semantic-search-tool-search-knowledge: ready-for-dev
+  4-3-extraction-query-tools-get-decisions-get-patterns-get-warnings: ready-for-dev
   4-4-methodology-query-tool-get-methodologies: backlog
   4-5-source-management-tools-list-sources-compare-sources: backlog
   4-6-response-models-and-error-handling: backlog
