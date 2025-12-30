@@ -41,17 +41,17 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # Epic 1: Project Foundation & Development Environment
-  epic-1: in-progress
+  epic-1: done
   1-1-initialize-monorepo-structure: done
   1-2-docker-compose-infrastructure-setup: done
   1-3-pydantic-models-for-core-entities: done
-  1-4-mongodb-storage-client: ready-for-dev
-  1-5-qdrant-storage-client: ready-for-dev
+  1-4-mongodb-storage-client: done
+  1-5-qdrant-storage-client: done
   epic-1-retrospective: optional
 
   # Epic 2: Document Ingestion Pipeline
   epic-2: in-progress
-  2-1-base-source-adapter-interface: ready-for-dev
+  2-1-base-source-adapter-interface: in-progress
   2-2-pdf-document-adapter: ready-for-dev
   2-3-markdown-document-adapter: ready-for-dev
   2-4-text-chunking-processor: ready-for-dev

@@ -1,6 +1,6 @@
 # Story 1.5: Qdrant Storage Client
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -44,80 +44,80 @@ So that I can store embeddings and perform similarity searches on chunks and ext
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Verify Prerequisites** (AC: All dependencies available)
-  - [ ] Confirm Story 1.1 complete: `ls packages/pipeline/pyproject.toml`
-  - [ ] Confirm Story 1.2 complete: `docker-compose ps` shows Qdrant running
-  - [ ] Confirm Story 1.3 complete: `from src.models import Chunk, Extraction` works
-  - [ ] Confirm qdrant-client installed: `cd packages/pipeline && uv run python -c "from qdrant_client import QdrantClient; print('OK')"`
-  - [ ] Verify Qdrant accessible: `curl http://localhost:6333/collections`
+- [x] **Task 1: Verify Prerequisites** (AC: All dependencies available)
+  - [x] Confirm Story 1.1 complete: `ls packages/pipeline/pyproject.toml`
+  - [x] Confirm Story 1.2 complete: `docker-compose ps` shows Qdrant running
+  - [x] Confirm Story 1.3 complete: `from src.models import Chunk, Extraction` works
+  - [x] Confirm qdrant-client installed: `cd packages/pipeline && uv run python -c "from qdrant_client import QdrantClient; print('OK')"`
+  - [x] Verify Qdrant accessible: `curl http://localhost:6333/collections`
 
-- [ ] **Task 2: Create Storage Directory Structure** (AC: Module exists)
-  - [ ] Create `packages/pipeline/src/storage/` directory (if not exists)
-  - [ ] Create `packages/pipeline/src/storage/__init__.py`
-  - [ ] Create `packages/pipeline/src/storage/qdrant.py`
+- [x] **Task 2: Create Storage Directory Structure** (AC: Module exists)
+  - [x] Create `packages/pipeline/src/storage/` directory (if not exists)
+  - [x] Create `packages/pipeline/src/storage/__init__.py`
+  - [x] Create `packages/pipeline/src/storage/qdrant.py`
 
-- [ ] **Task 3: Implement Configuration** (AC: Settings pattern followed)
-  - [ ] Add Qdrant settings to config module or `packages/pipeline/src/config.py`
-  - [ ] Include `qdrant_url: str = "http://localhost:6333"` setting
-  - [ ] Include `qdrant_grpc_port: int = 6334` setting (optional, for gRPC mode)
-  - [ ] Use `pydantic_settings.BaseSettings` pattern per architecture
+- [x] **Task 3: Implement Configuration** (AC: Settings pattern followed)
+  - [x] Add Qdrant settings to config module or `packages/pipeline/src/config.py`
+  - [x] Include `qdrant_url: str = "http://localhost:6333"` setting
+  - [x] Include `qdrant_grpc_port: int = 6334` setting (optional, for gRPC mode)
+  - [x] Use `pydantic_settings.BaseSettings` pattern per architecture
 
-- [ ] **Task 4: Implement QdrantClient Wrapper** (AC: Client class exists)
-  - [ ] Create `QdrantStorageClient` class
-  - [ ] Implement `__init__` with connection to Qdrant
-  - [ ] Handle connection errors gracefully with structured error format
-  - [ ] Implement lazy initialization or connection pooling pattern
-  - [ ] Add health check method: `async def health_check() -> bool`
+- [x] **Task 4: Implement QdrantClient Wrapper** (AC: Client class exists)
+  - [x] Create `QdrantStorageClient` class
+  - [x] Implement `__init__` with connection to Qdrant
+  - [x] Handle connection errors gracefully with structured error format
+  - [x] Implement lazy initialization or connection pooling pattern
+  - [x] Add health check method: `async def health_check() -> bool`
 
-- [ ] **Task 5: Implement Collection Management** (AC: 384d vectors, Cosine distance)
-  - [ ] Implement `ensure_collection(collection_name: str)` method
-  - [ ] Configure vector size: 384 dimensions (all-MiniLM-L6-v2 output)
-  - [ ] Configure distance metric: Cosine
-  - [ ] Create `chunks` collection with proper configuration
-  - [ ] Create `extractions` collection with proper configuration
-  - [ ] Handle "collection already exists" gracefully (no error, just continue)
+- [x] **Task 5: Implement Collection Management** (AC: 384d vectors, Cosine distance)
+  - [x] Implement `ensure_collection(collection_name: str)` method
+  - [x] Configure vector size: 384 dimensions (all-MiniLM-L6-v2 output)
+  - [x] Configure distance metric: Cosine
+  - [x] Create `chunks` collection with proper configuration
+  - [x] Create `extractions` collection with proper configuration
+  - [x] Handle "collection already exists" gracefully (no error, just continue)
 
-- [ ] **Task 6: Implement Vector Upsert Operations** (AC: Upsert vectors)
-  - [ ] Implement `upsert_chunk_vector(chunk_id: str, vector: list[float], payload: dict)` method
-  - [ ] Implement `upsert_extraction_vector(extraction_id: str, vector: list[float], payload: dict)` method
-  - [ ] Validate vector dimensionality (must be 384)
-  - [ ] Payload must include: `{source_id, chunk_id, type, topics}` per architecture
-  - [ ] Implement batch upsert: `upsert_vectors_batch(collection: str, points: list[PointStruct])`
+- [x] **Task 6: Implement Vector Upsert Operations** (AC: Upsert vectors)
+  - [x] Implement `upsert_chunk_vector(chunk_id: str, vector: list[float], payload: dict)` method
+  - [x] Implement `upsert_extraction_vector(extraction_id: str, vector: list[float], payload: dict)` method
+  - [x] Validate vector dimensionality (must be 384)
+  - [x] Payload must include: `{source_id, chunk_id, type, topics}` per architecture
+  - [x] Implement batch upsert: `upsert_vectors_batch(collection: str, points: list[PointStruct])`
 
-- [ ] **Task 7: Implement Semantic Search** (AC: Ranked results with scores)
-  - [ ] Implement `search(collection: str, query_vector: list[float], limit: int = 10)` method
-  - [ ] Return results ranked by similarity score
-  - [ ] Include payload data in results
-  - [ ] Implement filtered search: `search_with_filter(collection, vector, filter_dict, limit)`
-  - [ ] Support filtering by: `source_id`, `type`, `topics`
+- [x] **Task 7: Implement Semantic Search** (AC: Ranked results with scores)
+  - [x] Implement `search(collection: str, query_vector: list[float], limit: int = 10)` method
+  - [x] Return results ranked by similarity score
+  - [x] Include payload data in results
+  - [x] Implement filtered search: `search_with_filter(collection, vector, filter_dict, limit)`
+  - [x] Support filtering by: `source_id`, `type`, `topics`
 
-- [ ] **Task 8: Implement Delete Operations** (AC: Cleanup support)
-  - [ ] Implement `delete_by_id(collection: str, point_id: str)` method
-  - [ ] Implement `delete_by_source(collection: str, source_id: str)` method
-  - [ ] Support batch delete operations
-  - [ ] Handle non-existent points gracefully
+- [x] **Task 8: Implement Delete Operations** (AC: Cleanup support)
+  - [x] Implement `delete_by_id(collection: str, point_id: str)` method
+  - [x] Implement `delete_by_source(collection: str, source_id: str)` method
+  - [x] Support batch delete operations
+  - [x] Handle non-existent points gracefully
 
-- [ ] **Task 9: Implement Error Handling** (AC: Structured errors)
-  - [ ] Create Qdrant-specific exception classes inheriting from `KnowledgeError`
-  - [ ] Implement `QdrantConnectionError` for connection failures
-  - [ ] Implement `QdrantCollectionError` for collection operations
-  - [ ] Implement `QdrantVectorError` for invalid vector operations
-  - [ ] All errors follow structured format: `{code, message, details}`
+- [x] **Task 9: Implement Error Handling** (AC: Structured errors)
+  - [x] Create Qdrant-specific exception classes inheriting from `KnowledgeError`
+  - [x] Implement `QdrantConnectionError` for connection failures
+  - [x] Implement `QdrantCollectionError` for collection operations
+  - [x] Implement `QdrantVectorError` for invalid vector operations
+  - [x] All errors follow structured format: `{code, message, details}`
 
-- [ ] **Task 10: Create Module Exports** (AC: Clean imports)
-  - [ ] Export `QdrantStorageClient` from `packages/pipeline/src/storage/__init__.py`
-  - [ ] Verify imports work: `from src.storage import QdrantStorageClient`
-  - [ ] Export any helper types/classes needed
+- [x] **Task 10: Create Module Exports** (AC: Clean imports)
+  - [x] Export `QdrantStorageClient` from `packages/pipeline/src/storage/__init__.py`
+  - [x] Verify imports work: `from src.storage import QdrantStorageClient`
+  - [x] Export any helper types/classes needed
 
-- [ ] **Task 11: Integration Tests** (AC: Both collections supported)
-  - [ ] Test connection to local Qdrant
-  - [ ] Test collection creation for `chunks` and `extractions`
-  - [ ] Test vector upsert with valid 384d vector
-  - [ ] Test vector upsert rejects non-384d vectors
-  - [ ] Test semantic search returns ranked results
-  - [ ] Test filtered search works correctly
-  - [ ] Test delete operations work correctly
-  - [ ] Document test results in completion notes
+- [x] **Task 11: Integration Tests** (AC: Both collections supported)
+  - [x] Test connection to local Qdrant
+  - [x] Test collection creation for `chunks` and `extractions`
+  - [x] Test vector upsert with valid 384d vector
+  - [x] Test vector upsert rejects non-384d vectors
+  - [x] Test semantic search returns ranked results
+  - [x] Test filtered search works correctly
+  - [x] Test delete operations work correctly
+  - [x] Document test results in completion notes
 
 ## Dev Notes
 
@@ -669,23 +669,82 @@ self.client.create_payload_index(
 
 ### Agent Model Used
 
-_To be filled by dev agent_
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
-_To be filled by dev agent_
+- Initial implementation had to handle Qdrant point ID format requirements (UUIDs or integers only)
+- Implemented deterministic UUID conversion using `uuid.uuid5()` for string IDs
+- Updated search API from deprecated `search()` to `query_points()` method in newer qdrant-client
 
 ### Completion Notes List
 
-_To be filled by dev agent_
+**All 11 tasks completed successfully:**
+
+1. ✅ Prerequisites verified: Story 1.1, 1.2, 1.3 complete; qdrant-client installed; Qdrant accessible
+2. ✅ Storage directory structure exists (from Story 1.4)
+3. ✅ Configuration added: `qdrant_grpc_port: int = 6334` to settings
+4. ✅ QdrantStorageClient class implemented with connection handling
+5. ✅ Collection management: `ensure_collection()` creates 384d Cosine collections, idempotent
+6. ✅ Vector upsert: `upsert_chunk_vector()`, `upsert_extraction_vector()`, batch upsert with validation
+7. ✅ Semantic search: `search()` and `search_with_filter()` with ranked results and payload filtering
+8. ✅ Delete operations: `delete_by_id()`, `delete_by_source()`, `delete_batch()`
+9. ✅ Error handling: `QdrantConnectionError`, `QdrantCollectionError`, `QdrantVectorError` exceptions
+10. ✅ Module exports: `QdrantStorageClient`, `VECTOR_SIZE`, `DISTANCE_METRIC`, `CHUNKS_COLLECTION`, `EXTRACTIONS_COLLECTION`
+11. ✅ Integration tests: 22 tests covering all functionality, all passing
+
+**Test Results:**
+```
+tests/test_storage/test_qdrant.py ...................... [100%]
+======================== 22 passed, 1 warning in 2.11s ========================
+```
+
+**Full Suite Regression:**
+```
+======================== 117 passed, 1 warning in 2.60s ========================
+```
+
+**Key Implementation Details:**
+- Used UUID5 (deterministic) for point ID conversion to ensure consistent mapping between string IDs and Qdrant UUIDs
+- Original string IDs stored in `_original_id` payload field for retrieval
+- Updated to use `query_points()` API (newer qdrant-client replaces deprecated `search()`)
+- Vector validation before Qdrant API calls to provide clear error messages
+- Structured error format: `{code, message, details}` as per architecture
 
 ### File List
 
-_To be filled by dev agent - list all files created/modified:_
-- packages/pipeline/src/storage/__init__.py (CREATE or UPDATE)
-- packages/pipeline/src/storage/qdrant.py (CREATE)
-- packages/pipeline/src/exceptions.py (UPDATE - add Qdrant exceptions)
-- packages/pipeline/src/config.py (UPDATE - add qdrant_url setting)
-- packages/pipeline/tests/test_storage/ (CREATE directory - optional)
-- packages/pipeline/tests/test_storage/conftest.py (CREATE - optional)
-- packages/pipeline/tests/test_storage/test_qdrant.py (CREATE - optional)
+**Created:**
+- `packages/pipeline/src/storage/qdrant.py` - QdrantStorageClient implementation (~517 lines)
+- `packages/pipeline/tests/test_storage/test_qdrant.py` - Integration tests (486 lines, 22 tests)
+
+**Updated:**
+- `packages/pipeline/src/storage/__init__.py` - Added Qdrant exports
+- `packages/pipeline/src/exceptions.py` - Added QdrantConnectionError, QdrantCollectionError, QdrantVectorError
+- `packages/pipeline/src/config.py` - Added qdrant_grpc_port setting, fixed Pydantic v2 deprecation
+- `packages/pipeline/tests/test_storage/conftest.py` - Added Qdrant fixtures, improved cleanup
+
+### Code Review Record
+
+**Reviewer:** Claude Opus 4.5 (Adversarial Code Review)
+**Date:** 2025-12-30
+**Issues Found:** 2 HIGH, 4 MEDIUM, 2 LOW
+
+**Fixes Applied:**
+
+| Issue | Severity | Fix |
+|-------|----------|-----|
+| Redundant `UnexpectedResponse` exception handling | HIGH | Removed duplicate catch block in `ensure_collection` |
+| Pydantic `class Config` deprecation | HIGH | Updated to `SettingsConfigDict` pattern |
+| Missing payload indexes for NFR1 | MEDIUM | Added `_create_payload_indexes()` for type/topics/source_id |
+| Async `health_check` with sync call | MEDIUM | Changed to sync method for consistency |
+| Test fixture missing real collection cleanup | MEDIUM | Added chunks/extractions to cleanup list |
+
+**Post-Review Test Results:**
+```
+tests/test_storage/test_qdrant.py ...................... [100%]
+======================== 22 passed in 2.11s ========================
+```
+
+**Not Fixed (LOW priority):**
+- Tests use `_upsert_vector` private method directly (refactoring risk)
+- Completion notes 117 vs 22 test count clarification (documentation only)
