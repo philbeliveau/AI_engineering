@@ -200,6 +200,28 @@ class TestUtilityMethods:
         # Should not raise
         minimal_adapter._validate_file_extension(valid_file)
 
+    def test_validate_result_success(self, minimal_adapter, tmp_path):
+        """Should return result unchanged for valid AdapterResult."""
+        result = AdapterResult(text="Hello", metadata={"title": "Test"})
+        validated = minimal_adapter._validate_result(result, tmp_path / "test.txt")
+        assert validated is result
+
+    def test_validate_result_wrong_type(self, minimal_adapter, tmp_path):
+        """Should raise TypeError for non-AdapterResult."""
+        with pytest.raises(TypeError) as exc_info:
+            minimal_adapter._validate_result("not a result", tmp_path / "test.txt")
+        assert "AdapterResult" in str(exc_info.value)
+
+    def test_validate_result_with_sections(self, minimal_adapter, tmp_path):
+        """Should accept AdapterResult with sections."""
+        result = AdapterResult(
+            text="Content",
+            metadata={"title": "Test"},
+            sections=[Section(title="Intro", content="Text")],
+        )
+        validated = minimal_adapter._validate_result(result, tmp_path / "test.txt")
+        assert len(validated.sections) == 1
+
 
 class TestAdapterRegistry:
     """Test adapter registry functionality."""
@@ -279,6 +301,25 @@ class TestAdapterRegistry:
         # Should use the new adapter
         adapter = registry.get_adapter(Path("file.txt"))
         assert isinstance(adapter, MinimalTestAdapter)
+
+    def test_register_rejects_non_adapter_class(self):
+        """Should raise TypeError when registering non-SourceAdapter class."""
+
+        class NotAnAdapter:
+            def extract_text(self):
+                pass
+
+        registry = AdapterRegistry()
+        with pytest.raises(TypeError) as exc_info:
+            registry.register(".bad", NotAnAdapter)
+        assert "SourceAdapter subclass" in str(exc_info.value)
+
+    def test_register_rejects_non_class(self):
+        """Should raise TypeError when registering non-class object."""
+        registry = AdapterRegistry()
+        with pytest.raises(TypeError) as exc_info:
+            registry.register(".bad", "not a class")
+        assert "SourceAdapter subclass" in str(exc_info.value)
 
 
 class TestExceptions:

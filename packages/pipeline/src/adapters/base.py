@@ -144,12 +144,25 @@ class SourceAdapter(ABC):
     SUPPORTED_EXTENSIONS: list[str] = []
 
     def __init__(self, config: Optional[AdapterConfig] = None):
-        """Initialize adapter with optional configuration.
+        """Initialize adapter with optional configuration. Sync function.
 
         Args:
             config: Adapter configuration. Uses defaults if not provided.
+
+        Warns:
+            If SUPPORTED_EXTENSIONS is empty, logs a warning as the adapter
+            won't match any files.
         """
         self.config = config or AdapterConfig()
+
+        # Warn if no extensions defined - adapter won't match any files
+        if not self.SUPPORTED_EXTENSIONS:
+            logger.warning(
+                "adapter_no_extensions",
+                adapter=self.__class__.__name__,
+                message="SUPPORTED_EXTENSIONS is empty - adapter won't match any files",
+            )
+
         logger.debug(
             "adapter_initialized",
             adapter=self.__class__.__name__,
@@ -158,7 +171,10 @@ class SourceAdapter(ABC):
 
     @abstractmethod
     def extract_text(self, file_path: Path) -> AdapterResult:
-        """Extract text content from a document.
+        """Extract text content from a document. Sync function - file I/O bound.
+
+        Implementations should call _validate_result() before returning to
+        ensure the result meets interface requirements.
 
         Args:
             file_path: Path to the document file.
@@ -175,7 +191,7 @@ class SourceAdapter(ABC):
 
     @abstractmethod
     def get_metadata(self, file_path: Path) -> dict:
-        """Extract metadata from a document.
+        """Extract metadata from a document. Sync function - file I/O bound.
 
         Args:
             file_path: Path to the document file.
@@ -197,7 +213,7 @@ class SourceAdapter(ABC):
 
     @abstractmethod
     def supports_file(self, file_path: Path) -> bool:
-        """Check if this adapter supports the given file.
+        """Check if this adapter supports the given file. Sync function - CPU bound.
 
         Args:
             file_path: Path to check.
@@ -212,7 +228,7 @@ class SourceAdapter(ABC):
     # ========================================================================
 
     def _normalize_whitespace(self, text: str) -> str:
-        """Normalize whitespace in text.
+        """Normalize whitespace in text. Sync function - CPU bound.
 
         - Collapses multiple spaces to single space
         - Collapses multiple newlines to double newline (paragraph break)
@@ -231,7 +247,7 @@ class SourceAdapter(ABC):
         return text.strip()
 
     def _extract_title_from_path(self, file_path: Path) -> str:
-        """Extract title from filename as fallback.
+        """Extract title from filename as fallback. Sync function - CPU bound.
 
         Args:
             file_path: Path to extract title from.
@@ -246,7 +262,7 @@ class SourceAdapter(ABC):
         return title.title()
 
     def _validate_file_exists(self, file_path: Path) -> None:
-        """Validate that file exists.
+        """Validate that file exists. Sync function - file I/O bound.
 
         Args:
             file_path: Path to validate.
@@ -260,7 +276,7 @@ class SourceAdapter(ABC):
             raise FileNotFoundError(f"Path is not a file: {file_path}")
 
     def _validate_file_extension(self, file_path: Path) -> None:
-        """Validate that file extension is supported.
+        """Validate that file extension is supported. Sync function - CPU bound.
 
         Args:
             file_path: Path to validate.
@@ -272,9 +288,12 @@ class SourceAdapter(ABC):
             raise UnsupportedFileError(file_path, self.SUPPORTED_EXTENSIONS)
 
     def _calculate_token_estimate(self, text: str) -> int:
-        """Estimate token count for text.
+        """Estimate token count for text. Sync function - CPU-bound.
 
         Uses rough heuristic: ~4 characters per token for English text.
+        Note: This approximation may be inaccurate for non-English text,
+        code, or whitespace-heavy content. For precise counts, use the
+        actual tokenizer from sentence-transformers.
 
         Args:
             text: Text to estimate tokens for.
@@ -284,6 +303,35 @@ class SourceAdapter(ABC):
         """
         # Rough estimate: 4 chars per token for English
         return len(text) // 4
+
+    def _validate_result(self, result: AdapterResult, file_path: Path) -> AdapterResult:
+        """Validate extraction result has correct type and required fields.
+
+        Subclasses should call this at the end of extract_text() to ensure
+        the result meets interface requirements.
+
+        Args:
+            result: The extraction result to validate.
+            file_path: Original file path (for error context).
+
+        Returns:
+            The validated result (unchanged).
+
+        Raises:
+            TypeError: If result is not an AdapterResult instance.
+            ValueError: If required fields are missing or invalid.
+        """
+        if not isinstance(result, AdapterResult):
+            raise TypeError(
+                f"extract_text must return AdapterResult, got {type(result).__name__}"
+            )
+        if not isinstance(result.text, str):
+            raise ValueError(f"AdapterResult.text must be str, got {type(result.text).__name__}")
+        if not isinstance(result.metadata, dict):
+            raise ValueError(
+                f"AdapterResult.metadata must be dict, got {type(result.metadata).__name__}"
+            )
+        return result
 
 
 # ============================================================================
@@ -317,7 +365,15 @@ class AdapterRegistry:
         Args:
             extension: File extension including dot (e.g., ".pdf")
             adapter_class: Adapter class to register.
+
+        Raises:
+            TypeError: If adapter_class is not a SourceAdapter subclass.
         """
+        # Runtime type validation - type hints alone don't enforce this
+        if not isinstance(adapter_class, type) or not issubclass(adapter_class, SourceAdapter):
+            raise TypeError(
+                f"adapter_class must be a SourceAdapter subclass, got {adapter_class!r}"
+            )
         ext = extension.lower()
         if ext in self._adapters:
             logger.warning(

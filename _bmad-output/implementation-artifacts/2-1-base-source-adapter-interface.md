@@ -1,6 +1,6 @@
 # Story 2.1: Base Source Adapter Interface
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -881,14 +881,61 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - **Task 8**: Created module exports in `__init__.py` with all classes, exceptions, and registry
 - **Task 9**: Created comprehensive test suite with 46 tests covering ABC behavior, concrete implementations, utilities, registry, exceptions, and data models
 
+### Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5 (Adversarial Code Review)
+**Date:** 2025-12-30
+**Outcome:** ✅ APPROVED (after fixes applied)
+
+**Issues Found:** 3 HIGH, 4 MEDIUM, 3 LOW
+
+**Fixes Applied (7 issues resolved):**
+
+1. **[HIGH FIXED]** AdapterRegistry.register() now validates adapter_class is SourceAdapter subclass
+   - Added runtime type check with TypeError on failure
+   - `base.py:324-328`
+
+2. **[HIGH FIXED]** Added `_validate_result()` utility for return type validation
+   - Subclasses should call this at end of extract_text()
+   - `base.py:307-333`
+
+3. **[HIGH FIXED]** Added pytest-cov to dev dependencies
+   - Now can run coverage reports: `uv run pytest --cov=src/adapters`
+   - `pyproject.toml:35`
+
+4. **[MEDIUM FIXED]** Token estimation docstring notes limitations for non-English text
+   - `base.py:290-302`
+
+5. **[MEDIUM FIXED]** Empty SUPPORTED_EXTENSIONS now logs warning
+   - Warns when adapter won't match any files
+   - `base.py:158-164`
+
+6. **[MEDIUM FIXED]** Added tests for registry type validation
+   - `test_register_rejects_non_adapter_class`, `test_register_rejects_non_class`
+   - `test_base.py:283-300`
+
+7. **[MEDIUM FIXED]** Added "Sync function" docstrings per project-context.md
+   - All methods now document sync/async nature
+   - Multiple locations in `base.py`
+
+**Remaining LOW Issues (not fixed):**
+- Title extraction edge cases (dates mangled) - minor
+- Module-level registry logs on import - intentional
+- No custom __repr__ on models - Pydantic defaults sufficient
+
+**Test Results:** 51 tests pass (5 new), 94% coverage
+**Linting:** All checks passed
+
 ### Change Log
 
+- 2025-12-30: Code review fixes - registry validation, result validation utility, sync docstrings, pytest-cov
 - 2025-12-30: Implemented base source adapter interface per NFR5 extensibility pattern
 
 ### File List
 
-- packages/pipeline/src/adapters/__init__.py (MODIFIED - was empty placeholder)
-- packages/pipeline/src/adapters/base.py (CREATE)
+- packages/pipeline/src/adapters/__init__.py (MODIFIED - exports added)
+- packages/pipeline/src/adapters/base.py (CREATE, REVIEW-MODIFIED - added validations)
 - packages/pipeline/tests/test_adapters/__init__.py (CREATE)
 - packages/pipeline/tests/test_adapters/conftest.py (CREATE)
-- packages/pipeline/tests/test_adapters/test_base.py (CREATE)
+- packages/pipeline/tests/test_adapters/test_base.py (CREATE, REVIEW-MODIFIED - 5 new tests)
+- packages/pipeline/pyproject.toml (REVIEW-MODIFIED - added pytest-cov)
