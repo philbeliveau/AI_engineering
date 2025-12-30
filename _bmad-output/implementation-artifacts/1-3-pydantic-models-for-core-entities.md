@@ -1,6 +1,6 @@
 # Story 1.3: Pydantic Models for Core Entities
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -37,80 +37,80 @@ So that I have type-safe data validation and serialization for all knowledge bas
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Verify Prerequisites** (AC: Pydantic installed)
-  - [ ] Confirm Story 1.1 complete: `ls packages/pipeline/pyproject.toml`
-  - [ ] Confirm pydantic installed: `cd packages/pipeline && uv run python -c "import pydantic; print(pydantic.__version__)"`
-  - [ ] Confirm pydantic version is >= 2.0
+- [x] **Task 1: Verify Prerequisites** (AC: Pydantic installed)
+  - [x] Confirm Story 1.1 complete: `ls packages/pipeline/pyproject.toml`
+  - [x] Confirm pydantic installed: `cd packages/pipeline && uv run python -c "import pydantic; print(pydantic.__version__)"`
+  - [x] Confirm pydantic version is >= 2.0
 
-- [ ] **Task 2: Create Models Directory Structure** (AC: Module exists)
-  - [ ] Create `packages/pipeline/src/models/` directory
-  - [ ] Create `packages/pipeline/src/models/__init__.py`
-  - [ ] Create `packages/pipeline/src/models/source.py`
-  - [ ] Create `packages/pipeline/src/models/chunk.py`
-  - [ ] Create `packages/pipeline/src/models/extraction.py`
-  - [ ] Create `packages/pipeline/src/__init__.py` if not exists
+- [x] **Task 2: Create Models Directory Structure** (AC: Module exists)
+  - [x] Create `packages/pipeline/src/models/` directory
+  - [x] Create `packages/pipeline/src/models/__init__.py`
+  - [x] Create `packages/pipeline/src/models/source.py`
+  - [x] Create `packages/pipeline/src/models/chunk.py`
+  - [x] Create `packages/pipeline/src/models/extraction.py`
+  - [x] Create `packages/pipeline/src/__init__.py` if not exists
 
-- [ ] **Task 3: Implement Source Model** (AC: Source validation per architecture)
-  - [ ] Define `Source` Pydantic BaseModel
-  - [ ] Add `id: str` field (MongoDB ObjectId as string)
-  - [ ] Add `type: str` field (enum: "book", "paper", "case_study")
-  - [ ] Add `title: str` field
-  - [ ] Add `authors: list[str]` field
-  - [ ] Add `path: str` field
-  - [ ] Add `ingested_at: datetime` field
-  - [ ] Add `status: str` field (enum: "pending", "processing", "complete", "failed")
-  - [ ] Add `metadata: dict` field (arbitrary JSON metadata)
-  - [ ] Add `schema_version: str` field with default value
+- [x] **Task 3: Implement Source Model** (AC: Source validation per architecture)
+  - [x] Define `Source` Pydantic BaseModel
+  - [x] Add `id: str` field (MongoDB ObjectId as string)
+  - [x] Add `type: str` field (enum: "book", "paper", "case_study")
+  - [x] Add `title: str` field
+  - [x] Add `authors: list[str]` field
+  - [x] Add `path: str` field
+  - [x] Add `ingested_at: datetime` field
+  - [x] Add `status: str` field (enum: "pending", "processing", "complete", "failed")
+  - [x] Add `metadata: dict` field (arbitrary JSON metadata)
+  - [x] Add `schema_version: str` field with default value
 
-- [ ] **Task 4: Implement Chunk Model** (AC: Chunk validation per architecture)
-  - [ ] Define `Chunk` Pydantic BaseModel
-  - [ ] Add `id: str` field (MongoDB ObjectId as string)
-  - [ ] Add `source_id: str` field (reference to sources._id)
-  - [ ] Add `content: str` field (the actual text)
-  - [ ] Add `position: dict` field with structure `{chapter, section, page}`
-  - [ ] Add `token_count: int` field
-  - [ ] Add `schema_version: str` field with default value
+- [x] **Task 4: Implement Chunk Model** (AC: Chunk validation per architecture)
+  - [x] Define `Chunk` Pydantic BaseModel
+  - [x] Add `id: str` field (MongoDB ObjectId as string)
+  - [x] Add `source_id: str` field (reference to sources._id)
+  - [x] Add `content: str` field (the actual text)
+  - [x] Add `position: dict` field with structure `{chapter, section, page}`
+  - [x] Add `token_count: int` field
+  - [x] Add `schema_version: str` field with default value
 
-- [ ] **Task 5: Implement Extraction Base Model** (AC: Extraction validation)
-  - [ ] Define `Extraction` Pydantic BaseModel (base for all extraction types)
-  - [ ] Add `id: str` field (MongoDB ObjectId as string)
-  - [ ] Add `source_id: str` field (reference to sources._id)
-  - [ ] Add `chunk_id: str` field (reference to chunks._id)
-  - [ ] Add `type: str` field (enum: "decision", "pattern", "warning", "methodology", "checklist", "persona", "workflow")
-  - [ ] Add `content: dict` field (type-specific structured data)
-  - [ ] Add `topics: list[str]` field (topic tags)
-  - [ ] Add `schema_version: str` field with default value
-  - [ ] Add `extracted_at: datetime` field
+- [x] **Task 5: Implement Extraction Base Model** (AC: Extraction validation)
+  - [x] Define `Extraction` Pydantic BaseModel (base for all extraction types)
+  - [x] Add `id: str` field (MongoDB ObjectId as string)
+  - [x] Add `source_id: str` field (reference to sources._id)
+  - [x] Add `chunk_id: str` field (reference to chunks._id)
+  - [x] Add `type: str` field (enum: "decision", "pattern", "warning", "methodology", "checklist", "persona", "workflow")
+  - [x] Add `content: dict` field (type-specific structured data)
+  - [x] Add `topics: list[str]` field (topic tags)
+  - [x] Add `schema_version: str` field with default value
+  - [x] Add `extracted_at: datetime` field
 
-- [ ] **Task 6: Implement Type-Specific Extraction Models** (AC: All extraction types)
-  - [ ] Define `Decision` content model: `question`, `options[]`, `considerations[]`, `recommended_approach`
-  - [ ] Define `Pattern` content model: `name`, `problem`, `solution`, `code_example`, `context`, `trade_offs`
-  - [ ] Define `Warning` content model: `title`, `description`, `symptoms`, `consequences`, `prevention`
-  - [ ] Define `Methodology` content model: `name`, `steps[]`, `prerequisites`, `outputs`
-  - [ ] Define `Checklist` content model: `name`, `items[]`, `context`
-  - [ ] Define `Persona` content model: `role`, `responsibilities`, `expertise`, `communication_style`
-  - [ ] Define `Workflow` content model: `name`, `trigger`, `steps[]`, `decision_points`
+- [x] **Task 6: Implement Type-Specific Extraction Models** (AC: All extraction types)
+  - [x] Define `Decision` content model: `question`, `options[]`, `considerations[]`, `recommended_approach`
+  - [x] Define `Pattern` content model: `name`, `problem`, `solution`, `code_example`, `context`, `trade_offs`
+  - [x] Define `Warning` content model: `title`, `description`, `symptoms`, `consequences`, `prevention`
+  - [x] Define `Methodology` content model: `name`, `steps[]`, `prerequisites`, `outputs`
+  - [x] Define `Checklist` content model: `name`, `items[]`, `context`
+  - [x] Define `Persona` content model: `role`, `responsibilities`, `expertise`, `communication_style`
+  - [x] Define `Workflow` content model: `name`, `trigger`, `steps[]`, `decision_points`
 
-- [ ] **Task 7: Configure JSON Serialization** (AC: snake_case field names)
-  - [ ] Verify Pydantic v2 `model_config` uses `alias_generator=None` or snake_case
-  - [ ] Add `model_config = ConfigDict(populate_by_name=True)` if needed
-  - [ ] Verify `model_dump()` produces snake_case output
-  - [ ] Verify `model_dump_json()` produces snake_case JSON
+- [x] **Task 7: Configure JSON Serialization** (AC: snake_case field names)
+  - [x] Verify Pydantic v2 `model_config` uses `alias_generator=None` or snake_case
+  - [x] Add `model_config = ConfigDict(populate_by_name=True)` if needed
+  - [x] Verify `model_dump()` produces snake_case output
+  - [x] Verify `model_dump_json()` produces snake_case JSON
 
-- [ ] **Task 8: Handle MongoDB ObjectId** (AC: ObjectId handled as strings)
-  - [ ] Create custom validator or type for MongoDB ObjectId strings
-  - [ ] Ensure ObjectId validation (24 hex characters) where applicable
-  - [ ] Document ObjectId handling pattern for other developers
+- [x] **Task 8: Handle MongoDB ObjectId** (AC: ObjectId handled as strings)
+  - [x] Create custom validator or type for MongoDB ObjectId strings
+  - [x] Ensure ObjectId validation (24 hex characters) where applicable
+  - [x] Document ObjectId handling pattern for other developers
 
-- [ ] **Task 9: Create Model Exports** (AC: Clean imports)
-  - [ ] Export all models from `packages/pipeline/src/models/__init__.py`
-  - [ ] Verify imports work: `from src.models import Source, Chunk, Extraction`
+- [x] **Task 9: Create Model Exports** (AC: Clean imports)
+  - [x] Export all models from `packages/pipeline/src/models/__init__.py`
+  - [x] Verify imports work: `from src.models import Source, Chunk, Extraction`
 
-- [ ] **Task 10: Basic Model Tests** (AC: Validation works)
-  - [ ] Create test instances of each model with valid data
-  - [ ] Verify validation fails for invalid data (wrong types, missing required fields)
-  - [ ] Verify schema_version is present on all serialized output
-  - [ ] Document test results in completion notes
+- [x] **Task 10: Basic Model Tests** (AC: Validation works)
+  - [x] Create test instances of each model with valid data
+  - [x] Verify validation fails for invalid data (wrong types, missing required fields)
+  - [x] Verify schema_version is present on all serialized output
+  - [x] Document test results in completion notes
 
 ## Dev Notes
 
@@ -425,25 +425,146 @@ def test_source_invalid_id():
 
 ### Agent Model Used
 
-_To be filled by dev agent_
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
-_To be filled by dev agent_
+- All 51 tests passing (0.18s)
+- Ruff linting: All checks passed
+- Pydantic version: 2.12.5
 
 ### Completion Notes List
 
-_To be filled by dev agent_
+**Implementation Summary:**
+
+1. **Source Model** (`source.py`):
+   - Full Pydantic v2 implementation with Literal types for `type` and `status` enums
+   - MongoDB ObjectId validation via `@field_validator` using regex pattern `^[a-f0-9]{24}$`
+   - Default `schema_version = "1.0"` on all instances
+   - `ConfigDict(populate_by_name=True)` for JSON serialization
+
+2. **Chunk Model** (`chunk.py`):
+   - `ChunkPosition` nested model for `{chapter, section, page}` structure
+   - ObjectId validation on both `id` and `source_id` fields
+   - Model validator to ensure `token_count` doesn't exceed content length
+   - Schema version and JSON config matching Source model
+
+3. **Extraction Model** (`extraction.py`):
+   - Base `Extraction` model with Union content type supporting all 7 extraction types
+   - 7 type-specific content models: `DecisionContent`, `PatternContent`, `WarningContent`, `MethodologyContent`, `ChecklistContent`, `PersonaContent`, `WorkflowContent`
+   - 7 typed extraction convenience classes: `DecisionExtraction`, `PatternExtraction`, etc.
+   - ObjectId validation on `id`, `source_id`, and `chunk_id` fields
+
+4. **Testing:**
+   - 51 comprehensive tests covering:
+     - Valid model creation with complete and minimal fields
+     - All enum variations (types, statuses)
+     - Invalid ObjectId rejection (wrong format, too short, uppercase)
+     - Invalid enum value rejection
+     - Empty required field rejection
+     - JSON serialization snake_case verification
+     - Schema version presence in all outputs
+     - All 7 content models and typed extractions
+
+5. **Architecture Compliance:**
+   - All models use PascalCase class names ✓
+   - All fields use snake_case ✓
+   - schema_version present on Source, Chunk, Extraction ✓
+   - MongoDB ObjectIds as validated strings ✓
+   - JSON serialization produces snake_case ✓
+   - Files in packages/pipeline/src/models/ ✓
+   - Pydantic v2 patterns (BaseModel, ConfigDict, field_validator) ✓
 
 ### File List
 
-_To be filled by dev agent - list all files created/modified:_
-- packages/pipeline/src/__init__.py (CREATE if not exists)
-- packages/pipeline/src/models/__init__.py (CREATE)
+**Created:**
+- packages/pipeline/src/models/__init__.py (MODIFIED - added exports)
 - packages/pipeline/src/models/source.py (CREATE)
 - packages/pipeline/src/models/chunk.py (CREATE)
 - packages/pipeline/src/models/extraction.py (CREATE)
-- packages/pipeline/tests/test_models/ (CREATE directory - optional)
-- packages/pipeline/tests/test_models/test_source.py (CREATE - optional)
-- packages/pipeline/tests/test_models/test_chunk.py (CREATE - optional)
-- packages/pipeline/tests/test_models/test_extraction.py (CREATE - optional)
+- packages/pipeline/tests/test_models/__init__.py (CREATE)
+- packages/pipeline/tests/test_models/conftest.py (CREATE)
+- packages/pipeline/tests/test_models/test_source.py (CREATE)
+- packages/pipeline/tests/test_models/test_chunk.py (CREATE)
+- packages/pipeline/tests/test_models/test_extraction.py (CREATE)
+
+## Senior Developer Review (AI)
+
+### Review Date: 2025-12-30
+### Reviewer: Claude Opus 4.5 (Adversarial Code Review)
+
+**Review Outcome: APPROVED (after fixes applied)**
+
+### Issues Found and Fixed
+
+**HIGH Severity (2 issues - FIXED):**
+
+1. **H1: Content-Type Mismatch in Base Extraction Model** (`extraction.py:222-249`)
+   - **Issue:** Base `Extraction` class allowed type/content schema mismatches
+   - **Fix:** Added `model_validator` to verify content structure matches extraction type
+   - **Impact:** Prevents data integrity issues when querying by type
+
+2. **H2: ChunkPosition Allows Negative Page Numbers** (`chunk.py:26`)
+   - **Issue:** `page` field accepted negative values
+   - **Fix:** Added `Field(default=None, ge=1)` constraint
+   - **Impact:** Prevents invalid position data
+
+**MEDIUM Severity (4 issues - 3 FIXED, 1 SKIPPED):**
+
+1. **M1: Empty/Whitespace Strings in Authors List** (`source.py:52-56`)
+   - **Fix:** Added `validate_authors` field validator to filter and trim
+
+2. **M2: No Maximum Length on String Fields** (`source.py:36-38`, `chunk.py:48`)
+   - **Fix:** Added `max_length=500` for title, `max_length=1000` for path, `max_length=50000` for content
+
+3. **M3: Module `__all__` Export Mismatch** - SKIPPED
+   - **Reason:** Intentional design - submodules not meant for direct import
+
+4. **M4: Future Dates Allowed for `ingested_at`** (`source.py:58-67`)
+   - **Fix:** Added validator rejecting future dates (5-minute tolerance for clock skew)
+
+**LOW Severity (3 issues - NOT FIXED, documented):**
+
+1. **L1:** Duplicate `CURRENT_SCHEMA_VERSION` constants (maintenance burden)
+2. **L2:** No docs for raw dict content in Union type
+3. **L3:** Missing edge case test for same ObjectId reuse
+
+### Test Coverage Update
+
+- **Before review:** 51 tests passing
+- **After review:** 61 tests passing (+10 new tests)
+- **New tests added:**
+  - `test_source_empty_authors_filtered`
+  - `test_source_authors_whitespace_trimmed`
+  - `test_source_title_max_length`
+  - `test_source_path_max_length`
+  - `test_source_future_date_rejected`
+  - `test_chunk_content_max_length`
+  - `test_position_negative_page_rejected`
+  - `test_position_zero_page_rejected`
+  - `test_position_valid_page`
+  - `test_extraction_content_type_mismatch_rejected`
+
+### Files Modified in Review
+
+- `packages/pipeline/src/models/source.py` - Added author validation, future date validation, max_length constraints
+- `packages/pipeline/src/models/chunk.py` - Added page >=1 constraint, content max_length
+- `packages/pipeline/src/models/extraction.py` - Added content-type mismatch validator
+- `packages/pipeline/tests/test_models/test_source.py` - Added 5 new tests
+- `packages/pipeline/tests/test_models/test_chunk.py` - Added 4 new tests
+- `packages/pipeline/tests/test_models/test_extraction.py` - Added 1 new test, fixed existing test
+
+### Verification
+
+```
+$ uv run pytest tests/test_models -v
+61 passed in 0.21s
+
+$ uv run ruff check src/models/ tests/test_models/
+All checks passed!
+```
+
+## Change Log
+
+- 2025-12-30: Implemented Pydantic models for Source, Chunk, and Extraction entities with full validation, type-specific content models, and comprehensive test suite (51 tests passing)
+- 2025-12-30: Code review completed - 5 issues fixed, 10 new tests added, all 61 tests passing
