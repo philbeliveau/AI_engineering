@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/.d7ee729a0a29199d2308dc256f925e9cbaaa42d0-audit.json",
+    "files": [
+        {
+            "date": 1767108186314,
+            "name": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/mcp-puppeteer-2025-12-30.log",
+            "hash": "68565fd83c5180fab2b6827784daf58d3c0402543c295e0987f1f4ed4880ca09"
+        }
+    ],
+    "hashType": "sha256"
+}

@@ -1,0 +1,337 @@
+# Story 1.1: Initialize Monorepo Structure
+
+Status: ready-for-dev
+
+<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+
+## Story
+
+As a **developer**,
+I want to initialize the monorepo with both `packages/pipeline` and `packages/mcp-server` packages using uv,
+So that I have a properly structured project with all dependencies installed and ready for development.
+
+## Acceptance Criteria
+
+**Given** a fresh directory for the project
+**When** I run the initialization commands from the architecture doc
+**Then** both `packages/pipeline` and `packages/mcp-server` directories exist with `pyproject.toml` and `uv.lock`
+**And** all dependencies are installed (fastapi, pymongo, qdrant-client, sentence-transformers, etc.)
+**AND** the project structure matches the architecture specification
+
+## Current State Analysis
+
+**CRITICAL DISCOVERY:** Partial monorepo structure already exists but needs restructuring!
+
+**Current State (Old Structure):**
+- ✅ `knowledge-pipeline/` directory exists with `src/` and `scripts/` subdirectories
+- ✅ `knowledge-mcp/` directory exists with `src/` subdirectory
+- ✅ `knowledge-mcp/pyproject.toml` exists with dependencies defined
+- ✅ `knowledge-store/` directory exists (data directory)
+
+**Required Changes (New Structure):**
+- 🔄 Move `knowledge-pipeline/` → `packages/pipeline/`
+- 🔄 Move `knowledge-mcp/` → `packages/mcp-server/`
+- 🔄 Move `knowledge-store/` → `data/`
+- ❌ `packages/pipeline/pyproject.toml` **MISSING**
+- ❌ `uv.lock` files **MISSING** in both packages
+- ❌ `docker-compose.yaml` **MISSING** at monorepo root
+- ❌ Dependencies **NOT INSTALLED** (no lock files)
+- ❌ Python version **NOT PINNED** (no uv.lock)
+
+**Git Status:**
+- One initial commit: `bc247ce first commit`
+- Project is tracked in git
+
+## Tasks / Subtasks
+
+- [ ] Verify uv is installed (AC: System-level)
+  - [ ] Check `uv --version` (minimum version requirement from architecture)
+  - [ ] If not installed, provide installation guidance
+
+- [ ] Restructure directories to match new architecture (AC: Structure matches architecture)
+  - [ ] Create `packages/` directory at monorepo root
+  - [ ] Move `knowledge-pipeline/` → `packages/pipeline/`
+  - [ ] Move `knowledge-mcp/` → `packages/mcp-server/`
+  - [ ] Move `knowledge-store/` → `data/`
+  - [ ] Verify all existing files preserved after move
+
+- [ ] Create packages/pipeline/pyproject.toml (AC: Both packages exist with pyproject.toml)
+  - [ ] Match structure of packages/mcp-server/pyproject.toml
+  - [ ] Include all dependencies from architecture: fastapi, uvicorn, pymongo, qdrant-client, sentence-transformers, pymupdf, pydantic, pydantic-settings
+  - [ ] Include dev dependencies: pytest, pytest-asyncio, ruff, mypy
+  - [ ] Set Python version requirement >=3.11
+
+- [ ] Initialize uv for packages/pipeline (AC: uv.lock exists)
+  - [ ] Run `cd packages/pipeline && uv python pin 3.11`
+  - [ ] Run `uv sync` to generate uv.lock and install dependencies
+  - [ ] Verify .venv created
+
+- [ ] Initialize uv for packages/mcp-server (AC: uv.lock exists)
+  - [ ] Run `cd packages/mcp-server && uv python pin 3.11`
+  - [ ] Run `uv sync` to generate uv.lock and install dependencies
+  - [ ] Verify .venv created
+
+- [ ] Create docker-compose.yaml at monorepo root (AC: Docker infrastructure)
+  - [ ] MongoDB service on port 27017
+  - [ ] Qdrant service on port 6333
+  - [ ] Volume persistence for both services
+  - [ ] Match architecture specification exactly
+
+- [ ] Verify complete project structure (AC: Structure matches architecture)
+  - [ ] Verify all directories from architecture exist
+  - [ ] Verify both packages are installable
+  - [ ] Document any deviations from architecture
+
+- [ ] Update .gitignore (AC: Clean git status)
+  - [ ] Add .venv/ (both packages)
+  - [ ] Add uv.lock (or commit, per team decision)
+  - [ ] Add .env files
+  - [ ] Add data/raw/ and data/processed/
+
+## Dev Notes
+
+### Project Structure Context
+
+This is **Epic 1, Story 1** - the foundational story that establishes the entire development environment. All subsequent stories depend on this setup being correct.
+
+**Target Monorepo Architecture (New Structure):**
+```
+ai-engineering-knowledge/              # Monorepo root (CURRENT DIRECTORY)
+├── docker-compose.yaml                # ❌ TO CREATE
+├── packages/                          # ❌ TO CREATE
+│   ├── pipeline/                      # 🔄 MOVE from knowledge-pipeline/
+│   │   ├── pyproject.toml             # ❌ TO CREATE
+│   │   ├── uv.lock                    # ❌ TO CREATE (via uv sync)
+│   │   ├── .venv/                     # ❌ TO CREATE (via uv sync)
+│   │   ├── src/                       # ✅ EXISTS (empty)
+│   │   └── scripts/                   # ✅ EXISTS (empty)
+│   └── mcp-server/                    # 🔄 MOVE from knowledge-mcp/
+│       ├── pyproject.toml             # ✅ EXISTS (needs move)
+│       ├── uv.lock                    # ❌ TO CREATE (via uv sync)
+│       ├── .venv/                     # ❌ TO CREATE (via uv sync)
+│       └── src/                       # ✅ EXISTS (has some files)
+└── data/                              # 🔄 MOVE from knowledge-store/
+```
+
+**Reference Template:** `packages/mcp-server/pyproject.toml` (after move) is correctly structured. Use it as a reference for creating `packages/pipeline/pyproject.toml`.
+
+### Critical Architecture Requirements
+
+**From Architecture Document (architecture.md:213-227):**
+
+**packages/pipeline initialization:**
+```bash
+cd packages/pipeline
+uv init && uv python pin 3.11
+uv add fastapi uvicorn pymongo qdrant-client sentence-transformers pymupdf pydantic pydantic-settings
+uv add --dev pytest pytest-asyncio ruff mypy
+```
+
+**packages/mcp-server initialization:**
+```bash
+cd packages/mcp-server
+uv init && uv python pin 3.11
+uv add fastapi fastapi-mcp uvicorn qdrant-client pymongo
+uv add --dev pytest
+```
+
+**⚠️ CRITICAL:** The architecture specifies exact dependencies. Do NOT deviate without architectural justification.
+
+### Dependency Version Requirements
+
+**From Architecture Document (architecture.md:198-209):**
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| Python | 3.11+ | Runtime |
+| fastapi | >=0.115 | API framework |
+| fastapi-mcp | >=0.4.0 | MCP protocol layer (mcp-server only) |
+| qdrant-client | >=1.13 | Vector storage |
+| sentence-transformers | >=5.0 | Local embeddings (pipeline only) |
+| pymongo | latest | MongoDB client |
+| pymupdf | latest | PDF parsing (pipeline only) |
+| pydantic | >=2.0 | Data validation |
+| uv | latest | Package management |
+
+**⚠️ CRITICAL CONFLICT DETECTED:**
+- `packages/mcp-server/pyproject.toml` uses `fastapi-mcp>=0.1.0`
+- Architecture specifies `fastapi-mcp>=0.4.0`
+
+**DECISION REQUIRED:** Determine if this is intentional or needs update.
+
+### Docker Compose Configuration
+
+**From Architecture Document (architecture.md:783-786):**
+
+Docker Compose services required:
+- `mongodb`: MongoDB 7 on port 27017
+- `qdrant`: Qdrant latest on port 6333
+
+**Reference Implementation:**
+```yaml
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: knowledge_db
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  mongodb_data:
+  qdrant_data:
+```
+
+### Architecture Compliance Checklist
+
+**Python Package Manager (uv):**
+- ✅ Use `uv` for all dependency management (architecture.md:160-165)
+- ✅ Generate lockfiles for reproducible environments
+- ✅ Use `uv run` pattern (eliminates manual venv management)
+- ✅ Pin Python 3.11+ with `uv python pin 3.11`
+
+**Project Structure (architecture.md:591-723):**
+- ✅ Dual-package pattern: `packages/pipeline` (batch) + `packages/mcp-server` (server)
+- ✅ Separate `src/` directories in each package
+- ✅ Tests mirror `src/` structure (future stories)
+- ✅ Scripts in `packages/pipeline/scripts/`
+- ✅ Data directory `data/` at root
+
+**Naming Conventions (architecture.md:408-432):**
+- ✅ Files/modules: `snake_case.py`
+- ✅ Classes: `PascalCase`
+- ✅ Functions/variables: `snake_case`
+- ✅ Constants: `UPPER_SNAKE_CASE`
+
+### Package Boundary Understanding
+
+**From Architecture Document (architecture.md:729-748):**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    packages/pipeline (batch)                         │
+│  Adapters ──▶ Processors ──▶ Extractors ──▶ Storage (write)         │
+└─────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+              ┌──────────┐                   ┌──────────┐
+              │ MongoDB  │                   │  Qdrant  │
+              └────┬─────┘                   └────┬─────┘
+                    │                               │
+                    └───────────────┬───────────────┘
+                                    │
+┌───────────────────────────────────┼─────────────────────────────────┐
+│                                   ▼                                  │
+│                    packages/mcp-server (server)                      │
+│  Middleware ──▶ Tools ──▶ Storage (read) ──▶ FastAPI-MCP            │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Package Purpose:**
+- `packages/pipeline`: Batch ingestion and extraction (WRITE to databases)
+- `packages/mcp-server`: Real-time query server (READ from databases)
+- Shared infrastructure: MongoDB + Qdrant
+
+**Dependency Differences:**
+- `packages/pipeline`: Needs `sentence-transformers` (local embeddings), `pymupdf` (PDF parsing)
+- `packages/mcp-server`: Needs `fastapi-mcp` (MCP protocol), `fastembed` (search)
+
+### Testing Standards
+
+**From Architecture Document (architecture.md:456-462):**
+
+Test organization for FUTURE stories (not this story):
+- Tests in separate `tests/` directory
+- Mirror `src/` structure
+- Test files prefixed: `test_*.py`
+- Shared fixtures in `conftest.py`
+
+**This story:** No tests required (infrastructure setup only)
+
+### Implementation Sequence
+
+**CRITICAL ORDER:**
+
+1. **First:** Verify uv installation
+2. **Second:** Restructure directories (`packages/pipeline`, `packages/mcp-server`, `data/`)
+3. **Third:** Create `packages/pipeline/pyproject.toml` (modeled after mcp-server)
+4. **Fourth:** Initialize both packages with `uv python pin 3.11` + `uv sync`
+5. **Fifth:** Create `docker-compose.yaml`
+6. **Sixth:** Update `.gitignore`
+7. **Finally:** Verify complete structure
+
+**⚠️ DO NOT:**
+- Skip directory restructuring (old paths will break architecture compliance)
+- Skip dependency installation (no lock files = incomplete setup)
+- Modify `packages/mcp-server/pyproject.toml` without justification
+- Add dependencies not in architecture
+- Create source code files (that's future stories)
+
+### Success Validation
+
+**Story is COMPLETE when:**
+- ✅ Directory structure matches architecture (`packages/pipeline`, `packages/mcp-server`, `data/`)
+- ✅ Both `pyproject.toml` files exist with correct dependencies
+- ✅ Both `uv.lock` files exist
+- ✅ Both `.venv/` directories exist with installed dependencies
+- ✅ `docker-compose.yaml` exists at monorepo root
+- ✅ `docker-compose up -d` successfully starts MongoDB + Qdrant
+- ✅ Can run `cd packages/pipeline && uv run python --version` (shows Python 3.11+)
+- ✅ Can run `cd packages/mcp-server && uv run python --version` (shows Python 3.11+)
+- ✅ Project structure matches architecture specification
+
+### Known Issues & Decisions
+
+**Issue 1: Directory Restructuring Required**
+- **Impact:** Old structure (`knowledge-pipeline/`, `knowledge-mcp/`, `knowledge-store/`) needs migration
+- **Decision:** Move directories to new structure (`packages/pipeline/`, `packages/mcp-server/`, `data/`)
+- **Validation:** Ensure all existing files preserved after move
+
+**Issue 2: fastapi-mcp Version Mismatch**
+- **Current:** `packages/mcp-server/pyproject.toml` has `fastapi-mcp>=0.1.0`
+- **Architecture:** Specifies `fastapi-mcp>=0.4.0`
+- **Decision:** Flag for user review - may need update or architecture correction
+
+**Issue 3: Git Tracking**
+- **Decision Needed:** Should `uv.lock` be committed or gitignored?
+- **Recommendation:** Commit lock files for reproducibility (per uv best practices)
+
+## Dev Agent Record
+
+### Agent Model Used
+
+_To be filled by dev agent_
+
+### Debug Log References
+
+_To be filled by dev agent_
+
+### Completion Notes List
+
+_To be filled by dev agent_
+
+### File List
+
+_To be filled by dev agent - list all files created/modified:_
+- packages/ (new directory)
+- packages/pipeline/ (moved from knowledge-pipeline/)
+- packages/pipeline/pyproject.toml (created)
+- packages/pipeline/uv.lock (created)
+- packages/mcp-server/ (moved from knowledge-mcp/)
+- packages/mcp-server/uv.lock (created)
+- data/ (moved from knowledge-store/)
+- docker-compose.yaml (created)
+- .gitignore (updated)
