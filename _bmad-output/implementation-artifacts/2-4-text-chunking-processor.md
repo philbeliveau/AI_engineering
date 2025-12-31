@@ -1,23 +1,28 @@
 # Story 2.4: Text Chunking Processor
 
-Status: ready-for-dev
+Status: done
 
-<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+<!--
+COURSE CORRECTION: 2025-12-30
+This story was updated to use Docling's HybridChunker instead of manual implementation.
+See: epic-2-sprint-change-proposal.md for details.
+-->
 
 ## Story
 
 As a **developer**,
-I want a chunking processor that splits documents into semantic chunks,
-So that extracted text is appropriately sized for embedding and extraction.
+I want to use Docling's HybridChunker for text chunking,
+So that chunks respect document structure and use accurate token counting from the embedding model's tokenizer.
 
 ## Acceptance Criteria
 
-**Given** extracted text from an adapter
+**Given** extracted content from DoclingAdapter (with DoclingDocument in metadata)
 **When** I process it through the chunker
-**Then** text is split into chunks of configurable size (default based on architecture)
-**And** chunks respect sentence boundaries where possible
-**And** each chunk includes position metadata (source location)
-**And** chunk token counts are calculated and stored
+**Then** text is split using Docling's HybridChunker
+**And** chunks respect section boundaries from the document structure
+**And** token counts use the all-MiniLM-L6-v2 tokenizer (accurate, not estimated)
+**And** each chunk includes position metadata
+**And** ChunkOutput models are compatible with MongoDB storage
 
 ## Dependency Analysis
 
@@ -30,12 +35,9 @@ So that extracted text is appropriately sized for embedding and extraction.
 - **Story 2.1** (Base Source Adapter Interface) - MUST be completed first
   - Provides `AdapterResult` with extracted text and sections
   - Provides `Section` model with position metadata
-- **Story 2.2** (PDF Document Adapter) - Should be completed first
-  - First concrete adapter providing input to chunker
-  - Establishes position metadata patterns (chapter, section, page)
-- **Story 2.3** (Markdown Document Adapter) - Should be completed first
-  - Second concrete adapter providing input to chunker
-  - Establishes heading hierarchy patterns
+- **Story 2.2** (Docling Document Adapter) - MUST be completed first
+  - Provides `DoclingAdapter` with `DoclingDocument` in metadata
+  - HybridChunker requires DoclingDocument object, not raw text
 
 **Blocks:**
 - **Story 2.5** (Local Embedding Generator) - Needs chunks to embed
@@ -44,109 +46,74 @@ So that extracted text is appropriately sized for embedding and extraction.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Verify Prerequisites** (AC: Dependencies available)
-  - [ ] Confirm Story 1.1 complete: `ls packages/pipeline/pyproject.toml`
-  - [ ] Confirm Story 1.3 complete: `cd packages/pipeline && uv run python -c "from src.models import Chunk; print('OK')"`
-  - [ ] Confirm Story 2.1 complete: `cd packages/pipeline && uv run python -c "from src.adapters import AdapterResult, Section; print('OK')"`
-  - [ ] Confirm Python 3.11+: `cd packages/pipeline && uv run python --version`
+- [x] **Task 1: Verify Prerequisites** (AC: Dependencies available)
+  - [x] Confirm Story 1.1 complete: `ls packages/pipeline/pyproject.toml`
+  - [x] Confirm Story 1.3 complete: `cd packages/pipeline && uv run python -c "from src.models import Chunk; print('OK')"`
+  - [x] Confirm Story 2.1 complete: `cd packages/pipeline && uv run python -c "from src.adapters import AdapterResult, Section; print('OK')"`
+  - [x] Confirm Story 2.2 complete: `cd packages/pipeline && uv run python -c "from src.adapters import DoclingAdapter; print('OK')"`
+  - [x] Confirm Docling installed: `cd packages/pipeline && uv run python -c "from docling.chunking import HybridChunker; print('OK')"`
+  - [x] Confirm Python 3.11+: `cd packages/pipeline && uv run python --version`
 
-- [ ] **Task 2: Create Processors Module Structure** (AC: Module exists)
-  - [ ] Create `packages/pipeline/src/processors/` directory
-  - [ ] Create `packages/pipeline/src/processors/__init__.py`
-  - [ ] Create `packages/pipeline/src/processors/chunker.py`
+- [x] **Task 2: Create Processors Module Structure** (AC: Module exists)
+  - [x] Create `packages/pipeline/src/processors/` directory
+  - [x] Create `packages/pipeline/src/processors/__init__.py`
+  - [x] Create `packages/pipeline/src/processors/chunker.py`
 
-- [ ] **Task 3: Define Chunker Configuration Models** (AC: Type-safe configuration)
-  - [ ] Create `ChunkerConfig` Pydantic model with fields:
-    - `chunk_size: int = 512` - Target tokens per chunk
-    - `chunk_overlap: int = 50` - Overlap tokens between chunks
-    - `min_chunk_size: int = 100` - Minimum chunk size in tokens
-    - `respect_sentence_boundary: bool = True` - Split at sentences
-    - `respect_section_boundary: bool = True` - Preserve section boundaries when possible
-  - [ ] Create `ChunkMetadata` Pydantic model with fields:
-    - `source_id: str` - Reference to source document
-    - `chunk_index: int` - Sequential chunk number
-    - `position: dict` - Position info (chapter, section, page, line)
-    - `section_title: str | None` - Title of containing section
-    - `token_count: int` - Actual token count
-    - `char_count: int` - Character count
-
-- [ ] **Task 4: Implement Token Counting** (AC: Accurate token estimation)
-  - [ ] Implement `estimate_tokens(text: str) -> int` function
-    - Use rough heuristic: ~4 characters per token for English (fast)
-  - [ ] Implement `count_tokens_precise(text: str, model: str = "all-MiniLM-L6-v2") -> int` function
-    - Use sentence-transformers tokenizer for exact count when needed
-  - [ ] Add configurable `use_precise_count: bool = False` to ChunkerConfig
-  - [ ] Document tradeoffs: speed vs accuracy
-
-- [ ] **Task 5: Implement Sentence Boundary Detection** (AC: Respects sentence boundaries)
-  - [ ] Implement `find_sentence_boundaries(text: str) -> list[int]` function
-    - Use regex patterns for common sentence endings (. ! ? followed by space/newline)
-    - Handle edge cases: abbreviations (Mr., Dr., etc.), numbers (3.14), URLs
-  - [ ] Implement `split_at_sentence(text: str, target_pos: int) -> int` function
-    - Find nearest sentence boundary to target position
-    - Return position of best split point
-  - [ ] Handle edge case: single very long sentence exceeds chunk size
-
-- [ ] **Task 6: Implement Section-Aware Chunking** (AC: Preserves section structure)
-  - [ ] Implement `chunk_with_sections(sections: list[Section], config: ChunkerConfig) -> list[Chunk]`
-    - Process each section separately when possible
-    - Preserve section title in chunk metadata
-    - Handle sections smaller than chunk_size (don't split)
-    - Handle sections larger than chunk_size (split with overlap)
-  - [ ] Maintain section hierarchy in position metadata
-
-- [ ] **Task 7: Implement Core TextChunker Class** (AC: Main chunking logic)
-  - [ ] Create `TextChunker` class with `__init__(self, config: ChunkerConfig = None)`
-  - [ ] Implement `chunk_text(text: str, source_id: str, position_base: dict = None) -> list[Chunk]`
-    - Main method for processing plain text
-    - Apply sentence boundary detection
-    - Calculate overlap between chunks
-    - Generate chunk metadata
-  - [ ] Implement `chunk_adapter_result(result: AdapterResult, source_id: str) -> list[Chunk]`
-    - Process AdapterResult from adapters
-    - Use sections if available, fall back to plain text
-    - Preserve position metadata from sections
-  - [ ] Implement sliding window with overlap logic
-
-- [ ] **Task 8: Implement Chunk Output Models** (AC: Integration with storage)
-  - [ ] Create `ChunkOutput` Pydantic model compatible with Story 1.3 `Chunk` model:
+- [x] **Task 3: Define Chunker Configuration Models** (AC: Type-safe configuration)
+  - [x] Create `ChunkerConfig` Pydantic model with fields:
+    - `chunk_size: int = 512` - Target tokens per chunk (for HybridChunker max_tokens)
+    - `merge_peers: bool = True` - Merge peer elements for better context
+  - [x] KEEP `ChunkOutput` Pydantic model (for storage compatibility):
     - `id: str` - Generated unique ID (uuid4)
     - `source_id: str` - Reference to source document
     - `content: str` - Chunk text content
     - `position: dict` - Position metadata
     - `token_count: int` - Token count for this chunk
     - `schema_version: str = "1.0"` - Schema version
-  - [ ] Implement `to_chunk_model(chunk_output: ChunkOutput) -> Chunk` converter
 
-- [ ] **Task 9: Implement Chunker Exceptions** (AC: Error handling)
-  - [ ] Create `ChunkerError` base exception inheriting from `KnowledgeError`
-  - [ ] Create `EmptyContentError` for empty input text
-  - [ ] Create `ChunkSizeError` for invalid chunk size configuration
-  - [ ] All exceptions follow structured format: `{code, message, details}`
+- [x] **Task 4: Implement DoclingChunker Wrapper** (AC: Main chunking logic using HybridChunker)
+  - [x] Create `DoclingChunker` class wrapping `HybridChunker`
+  - [x] Configure `HuggingFaceTokenizer` with `all-MiniLM-L6-v2` (matches embedding model)
+  - [x] Implement `chunk_document(docling_doc: DoclingDocument, source_id: str) -> list[ChunkOutput]`
+    - Extract DoclingDocument from adapter result metadata
+    - Use HybridChunker to split document
+    - Map chunks to ChunkOutput models
+  - [x] Implement token counting via tokenizer (accurate, not heuristic)
+  - [x] Use `chunker.contextualize(chunk)` for chunk text with document context
 
-- [ ] **Task 10: Create Module Exports** (AC: Clean imports)
-  - [ ] Export from `packages/pipeline/src/processors/__init__.py`:
-    - `TextChunker`
-    - `ChunkerConfig`, `ChunkMetadata`, `ChunkOutput`
-    - `ChunkerError`, `EmptyContentError`, `ChunkSizeError`
-    - `estimate_tokens`, `count_tokens_precise`
-  - [ ] Verify imports work: `from src.processors import TextChunker, ChunkerConfig`
+- [x] **Task 5: Implement Chunker Exceptions** (AC: Error handling)
+  - [x] Create `ChunkerError` base exception inheriting from `KnowledgeError`
+  - [x] Create `EmptyContentError` for empty input
+  - [x] Create `ChunkSizeError` for invalid configuration
+  - [x] Create `MissingDoclingDocumentError` for missing DoclingDocument in metadata
+  - [x] All exceptions follow structured format: `{code, message, details}`
 
-- [ ] **Task 11: Create Unit Tests** (AC: Comprehensive test coverage)
-  - [ ] Create `packages/pipeline/tests/test_processors/` directory
-  - [ ] Create `packages/pipeline/tests/test_processors/conftest.py` with test fixtures
-  - [ ] Create `packages/pipeline/tests/test_processors/test_chunker.py`
-  - [ ] Test basic text chunking (plain text input)
-  - [ ] Test sentence boundary detection and splitting
-  - [ ] Test section-aware chunking with AdapterResult
-  - [ ] Test overlap calculation between chunks
-  - [ ] Test token counting (estimate vs precise)
-  - [ ] Test edge cases: empty text, very short text, very long sentences
-  - [ ] Test configuration variations (different chunk sizes, overlap)
-  - [ ] Test position metadata preservation
-  - [ ] Document test results in completion notes
+- [x] **Task 6: Create Module Exports** (AC: Clean imports)
+  - [x] Export from `packages/pipeline/src/processors/__init__.py`:
+    - `DoclingChunker`
+    - `ChunkerConfig`, `ChunkOutput`
+    - `ChunkerError`, `EmptyContentError`, `ChunkSizeError`, `MissingDoclingDocumentError`
+  - [x] Verify imports work: `from src.processors import DoclingChunker, ChunkerConfig`
+
+- [x] **Task 7: Create Unit Tests** (AC: Comprehensive test coverage)
+  - [x] Create `packages/pipeline/tests/test_processors/` directory
+  - [x] Create `packages/pipeline/tests/test_processors/conftest.py` with DoclingDocument fixtures
+  - [x] Create `packages/pipeline/tests/test_processors/test_chunker.py`
+  - [x] Test chunking with DoclingDocument (from sample PDF)
+  - [x] Test token counts are accurate (using actual tokenizer)
+  - [x] Test ChunkOutput model compatibility with MongoDB storage
+  - [x] Test position metadata preservation
+  - [x] Test error handling (missing DoclingDocument, empty content)
+  - [x] Test configuration variations (different chunk sizes)
+  - [x] Document test results in completion notes
 
 ## Dev Notes
+
+<!--
+COURSE CORRECTION: 2025-12-30
+This section was rewritten to use Docling's HybridChunker instead of manual implementation.
+See: epic-2-sprint-change-proposal.md for details.
+-->
 
 ### Architecture Requirements
 
@@ -156,7 +123,7 @@ So that extracted text is appropriately sized for embedding and extraction.
 packages/pipeline/src/
 ├── processors/              # Chunking, cleaning
 │   ├── __init__.py
-│   ├── chunker.py
+│   ├── chunker.py          # DoclingChunker wrapper
 │   └── cleaner.py
 ```
 
@@ -185,127 +152,149 @@ This means chunks need to be appropriately sized for:
 2. Semantic search effectiveness (not too short, not too long)
 3. Extraction context windows (chunks feed into LLM extraction)
 
-### Recommended Chunk Configuration
+### NEW: HybridChunker Approach (Docling Refactor)
 
-Based on architecture and best practices:
+Instead of manual sentence boundary detection and sliding windows, we use Docling's `HybridChunker` which:
+1. **Respects document structure** - Uses DoclingDocument hierarchy
+2. **Accurate token counting** - Uses actual embedding model tokenizer
+3. **Contextualization** - Adds document context (headings) to chunk text
+
+**Recommended Chunk Configuration:**
 
 ```python
 DEFAULT_CONFIG = ChunkerConfig(
-    chunk_size=512,           # Tokens - fits embedding model
-    chunk_overlap=50,         # ~10% overlap for context
-    min_chunk_size=100,       # Don't create tiny chunks
-    respect_sentence_boundary=True,
-    respect_section_boundary=True,
+    chunk_size=512,      # max_tokens for HybridChunker
+    merge_peers=True,    # Merge peer elements for better context
 )
 ```
 
-**Rationale:**
-- `512 tokens`: all-MiniLM-L6-v2 handles up to 256 word pieces, which maps roughly to 512 tokens of content. This ensures full utilization of embedding capacity.
-- `50 token overlap`: Provides context continuity between chunks, helping with semantic search and extraction that spans chunk boundaries.
-- `100 min tokens`: Prevents fragmentation that would hurt search quality.
-
-### Chunking Algorithm Overview
+### Key Implementation Pattern (VERIFIED via Context7)
 
 ```python
-def chunk_text(text: str, config: ChunkerConfig) -> list[Chunk]:
-    """
-    Sliding Window Chunking with Sentence Awareness:
+from docling.chunking import HybridChunker
+from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
+from docling_core.types.doc import DoclingDocument
+from transformers import AutoTokenizer
+from typing import Optional
+import uuid
 
-    1. Calculate target positions for chunk boundaries
-    2. For each boundary, find nearest sentence boundary
-    3. Extract chunk from previous boundary to current
-    4. Add overlap by including end of previous chunk
-    5. Generate metadata and token counts
-    """
-    chunks = []
-    start = 0
-    chunk_index = 0
+from pydantic import BaseModel, Field
+import structlog
 
-    while start < len(text):
-        # Calculate target end position
-        target_end = start + (config.chunk_size * 4)  # ~4 chars per token
+logger = structlog.get_logger()
 
-        # Find actual end at sentence boundary
-        actual_end = find_sentence_boundary_near(text, target_end)
+EMBED_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
 
-        # Extract chunk content
-        content = text[start:actual_end]
 
-        # Calculate overlap start for next chunk
-        overlap_start = max(0, actual_end - (config.chunk_overlap * 4))
+class ChunkerConfig(BaseModel):
+    """Configuration for Docling-based chunker."""
+    chunk_size: int = Field(default=512, ge=50, le=2048)  # max_tokens
+    merge_peers: bool = True  # Merge peer elements for better context
 
-        chunks.append(Chunk(
-            content=content,
-            chunk_index=chunk_index,
-            token_count=estimate_tokens(content),
-        ))
 
-        # Move to next chunk with overlap
-        start = overlap_start
-        chunk_index += 1
+class ChunkOutput(BaseModel):
+    """Output model for a text chunk (storage compatible)."""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    source_id: str
+    content: str
+    position: dict = Field(default_factory=dict)
+    token_count: int
+    schema_version: str = "1.0"
 
-    return chunks
+
+class DoclingChunker:
+    """Wrapper around Docling's HybridChunker for pipeline integration."""
+
+    def __init__(self, config: Optional[ChunkerConfig] = None):
+        self.config = config or ChunkerConfig()
+
+        # Create tokenizer matching the embedding model
+        self._tokenizer = HuggingFaceTokenizer(
+            tokenizer=AutoTokenizer.from_pretrained(EMBED_MODEL_ID),
+            max_tokens=self.config.chunk_size,
+        )
+
+        self._chunker = HybridChunker(
+            tokenizer=self._tokenizer,
+            merge_peers=self.config.merge_peers,
+        )
+
+        logger.debug(
+            "docling_chunker_initialized",
+            max_tokens=self.config.chunk_size,
+            model=EMBED_MODEL_ID,
+        )
+
+    def chunk_document(
+        self,
+        docling_doc: DoclingDocument,
+        source_id: str
+    ) -> list[ChunkOutput]:
+        """Chunk a DoclingDocument into storage-ready chunks.
+
+        Args:
+            docling_doc: DoclingDocument from adapter.
+            source_id: ID of source document.
+
+        Returns:
+            List of ChunkOutput objects.
+        """
+        chunk_iter = self._chunker.chunk(dl_doc=docling_doc)
+        chunks = list(chunk_iter)
+
+        outputs = []
+        for i, chunk in enumerate(chunks):
+            # Get contextualized text (includes headings/context)
+            text = self._chunker.contextualize(chunk=chunk)
+            token_count = self._tokenizer.count_tokens(text)
+
+            outputs.append(ChunkOutput(
+                source_id=source_id,
+                content=text,
+                position={"chunk_index": i},
+                token_count=token_count,
+            ))
+
+        logger.info(
+            "chunking_complete",
+            source_id=source_id,
+            total_chunks=len(outputs),
+            total_tokens=sum(c.token_count for c in outputs),
+        )
+
+        return outputs
 ```
 
-### Section-Aware Chunking
-
-When processing AdapterResult with sections:
+### Usage with DoclingAdapter
 
 ```python
-def chunk_adapter_result(result: AdapterResult, source_id: str) -> list[Chunk]:
-    """
-    Section-Aware Chunking Strategy:
+# In pipeline integration
+from src.adapters import DoclingAdapter
+from src.processors import DoclingChunker
 
-    1. If sections available, process each section
-    2. Small sections (< min_chunk_size): Combine with next
-    3. Medium sections (< chunk_size): Keep as single chunk
-    4. Large sections (> chunk_size): Split with overlap
-    5. Preserve section title and hierarchy in metadata
-    """
-    if result.sections:
-        return chunk_sections(result.sections, source_id)
-    else:
-        return chunk_text(result.text, source_id)
+adapter = DoclingAdapter()
+chunker = DoclingChunker()
+
+# Extract document
+result = adapter.extract_text(file_path)
+
+# Get DoclingDocument from metadata
+docling_doc = result.metadata.get("_docling_document")
+
+# Chunk the document
+chunks = chunker.chunk_document(docling_doc, source_id="...")
 ```
 
-### Token Estimation vs Precise Counting
+### Token Counting is Now Accurate
 
-**Fast Estimation (default):**
+Unlike the old heuristic (~4 chars/token), the HybridChunker uses the actual embedding model tokenizer:
+
 ```python
-def estimate_tokens(text: str) -> int:
-    """Rough estimate: ~4 characters per token for English."""
-    return len(text) // 4
+# Accurate token counting
+token_count = self._tokenizer.count_tokens(chunk.text)
 ```
 
-**Precise Counting (optional):**
-```python
-def count_tokens_precise(text: str) -> int:
-    """Use actual tokenizer from sentence-transformers."""
-    from sentence_transformers import SentenceTransformer
-    model = SentenceTransformer("all-MiniLM-L6-v2")
-    return len(model.tokenizer.encode(text))
-```
-
-**Tradeoff:** Precise counting adds ~10ms per call due to tokenizer load. Use estimation for chunking, precise for final validation if needed.
-
-### Sentence Boundary Detection
-
-**Regex Pattern for English:**
-```python
-import re
-
-SENTENCE_END = re.compile(
-    r'(?<=[.!?])'           # After . ! ?
-    r'(?=\s+[A-Z]|\s*$)'    # Before space+capital or end
-    r'|(?<=\n\n)'           # Or after paragraph break
-)
-
-# Exceptions to handle:
-# - Mr. Mrs. Dr. etc. (abbreviations)
-# - Numbers like 3.14
-# - URLs like https://example.com
-# - Ellipsis ...
-```
+This ensures chunks are properly sized for the embedding model and won't exceed limits.
 
 ### Position Metadata Structure
 
@@ -914,17 +903,57 @@ __all__ = [
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+No debug issues encountered during implementation.
+
 ### Completion Notes List
+
+- **2025-12-30**: Implemented DoclingChunker using Docling's HybridChunker
+  - Uses `all-MiniLM-L6-v2` tokenizer for accurate token counting (not heuristics)
+  - Wraps HybridChunker with configurable chunk_size (default 512) and merge_peers
+  - Implements `chunk_document()` and `chunk_from_adapter_result()` methods
+  - ChunkOutput model is MongoDB-compatible with auto-generated UUID, position metadata
+  - All 4 exception types implemented: ChunkerError, EmptyContentError, ChunkSizeError, MissingDoclingDocumentError
+  - 27 unit tests passing covering: config validation, token counting, exception handling, document chunking
+  - Full test suite (376 tests) passes with no regressions
+  - Code passes ruff linting
+
+### Change Log
+
+- 2025-12-30: Initial implementation of Story 2.4 - Text Chunking Processor using Docling HybridChunker
+- 2025-12-31: Code review fixes applied (see Senior Developer Review below)
+
+### Senior Developer Review (AI)
+
+**Review Date:** 2025-12-31
+**Reviewer:** Claude Opus 4.5 (Adversarial Code Review)
+**Outcome:** APPROVED (after fixes)
+
+**Issues Found & Fixed:**
+
+| Issue | Severity | Description | Resolution |
+|-------|----------|-------------|------------|
+| H1 | HIGH | ChunkSizeError defined but never raised | Added `_validate_config()` method in DoclingChunker that raises ChunkSizeError |
+| H2 | HIGH | Position metadata missing chapter/section fields | Updated position builder to extract chapter/section from headings array |
+| M1 | MEDIUM | Tokenizer warning on long sequences | Added warning suppression in count_tokens() |
+| M2 | MEDIUM | PDF test assertion `>= 0` always true | Fixed assertion to properly validate chunks |
+| M3 | MEDIUM | No integration test for empty document | Added TestDoclingChunkerEmptyDocument test class |
+
+**Tests Added:**
+- `TestDoclingChunkerChunkSizeValidation` (2 tests) - ChunkSizeError validation
+- `TestDoclingChunkerEmptyDocument` (2 tests) - Empty document handling
+- `TestDoclingChunkerPositionMetadata` (2 tests) - Architecture-compliant position fields
+
+**Final Test Count:** 33 tests (was 27, added 6)
+**Full Suite:** 382 passed, 2 skipped, no regressions
 
 ### File List
 
-_To be filled by dev agent - list all files created/modified:_
-- packages/pipeline/src/processors/__init__.py (CREATE)
-- packages/pipeline/src/processors/chunker.py (CREATE)
-- packages/pipeline/tests/test_processors/__init__.py (CREATE)
-- packages/pipeline/tests/test_processors/conftest.py (CREATE)
-- packages/pipeline/tests/test_processors/test_chunker.py (CREATE)
+- packages/pipeline/src/processors/__init__.py (CREATE) - Module exports
+- packages/pipeline/src/processors/chunker.py (CREATE/MODIFIED) - DoclingChunker implementation with review fixes
+- packages/pipeline/tests/test_processors/__init__.py (CREATE) - Test module init
+- packages/pipeline/tests/test_processors/conftest.py (CREATE) - Test fixtures
+- packages/pipeline/tests/test_processors/test_chunker.py (CREATE/MODIFIED) - 33 unit tests (6 added in review)
