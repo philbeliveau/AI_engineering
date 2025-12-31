@@ -56,6 +56,10 @@ from src.extractors.base import (
     extractor_registry,
 )
 from src.extractors.llm_client import LLMClient, LLMClientError
+from src.extractors.methodology_extractor import MethodologyExtractor
+from src.extractors.checklist_extractor import ChecklistExtractor
+from src.extractors.persona_extractor import PersonaExtractor
+from src.extractors.workflow_extractor import WorkflowExtractor
 
 __all__ = [
     # Enums
@@ -89,4 +93,9 @@ __all__ = [
     # LLM Client
     "LLMClient",
     "LLMClientError",
+    # Extractors
+    "MethodologyExtractor",
+    "ChecklistExtractor",
+    "PersonaExtractor",
+    "WorkflowExtractor",
 ]
