@@ -52,20 +52,20 @@ development_status:
   # Epic 2: Document Ingestion Pipeline
   # COURSE CORRECTION 2025-12-30: Docling refactor
   # See: epic-2-sprint-change-proposal.md for details
-  epic-2: in-progress
+  epic-2: done  # All stories completed 2025-12-31
   2-1-base-source-adapter-interface: done
   2-2-docling-document-adapter: done   # RENAMED from pdf-document-adapter, code review passed
   2-3-markdown-document-adapter: archived       # MERGED into 2-2 (Docling handles markdown)
   2-4-text-chunking-processor: done      # REWRITE: now uses HybridChunker, code review passed 2025-12-31
   2-5-local-embedding-generator: done
-  2-6-end-to-end-ingestion-pipeline: ready-for-dev  # UPDATED: references Docling
+  2-6-end-to-end-ingestion-pipeline: done  # Code review passed 2025-12-31
   epic-2-retrospective: optional
 
   # Epic 3: Knowledge Extraction System
   epic-3: in-progress
   3-1-base-extractor-interface-and-extraction-models: done
-  3-2-decision-extractor: ready-for-dev
-  3-3-pattern-extractor: ready-for-dev
+  3-2-decision-extractor: in-progress
+  3-3-pattern-extractor: in-progress
   3-4-warning-extractor: ready-for-dev
   3-5-methodology-and-process-extractors: ready-for-dev
   3-6-extraction-storage-and-embedding: backlog
