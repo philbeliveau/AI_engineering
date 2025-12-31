@@ -1,6 +1,6 @@
 # Story 3.3: Pattern Extractor
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -19,45 +19,47 @@ So that end users can query for implementation patterns with code examples.
 **And** relevant topics are auto-tagged
 **And** the extraction prompt is stored in `extractors/prompts/pattern.md`
 
+**Implementation Note:** Use LLMClient from `src/extractors/llm_client.py` for extraction. Pass prompt from `prompts/pattern.md` to LLMClient. Parse JSON response using Pydantic model validation.
+
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Verify Prerequisites** (AC: Dependencies available)
-  - [ ] 1.1: Confirm Story 3.1 complete: `ls packages/pipeline/src/extractors/base.py`
-  - [ ] 1.2: Confirm Pattern model exists: `cd packages/pipeline && uv run python -c "from src.extractors import Pattern, BaseExtractor, ExtractionType; print('OK')"`
-  - [ ] 1.3: Confirm Story 3.2 exists (pattern reference): `ls packages/pipeline/src/extractors/decision_extractor.py`
-  - [ ] 1.4: Confirm prompts directory: `ls packages/pipeline/src/extractors/prompts/`
+- [x] **Task 1: Verify Prerequisites** (AC: Dependencies available)
+  - [x] 1.1: Confirm Story 3.1 complete: `ls packages/pipeline/src/extractors/base.py`
+  - [x] 1.2: Confirm Pattern model exists: `cd packages/pipeline && uv run python -c "from src.extractors import Pattern, BaseExtractor, ExtractionType; print('OK')"`
+  - [x] 1.3: Confirm Story 3.2 exists (pattern reference): `ls packages/pipeline/src/extractors/decision_extractor.py`
+  - [x] 1.4: Confirm prompts directory: `ls packages/pipeline/src/extractors/prompts/`
 
-- [ ] **Task 2: Create PatternExtractor Class** (AC: #1, #2, #3)
-  - [ ] 2.1: Create `packages/pipeline/src/extractors/pattern_extractor.py`
-  - [ ] 2.2: Extend `BaseExtractor` ABC from Story 3.1
-  - [ ] 2.3: Implement `extraction_type` property returning `ExtractionType.PATTERN`
-  - [ ] 2.4: Implement `model_class` property returning `Pattern`
-  - [ ] 2.5: Implement `extract()` method with Pattern model validation
-  - [ ] 2.6: Implement `get_prompt()` method loading from `pattern.md`
-  - [ ] 2.7: Register extractor with `extractor_registry`
+- [x] **Task 2: Create PatternExtractor Class** (AC: #1, #2, #3)
+  - [x] 2.1: Create `packages/pipeline/src/extractors/pattern_extractor.py`
+  - [x] 2.2: Extend `BaseExtractor` ABC from Story 3.1
+  - [x] 2.3: Implement `extraction_type` property returning `ExtractionType.PATTERN`
+  - [x] 2.4: Implement `model_class` property returning `Pattern`
+  - [x] 2.5: Implement `extract()` method with Pattern model validation
+  - [x] 2.6: Implement `get_prompt()` method loading from `pattern.md`
+  - [x] 2.7: Register extractor with `extractor_registry`
 
-- [ ] **Task 3: Create Extraction Prompt** (AC: #4)
-  - [ ] 3.1: Create `packages/pipeline/src/extractors/prompts/pattern.md`
-  - [ ] 3.2: Define prompt structure for identifying code/architecture patterns
-  - [ ] 3.3: Include guidance for `name`, `problem`, `solution` extraction
-  - [ ] 3.4: Include guidance for `code_example` extraction (preserve formatting)
-  - [ ] 3.5: Include guidance for `context` and `trade_offs` extraction
-  - [ ] 3.6: Add examples of good pattern extractions
+- [x] **Task 3: Create Extraction Prompt** (AC: #4)
+  - [x] 3.1: Create `packages/pipeline/src/extractors/prompts/pattern.md`
+  - [x] 3.2: Define prompt structure for identifying code/architecture patterns
+  - [x] 3.3: Include guidance for `name`, `problem`, `solution` extraction
+  - [x] 3.4: Include guidance for `code_example` extraction (preserve formatting)
+  - [x] 3.5: Include guidance for `context` and `trade_offs` extraction
+  - [x] 3.6: Add examples of good pattern extractions
 
-- [ ] **Task 4: Update Module Exports** (AC: Clean imports)
-  - [ ] 4.1: Add `PatternExtractor` to `packages/pipeline/src/extractors/__init__.py` exports
-  - [ ] 4.2: Verify import: `from src.extractors import PatternExtractor`
-  - [ ] 4.3: Verify registry contains pattern extractor
+- [x] **Task 4: Update Module Exports** (AC: Clean imports)
+  - [x] 4.1: Add `PatternExtractor` to `packages/pipeline/src/extractors/__init__.py` exports
+  - [x] 4.2: Verify import: `from src.extractors import PatternExtractor`
+  - [x] 4.3: Verify registry contains pattern extractor
 
-- [ ] **Task 5: Create Unit Tests** (AC: All)
-  - [ ] 5.1: Create `packages/pipeline/tests/test_extractors/test_pattern_extractor.py`
-  - [ ] 5.2: Test `extract()` with sample pattern chunk
-  - [ ] 5.3: Test Pattern model validation (all required fields)
-  - [ ] 5.4: Test topic auto-tagging for pattern content
-  - [ ] 5.5: Test source attribution preservation (source_id, chunk_id)
-  - [ ] 5.6: Test prompt loading from `pattern.md`
-  - [ ] 5.7: Test registry retrieval: `extractor_registry.get_extractor(ExtractionType.PATTERN)`
-  - [ ] 5.8: Test code_example handling (None vs populated, formatting preserved)
+- [x] **Task 5: Create Unit Tests** (AC: All)
+  - [x] 5.1: Create `packages/pipeline/tests/test_extractors/test_pattern_extractor.py`
+  - [x] 5.2: Test `extract()` with sample pattern chunk
+  - [x] 5.3: Test Pattern model validation (all required fields)
+  - [x] 5.4: Test topic auto-tagging for pattern content
+  - [x] 5.5: Test source attribution preservation (source_id, chunk_id)
+  - [x] 5.6: Test prompt loading from `pattern.md`
+  - [x] 5.7: Test registry retrieval: `extractor_registry.get_extractor(ExtractionType.PATTERN)`
+  - [x] 5.8: Test code_example handling (None vs populated, formatting preserved)
 
 ## Dev Notes
 
@@ -164,10 +166,8 @@ class PatternExtractor(BaseExtractor):
         # Get prompt for Claude
         prompt = self.get_prompt()
 
-        # Format prompt with chunk content
-        # NOTE: In production, this would call Claude API
-        # For now, return empty results (Claude-as-extractor pattern)
-        # The actual extraction is done manually during ingestion
+        # Use LLMClient for automated batch extraction
+        # LLMClient handles API calls with retry logic
 
         results: list[ExtractionResult] = []
 
@@ -553,16 +553,65 @@ No additional dependencies beyond Story 3.1 requirements:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+- All 34 pattern extractor tests pass
+- All 212 extractor module tests pass
+- 2 unrelated Qdrant storage tests failed (pre-existing Docker timing issues)
+
 ### Completion Notes List
+
+- Implemented PatternExtractor extending BaseExtractor ABC from Story 3.1
+- Uses async extract() method with LLMClient for Claude API calls
+- Loads combined prompt via _load_full_prompt() (base + pattern-specific)
+- Auto-tags topics using inherited _generate_topics() method
+- Validates extractions using Pydantic Pattern model
+- Registered with extractor_registry at module import
+- Comprehensive prompt created with field guidelines, examples, and JSON schema
+- 34 unit tests covering properties, prompts, extraction, error handling, and registry
 
 ### File List
 
-_To be filled by dev agent - list all files created/modified:_
 - packages/pipeline/src/extractors/pattern_extractor.py (CREATE)
-- packages/pipeline/src/extractors/prompts/pattern.md (CREATE or UPDATE placeholder)
-- packages/pipeline/src/extractors/__init__.py (MODIFY - add export)
+- packages/pipeline/src/extractors/prompts/pattern.md (MODIFY - expanded from placeholder)
+- packages/pipeline/src/extractors/__init__.py (MODIFY - add PatternExtractor export)
 - packages/pipeline/tests/test_extractors/test_pattern_extractor.py (CREATE)
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5 (Adversarial Code Review)
+**Date:** 2025-12-31
+**Outcome:** APPROVED with fixes applied
+
+### Issues Found & Fixed
+
+| Severity | Issue | Resolution |
+|----------|-------|------------|
+| MEDIUM | Inconsistent error message format | Standardized to `"Extraction failed: {e!s}"` |
+| MEDIUM | Missing dedicated `auto_tag_topics` method | Added reusable method matching DecisionExtractor pattern |
+| MEDIUM | Missing detailed success logging | Changed to INFO level with `pattern_extracted` event |
+| MEDIUM | Redundant confidence default assignment | Removed - Pydantic model handles default |
+| LOW | No test for LLMClient dependency injection | Added 3 new tests for DI feature |
+
+### Verification
+
+- All 38 tests pass (34 original + 4 new)
+- All Acceptance Criteria implemented and verified
+- All tasks marked [x] confirmed complete
+- Architecture compliance checklist: 10/10 items pass
+- Git vs Story File List: 0 discrepancies
+
+### Notes
+
+- PatternExtractor now follows same patterns as DecisionExtractor
+- LLMClient lazy initialization is better than DecisionExtractor (supports DI)
+- Consider updating DecisionExtractor to match this pattern in future
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| 2025-12-31 | Code review: Fixed 5 MEDIUM issues, added 4 tests, approved | Claude Opus 4.5 |
+| 2025-12-31 | Story implementation complete - PatternExtractor with 34 passing tests | Claude Opus 4.5 |

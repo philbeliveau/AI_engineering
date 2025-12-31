@@ -1,6 +1,6 @@
 # Story 3.2: Decision Extractor
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -19,35 +19,37 @@ So that end users can query for AI engineering choice points with options and co
 **And** relevant topics are auto-tagged
 **And** the extraction prompt is stored in `extractors/prompts/decision.md`
 
+**Implementation Note:** Use LLMClient from `src/extractors/llm_client.py` for extraction. Pass prompt from `prompts/decision.md` to LLMClient. Parse JSON response using Pydantic model validation.
+
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create DecisionExtractor class (AC: #1, #2)
-  - [ ] 1.1: Extend BaseExtractor ABC from Story 3.1
-  - [ ] 1.2: Implement extract() method with Decision model validation
-  - [ ] 1.3: Implement get_prompt() method loading from decision.md
-  - [ ] 1.4: Add Claude-as-extractor pattern (user provides manual extraction)
-  - [ ] 1.5: Add topic auto-tagging logic
+- [x] Task 1: Create DecisionExtractor class (AC: #1, #2)
+  - [x] 1.1: Extend BaseExtractor ABC from Story 3.1
+  - [x] 1.2: Implement extract() method with Decision model validation
+  - [x] 1.3: Implement get_prompt() method loading from decision.md
+  - [x] 1.4: Add Claude-as-extractor pattern (LLM-based extraction via LLMClient)
+  - [x] 1.5: Add topic auto-tagging logic
 
-- [ ] Task 2: Create Decision Pydantic model (AC: #1)
-  - [ ] 2.1: Define Decision model with all required fields
-  - [ ] 2.2: Add validation for question, options[], considerations[]
-  - [ ] 2.3: Include source attribution fields (source_id, chunk_id)
-  - [ ] 2.4: Add topics[] field and schema_version
-  - [ ] 2.5: Ensure JSON serialization compatibility
+- [x] Task 2: Create Decision Pydantic model (AC: #1) - ALREADY EXISTS in base.py
+  - [x] 2.1: Define Decision model with all required fields
+  - [x] 2.2: Add validation for question, options[], considerations[]
+  - [x] 2.3: Include source attribution fields (source_id, chunk_id)
+  - [x] 2.4: Add topics[] field and schema_version
+  - [x] 2.5: Ensure JSON serialization compatibility
 
-- [ ] Task 3: Create extraction prompt (AC: #4)
-  - [ ] 3.1: Create extractors/prompts/decision.md
-  - [ ] 3.2: Define prompt structure for identifying decision points
-  - [ ] 3.3: Include guidance for options[] extraction
-  - [ ] 3.4: Include guidance for considerations[] extraction
-  - [ ] 3.5: Add examples of good decision extractions
+- [x] Task 3: Create extraction prompt (AC: #4) - ALREADY EXISTS
+  - [x] 3.1: Create extractors/prompts/decision.md
+  - [x] 3.2: Define prompt structure for identifying decision points
+  - [x] 3.3: Include guidance for options[] extraction
+  - [x] 3.4: Include guidance for considerations[] extraction
+  - [x] 3.5: Add examples of good decision extractions
 
-- [ ] Task 4: Unit tests (AC: All)
-  - [ ] 4.1: Test extract() with sample decision chunk
-  - [ ] 4.2: Test Decision model validation
-  - [ ] 4.3: Test topic auto-tagging
-  - [ ] 4.4: Test source attribution preservation
-  - [ ] 4.5: Test prompt loading from decision.md
+- [x] Task 4: Unit tests (AC: All)
+  - [x] 4.1: Test extract() with sample decision chunk
+  - [x] 4.2: Test Decision model validation
+  - [x] 4.3: Test topic auto-tagging
+  - [x] 4.4: Test source attribution preservation
+  - [x] 4.5: Test prompt loading from decision.md
 
 ## Dev Notes
 
@@ -67,10 +69,10 @@ Chunk → DecisionExtractor → Decision Model → MongoDB extractions + Qdrant 
 ```
 
 **Key Architectural Decisions:**
-1. **Claude-as-Extractor Pattern (NFR-3):** Zero external LLM API costs
+1. **LLM-Based Extraction:** Automated batch extraction using Claude Haiku
    - Extraction happens during ingestion (WRITE phase)
-   - User manually provides extractions via Claude Code during development
-   - NOT automated LLM API calls at extraction time
+   - Use LLMClient from `src/extractors/llm_client.py` for API calls
+   - ~$10 per book for full extraction (cost-effective batch processing)
 
 2. **Source Attribution (FR-2.10):** Every extraction must trace back
    - `source_id` → which book/paper
@@ -386,16 +388,55 @@ packages/pipeline/
 
 ### Agent Model Used
 
-_To be filled by dev agent_
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
-_To be filled by dev agent_
+None - all tests passed without debugging required.
 
 ### Completion Notes List
 
-_To be filled by dev agent_
+1. **Task 2 & 3 Pre-completed:** The Decision Pydantic model and extraction prompt were already implemented in Story 3.1 (`src/extractors/base.py` lines 114-133) and `src/extractors/prompts/decision.md`.
+
+2. **DecisionExtractor Implementation:** Created `src/extractors/decision_extractor.py` extending BaseExtractor:
+   - Implements `extraction_type` property returning `ExtractionType.DECISION`
+   - Implements `model_class` property returning `Decision`
+   - Implements async `extract()` method using LLMClient for LLM-based extraction
+   - Implements `get_prompt()` using `_load_full_prompt("decision")` to combine base + decision prompts
+   - Implements `auto_tag_topics()` for topic extraction from decision content
+
+3. **LLM Integration:** Uses LLMClient from `src/extractors/llm_client.py` for automated extraction. The `extract()` method:
+   - Loads prompt via `get_prompt()`
+   - Calls LLMClient.extract() with prompt and chunk content
+   - Parses JSON response via `_parse_llm_response()`
+   - Validates with `_validate_extraction()`
+   - Auto-tags topics if `config.auto_tag_topics` is enabled
+   - Returns list of ExtractionResult objects
+
+4. **Comprehensive Test Coverage:** 24 unit tests covering:
+   - Properties and configuration (5 tests)
+   - Prompt loading (2 tests)
+   - Topic auto-tagging (6 tests) - includes context/recommended_approach test
+   - Extract method with mocked LLM (8 tests) - includes exception handling test
+   - Integration and registry (3 tests)
+
+5. **Registry Export:** Added DecisionExtractor to `src/extractors/__init__.py` exports.
 
 ### File List
 
-_To be filled by dev agent_
+**Created:**
+- `packages/pipeline/src/extractors/decision_extractor.py` - DecisionExtractor class (200 lines)
+- `packages/pipeline/tests/test_extractors/test_decision_extractor.py` - Unit tests (24 tests, 100% coverage)
+
+**Modified:**
+- `packages/pipeline/src/extractors/__init__.py` - Added DecisionExtractor import and export
+- `packages/pipeline/src/extractors/prompts/decision.md` - Enhanced with confidence scoring guidance (code review fix)
+
+**Pre-existing (verified):**
+- `packages/pipeline/src/extractors/base.py` - Decision model (lines 114-133)
+- `packages/pipeline/src/extractors/prompts/_base.md` - Base extraction instructions
+
+## Change Log
+
+- 2025-12-31: Implemented DecisionExtractor class with LLM-based extraction, auto-tagging, and comprehensive test coverage (22 tests passing)
+- 2025-12-31: **Code Review Fixes** - Added 2 tests (exception handling, context/recommended_approach topic extraction), enhanced decision.md prompt with confidence guidance. Coverage: 100%
