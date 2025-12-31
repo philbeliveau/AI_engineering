@@ -1,6 +1,6 @@
 # Story 4.1: FastAPI Server with MCP Integration
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -36,18 +36,18 @@ So that MCP tools can be exposed to Claude Code clients.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Verify Prerequisites** (AC: All dependencies available)
-  - [ ] 1.1: Confirm Story 1.1 complete (mcp-server package exists): `ls packages/mcp-server/pyproject.toml`
-  - [ ] 1.2: Verify uv environment working: `cd packages/mcp-server && uv run python --version`
-  - [ ] 1.3: Confirm fastapi-mcp installed: `cd packages/mcp-server && uv run python -c "import fastapi_mcp; print(fastapi_mcp.__version__)"`
-  - [ ] 1.4: Verify Docker infrastructure running: `docker-compose ps` (MongoDB + Qdrant should be up)
-  - [ ] 1.5: Test MongoDB connection: `mongosh --eval 'db.version()'`
-  - [ ] 1.6: Test Qdrant connection: `curl http://localhost:6333/health`
+- [x] **Task 1: Verify Prerequisites** (AC: All dependencies available)
+  - [x] 1.1: Confirm Story 1.1 complete (mcp-server package exists): `ls packages/mcp-server/pyproject.toml`
+  - [x] 1.2: Verify uv environment working: `cd packages/mcp-server && uv run python --version`
+  - [x] 1.3: Confirm fastapi-mcp installed: `cd packages/mcp-server && uv run python -c "import fastapi_mcp; print(fastapi_mcp.__version__)"`
+  - [x] 1.4: Verify Docker infrastructure running: `docker-compose ps` (MongoDB + Qdrant should be up)
+  - [x] 1.5: Test MongoDB connection: `mongosh --eval 'db.version()'`
+  - [x] 1.6: Test Qdrant connection: `curl http://localhost:6333/health`
 
-- [ ] **Task 2: Create Configuration Module** (AC: Server uses Pydantic Settings)
-  - [ ] 2.1: Create `packages/mcp-server/src/config.py`
-  - [ ] 2.2: Implement `Settings` class extending `pydantic_settings.BaseSettings`
-  - [ ] 2.3: Define configuration fields:
+- [x] **Task 2: Create Configuration Module** (AC: Server uses Pydantic Settings)
+  - [x] 2.1: Create `packages/mcp-server/src/config.py`
+  - [x] 2.2: Implement `Settings` class extending `pydantic_settings.BaseSettings`
+  - [x] 2.3: Define configuration fields:
     - `environment: str` (default: "local")
     - `mongodb_uri: str` (default: "mongodb://localhost:27017")
     - `mongodb_database: str` (default: "knowledge_db")
@@ -55,47 +55,47 @@ So that MCP tools can be exposed to Claude Code clients.
     - `server_host: str` (default: "0.0.0.0")
     - `server_port: int` (default: 8000)
     - `log_level: str` (default: "INFO")
-  - [ ] 2.4: Configure `.env` file loading via `Config.env_file = ".env"`
-  - [ ] 2.5: Export singleton: `settings = Settings()`
-  - [ ] 2.6: Create `.env.example` with all config variables documented
-  - [ ] 2.7: Follow project-context.md:59-64 (Configuration pattern)
+  - [x] 2.4: Configure `.env` file loading via `Config.env_file = ".env"`
+  - [x] 2.5: Export singleton: `settings = Settings()`
+  - [x] 2.6: Create `.env.example` with all config variables documented
+  - [x] 2.7: Follow project-context.md:59-64 (Configuration pattern)
 
-- [ ] **Task 3: Create Exception Classes** (AC: Structured error handling)
-  - [ ] 3.1: Create `packages/mcp-server/src/exceptions.py`
-  - [ ] 3.2: Implement base `KnowledgeError(Exception)` with fields: `code`, `message`, `details`
-  - [ ] 3.3: Implement specific exceptions:
+- [x] **Task 3: Create Exception Classes** (AC: Structured error handling)
+  - [x] 3.1: Create `packages/mcp-server/src/exceptions.py`
+  - [x] 3.2: Implement base `KnowledgeError(Exception)` with fields: `code`, `message`, `details`
+  - [x] 3.3: Implement specific exceptions:
     - `NotFoundError(KnowledgeError)` - For missing resources
     - `ValidationError(KnowledgeError)` - For invalid input
     - `DatabaseError(KnowledgeError)` - For storage failures
     - `RateLimitError(KnowledgeError)` - For tier limits (future)
-  - [ ] 3.4: Follow project-context.md:66-69 (Error Handling pattern)
-  - [ ] 3.5: Follow architecture.md:486-496 (Error codes: VALIDATION_ERROR, NOT_FOUND, RATE_LIMITED, INTERNAL_ERROR)
+  - [x] 3.4: Follow project-context.md:66-69 (Error Handling pattern)
+  - [x] 3.5: Follow architecture.md:486-496 (Error codes: VALIDATION_ERROR, NOT_FOUND, RATE_LIMITED, INTERNAL_ERROR)
 
-- [ ] **Task 4: Create Response Models** (AC: Standardized API responses)
-  - [ ] 4.1: Create `packages/mcp-server/src/models/` directory
-  - [ ] 4.2: Create `packages/mcp-server/src/models/responses.py`
-  - [ ] 4.3: Implement `ResponseMetadata` Pydantic model:
+- [x] **Task 4: Create Response Models** (AC: Standardized API responses)
+  - [x] 4.1: Create `packages/mcp-server/src/models/` directory
+  - [x] 4.2: Create `packages/mcp-server/src/models/responses.py`
+  - [x] 4.3: Implement `ResponseMetadata` Pydantic model:
     - `query: str` - Original query string
     - `sources_cited: list[str]` - Attribution list
     - `result_count: int` - Number of results
     - `search_type: str` - "semantic" | "filtered" | "exact"
-  - [ ] 4.4: Implement generic `ApiResponse[T]` Pydantic model:
+  - [x] 4.4: Implement generic `ApiResponse[T]` Pydantic model:
     - `results: list[T]` - Array of results
     - `metadata: ResponseMetadata` - Response metadata
-  - [ ] 4.5: Implement `ErrorDetail` Pydantic model:
+  - [x] 4.5: Implement `ErrorDetail` Pydantic model:
     - `code: str` - Error code (VALIDATION_ERROR, NOT_FOUND, etc.)
     - `message: str` - Human-readable message
     - `details: dict` - Additional error context
-  - [ ] 4.6: Implement `ErrorResponse` Pydantic model:
+  - [x] 4.6: Implement `ErrorResponse` Pydantic model:
     - `error: ErrorDetail`
-  - [ ] 4.7: Follow architecture.md:464-476 (Success response format)
-  - [ ] 4.8: Follow architecture.md:478-485 (Error response format)
-  - [ ] 4.9: Create `packages/mcp-server/src/models/__init__.py` with exports
+  - [x] 4.7: Follow architecture.md:464-476 (Success response format)
+  - [x] 4.8: Follow architecture.md:478-485 (Error response format)
+  - [x] 4.9: Create `packages/mcp-server/src/models/__init__.py` with exports
 
-- [ ] **Task 5: Create Storage Clients (Read-Only)** (AC: Connect to databases on startup)
-  - [ ] 5.1: Create `packages/mcp-server/src/storage/` directory
-  - [ ] 5.2: Create `packages/mcp-server/src/storage/mongodb.py`
-  - [ ] 5.3: Implement `MongoDBClient` class (read-only operations):
+- [x] **Task 5: Create Storage Clients (Read-Only)** (AC: Connect to databases on startup)
+  - [x] 5.1: Create `packages/mcp-server/src/storage/` directory
+  - [x] 5.2: Create `packages/mcp-server/src/storage/mongodb.py`
+  - [x] 5.3: Implement `MongoDBClient` class (read-only operations):
     - Constructor takes Settings, initializes pymongo client
     - `async def connect()` - Establish connection
     - `async def disconnect()` - Close connection
@@ -103,101 +103,101 @@ So that MCP tools can be exposed to Claude Code clients.
     - `async def list_sources(limit: int = 100)` - List all sources
     - `async def get_chunks(source_id: str)` - Get chunks for source
     - `async def get_extractions(type: str = None, topics: list[str] = None)` - Query extractions
-  - [ ] 5.4: Add structured logging with structlog for all database operations
-  - [ ] 5.5: Create `packages/mcp-server/src/storage/qdrant.py`
-  - [ ] 5.6: Implement `QdrantClient` class (read-only operations):
+  - [x] 5.4: Add structured logging with structlog for all database operations
+  - [x] 5.5: Create `packages/mcp-server/src/storage/qdrant.py`
+  - [x] 5.6: Implement `QdrantClient` class (read-only operations):
     - Constructor takes Settings, initializes qdrant_client
     - `async def connect()` - Establish connection
     - `async def disconnect()` - Close connection
     - `async def search_chunks(query_vector: list[float], limit: int = 10)` - Semantic search on chunks
     - `async def search_extractions(query_vector: list[float], filter: dict = None, limit: int = 10)` - Semantic search on extractions
-  - [ ] 5.7: Follow project-context.md:71-77 (Dual-Package Boundary: mcp-server is READ-ONLY)
-  - [ ] 5.8: Follow project-context.md:54-57 (Async patterns for endpoints)
-  - [ ] 5.9: Create `packages/mcp-server/src/storage/__init__.py` with exports
+  - [x] 5.7: Follow project-context.md:71-77 (Dual-Package Boundary: mcp-server is READ-ONLY)
+  - [x] 5.8: Follow project-context.md:54-57 (Async patterns for endpoints)
+  - [x] 5.9: Create `packages/mcp-server/src/storage/__init__.py` with exports
 
-- [ ] **Task 6: Create Health Check Endpoint** (AC: Health check returns server status)
-  - [ ] 6.1: Create `packages/mcp-server/src/tools/health.py`
-  - [ ] 6.2: Implement `async def health_check()` endpoint:
+- [x] **Task 6: Create Health Check Endpoint** (AC: Health check returns server status)
+  - [x] 6.1: Create `packages/mcp-server/src/tools/health.py`
+  - [x] 6.2: Implement `async def health_check()` endpoint:
     - Returns `{"status": "healthy", "timestamp": <ISO-8601>, "services": {...}}`
-  - [ ] 6.3: Check MongoDB connection status (ping database)
-  - [ ] 6.4: Check Qdrant connection status (check cluster health)
-  - [ ] 6.5: Return HTTP 503 if any service is unavailable
-  - [ ] 6.6: Include version information from pyproject.toml
-  - [ ] 6.7: Create `packages/mcp-server/src/tools/__init__.py` with exports
+  - [x] 6.3: Check MongoDB connection status (ping database)
+  - [x] 6.4: Check Qdrant connection status (check cluster health)
+  - [x] 6.5: Return HTTP 503 if any service is unavailable
+  - [x] 6.6: Include version information from pyproject.toml
+  - [x] 6.7: Create `packages/mcp-server/src/tools/__init__.py` with exports
 
-- [ ] **Task 7: Create FastAPI Server Application** (AC: Server starts on configured port)
-  - [ ] 7.1: Create `packages/mcp-server/src/server.py`
-  - [ ] 7.2: Initialize FastAPI app with metadata:
+- [x] **Task 7: Create FastAPI Server Application** (AC: Server starts on configured port)
+  - [x] 7.1: Create `packages/mcp-server/src/server.py`
+  - [x] 7.2: Initialize FastAPI app with metadata:
     - `title="AI Engineering Knowledge MCP Server"`
     - `version` from pyproject.toml
     - `description` from architecture doc
-  - [ ] 7.3: Configure structured logging with structlog
-  - [ ] 7.4: Add startup event handler:
+  - [x] 7.3: Configure structured logging with structlog
+  - [x] 7.4: Add startup event handler:
     - Load configuration
     - Initialize MongoDB client and connect
     - Initialize Qdrant client and connect
     - Log successful startup
-  - [ ] 7.5: Add shutdown event handler:
+  - [x] 7.5: Add shutdown event handler:
     - Disconnect MongoDB client
     - Disconnect Qdrant client
     - Log graceful shutdown
-  - [ ] 7.6: Mount health check endpoint at `/health`
-  - [ ] 7.7: Follow project-context.md:54-57 (All endpoints MUST be async)
-  - [ ] 7.8: Follow project-context.md:152-164 (Structured logging MANDATORY)
+  - [x] 7.6: Mount health check endpoint at `/health`
+  - [x] 7.7: Follow project-context.md:54-57 (All endpoints MUST be async)
+  - [x] 7.8: Follow project-context.md:152-164 (Structured logging MANDATORY)
 
-- [ ] **Task 8: Integrate fastapi-mcp** (AC: `/mcp` endpoint available)
-  - [ ] 8.1: Import `FastApiMCP` from fastapi_mcp
-  - [ ] 8.2: Initialize MCP after FastAPI app creation: `mcp = FastApiMCP(app)`
-  - [ ] 8.3: Call `mcp.mount()` to create `/mcp` endpoint
-  - [ ] 8.4: Verify MCP protocol endpoint available
-  - [ ] 8.5: Follow architecture.md:169-189 (fastapi-mcp integration pattern)
-  - [ ] 8.6: Follow project-context.md:104-108 (MCP Integration rules)
+- [x] **Task 8: Integrate fastapi-mcp** (AC: `/mcp` endpoint available)
+  - [x] 8.1: Import `FastApiMCP` from fastapi_mcp
+  - [x] 8.2: Initialize MCP after FastAPI app creation: `mcp = FastApiMCP(app)`
+  - [x] 8.3: Call `mcp.mount_http()` to create `/mcp` endpoint (using HTTP transport)
+  - [x] 8.4: Verify MCP protocol endpoint available
+  - [x] 8.5: Follow architecture.md:169-189 (fastapi-mcp integration pattern)
+  - [x] 8.6: Follow project-context.md:104-108 (MCP Integration rules)
 
-- [ ] **Task 9: Create Server Entry Point** (AC: `uv run uvicorn src.server:app` works)
-  - [ ] 9.1: Add `if __name__ == "__main__"` block to `server.py`
-  - [ ] 9.2: Import uvicorn
-  - [ ] 9.3: Call `uvicorn.run()` with:
+- [x] **Task 9: Create Server Entry Point** (AC: `uv run uvicorn src.server:app` works)
+  - [x] 9.1: Add `if __name__ == "__main__"` block to `server.py`
+  - [x] 9.2: Import uvicorn
+  - [x] 9.3: Call `uvicorn.run()` with:
     - `app="src.server:app"`
     - `host=settings.server_host`
     - `port=settings.server_port`
     - `reload=True` (for development)
     - `log_level=settings.log_level.lower()`
-  - [ ] 9.4: Create `main()` function for CLI entry point (matches pyproject.toml script)
-  - [ ] 9.5: Test server startup: `cd packages/mcp-server && uv run uvicorn src.server:app`
-  - [ ] 9.6: Verify server accessible at `http://localhost:8000`
+  - [x] 9.4: Create `main()` function for CLI entry point (matches pyproject.toml script)
+  - [x] 9.5: Test server startup: `cd packages/mcp-server && uv run uvicorn src.server:app`
+  - [x] 9.6: Verify server accessible at `http://localhost:8000`
 
-- [ ] **Task 10: Create Basic Integration Tests** (AC: Server functionality verified)
-  - [ ] 10.1: Create `packages/mcp-server/tests/test_server.py`
-  - [ ] 10.2: Use pytest-asyncio for async tests
-  - [ ] 10.3: Create fixtures in `conftest.py`:
+- [x] **Task 10: Create Basic Integration Tests** (AC: Server functionality verified)
+  - [x] 10.1: Create `packages/mcp-server/tests/test_server.py`
+  - [x] 10.2: Use pytest-asyncio for async tests
+  - [x] 10.3: Create fixtures in `conftest.py`:
     - `@pytest.fixture` for test app (TestClient)
     - `@pytest_asyncio.fixture` for async database clients
-  - [ ] 10.4: Test health check endpoint:
+  - [x] 10.4: Test health check endpoint:
     - Returns 200 when services available
     - Returns 503 when services unavailable
     - Includes service status in response
-  - [ ] 10.5: Test MCP endpoint exists:
+  - [x] 10.5: Test MCP endpoint exists:
     - `/mcp` endpoint is accessible
     - Returns MCP protocol metadata
-  - [ ] 10.6: Test server startup/shutdown:
+  - [x] 10.6: Test server startup/shutdown:
     - Database connections established
     - Database connections closed properly
-  - [ ] 10.7: Follow project-context.md:110-142 (Testing patterns)
-  - [ ] 10.8: Run tests: `cd packages/mcp-server && uv run pytest`
+  - [x] 10.7: Follow project-context.md:110-142 (Testing patterns)
+  - [x] 10.8: Run tests: `cd packages/mcp-server && uv run pytest`
 
-- [ ] **Task 11: Create Documentation** (AC: Developer can run server)
-  - [ ] 11.1: Create `packages/mcp-server/README.md`
-  - [ ] 11.2: Document setup instructions:
+- [x] **Task 11: Create Documentation** (AC: Developer can run server)
+  - [x] 11.1: Create `packages/mcp-server/README.md`
+  - [x] 11.2: Document setup instructions:
     - Prerequisites (Docker, uv)
     - Environment configuration
     - Running the server locally
-  - [ ] 11.3: Document API endpoints:
+  - [x] 11.3: Document API endpoints:
     - `/health` - Health check
     - `/mcp` - MCP protocol endpoint
-  - [ ] 11.4: Document MCP client connection:
+  - [x] 11.4: Document MCP client connection:
     - How Claude Code clients connect
     - Example MCP server configuration
-  - [ ] 11.5: Include troubleshooting section:
+  - [x] 11.5: Include troubleshooting section:
     - Common connection errors
     - Database connectivity issues
     - Port conflicts
@@ -500,16 +500,94 @@ uv run mypy src/
 
 ### Agent Model Used
 
-_To be filled by dev agent during implementation_
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
-_To be filled by dev agent during implementation_
+- **structlog issue**: ModuleNotFoundError for structlog - fixed by adding `uv add structlog`
+- **pytest wrong Python**: Tests failed due to system pytest - fixed by using `uv run python -m pytest`
+- **Dev deps missing**: Tests not found initially - fixed with `uv sync --all-extras`
+- **MCP mount() hanging**: Default `mcp.mount()` caused tests to hang - fixed by using `mcp.mount_http()` per fastapi-mcp docs for HTTP transport
+- **Linting errors**: 6 unused pytest imports - fixed with `uv run ruff check --fix .`
+- **Port conflicts**: Server processes left running - fixed with `pkill -f "uvicorn"`
+- **Pydantic deprecation**: Old `class Config` syntax - fixed by using `model_config = SettingsConfigDict(...)`
 
 ### Completion Notes List
 
-_To be filled by dev agent during implementation_
+1. **All 11 tasks completed successfully** following TDD (Red-Green-Refactor) approach
+2. **93 tests pass** with `uv run python -m pytest` (expanded after code review)
+3. **All linting checks pass** with `uv run ruff check .`
+4. **Server starts successfully** and connects to MongoDB and Qdrant on startup
+5. **Routes available**: `/openapi.json`, `/docs`, `/docs/oauth2-redirect`, `/redoc`, `/mcp`, `/health`
+6. **MCP Integration**: Using `mount_http()` for HTTP transport (not SSE)
+7. **Read-only clients**: Both MongoDBClient and QdrantStorageClient implement read-only operations per dual-package boundary
+8. **Structured logging**: All modules use structlog (no print statements)
+9. **Configuration**: Pydantic Settings with `.env` file support
+10. **Exception hierarchy**: Base `KnowledgeError` with specialized exceptions (NotFoundError, ValidationError, DatabaseError, RateLimitError)
 
 ### File List
 
-_To be filled by dev agent during implementation_
+**Source Files Created:**
+- `packages/mcp-server/src/config.py` - Configuration module with Pydantic Settings
+- `packages/mcp-server/src/exceptions.py` - Exception hierarchy (KnowledgeError, NotFoundError, etc.)
+- `packages/mcp-server/src/models/__init__.py` - Model exports
+- `packages/mcp-server/src/models/responses.py` - Response models (ApiResponse, ResponseMetadata, ErrorDetail, ErrorResponse)
+- `packages/mcp-server/src/storage/__init__.py` - Storage client exports
+- `packages/mcp-server/src/storage/mongodb.py` - Read-only MongoDB client
+- `packages/mcp-server/src/storage/qdrant.py` - Read-only Qdrant storage client
+- `packages/mcp-server/src/tools/health.py` - Health check function
+- `packages/mcp-server/src/tools/__init__.py` - Updated with health export
+- `packages/mcp-server/src/server.py` - FastAPI application with MCP integration
+
+**Configuration Files Created:**
+- `packages/mcp-server/.env.example` - Environment configuration template
+
+**Documentation Created:**
+- `packages/mcp-server/README.md` - Setup, usage, and troubleshooting guide
+
+**Test Files Created:**
+- `packages/mcp-server/tests/test_config.py` - Configuration tests
+- `packages/mcp-server/tests/test_exceptions.py` - Exception class tests
+- `packages/mcp-server/tests/test_models/__init__.py` - Test package init
+- `packages/mcp-server/tests/test_models/test_responses.py` - Response model tests
+- `packages/mcp-server/tests/test_storage/__init__.py` - Test package init
+- `packages/mcp-server/tests/test_storage/test_mongodb.py` - MongoDB client tests (+ URI masking, ping tests)
+- `packages/mcp-server/tests/test_storage/test_qdrant.py` - Qdrant client tests (+ vector validation tests)
+- `packages/mcp-server/tests/test_tools/__init__.py` - Test package init
+- `packages/mcp-server/tests/test_tools/test_health.py` - Health check tests
+- `packages/mcp-server/tests/test_server.py` - Server application tests
+- `packages/mcp-server/tests/test_mcp_integration.py` - MCP integration tests
+
+**Files Modified (during development):**
+- `packages/mcp-server/pyproject.toml` - Added structlog dependency
+- `packages/mcp-server/uv.lock` - Lock file updated
+
+---
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2025-12-30
+**Outcome:** APPROVED (after fixes)
+
+### Issues Found and Fixed
+
+| # | Severity | Issue | Fix Applied |
+|---|----------|-------|-------------|
+| 1 | HIGH | MongoDB client methods declared `async def` but called sync pymongo (blocking event loop) | Wrapped all sync operations in `asyncio.to_thread()` |
+| 2 | HIGH | Qdrant client methods declared `async def` but called sync qdrant_client (blocking event loop) | Wrapped all sync operations in `asyncio.to_thread()` |
+| 3 | HIGH | Tests only verified methods exist, not actual behavior | Added 16 new meaningful tests (ping, validation, URI masking) |
+| 4 | MEDIUM | Private `_client` attribute accessed in health.py | Added public `ping()` methods to both storage clients |
+| 5 | MEDIUM | No vector dimension validation per project-context.md:228 | Added `_validate_vector()` and `VECTOR_DIMENSIONS=384` constant |
+| 6 | MEDIUM | Modified files (pyproject.toml, uv.lock) not in File List | Updated File List |
+| 7 | LOW | MongoDB URI logged in plain text (potential credential leak) | Added `_mask_uri_credentials()` helper |
+
+### Test Count
+- **Before Review:** 77 tests
+- **After Review:** 93 tests (+16 meaningful behavior tests)
+
+### Architecture Compliance
+- ✅ All sync database operations now properly offloaded via `asyncio.to_thread()`
+- ✅ Vector dimensions validated before Qdrant search (384d required)
+- ✅ Public `ping()` methods replace private attribute access
+- ✅ Credentials masked in logging per project-context.md:236

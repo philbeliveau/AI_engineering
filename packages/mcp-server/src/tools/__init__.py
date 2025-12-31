@@ -1,1 +1,7 @@
-# MCP tools for knowledge querying
+"""MCP tools for knowledge querying."""
+
+from src.tools.health import health_check
+
+__all__ = [
+    "health_check",
+]
