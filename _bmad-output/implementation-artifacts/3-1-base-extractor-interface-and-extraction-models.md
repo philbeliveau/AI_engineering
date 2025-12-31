@@ -1,6 +1,6 @@
 # Story 3.1: Base Extractor Interface and Extraction Models
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -43,20 +43,20 @@ So that all extractors follow a consistent pattern and extraction outputs are va
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Verify Prerequisites** (AC: Dependencies available)
-  - [ ] Confirm Story 1.1 complete: `ls packages/pipeline/pyproject.toml`
-  - [ ] Confirm Story 1.3 complete: `cd packages/pipeline && uv run python -c "from src.models import Source, Chunk, Extraction; print('OK')"`
-  - [ ] Confirm Python 3.11+: `cd packages/pipeline && uv run python --version`
-  - [ ] Confirm adapters module exists (Story 2.1 pattern reference): `ls packages/pipeline/src/adapters/base.py`
+- [x] **Task 1: Verify Prerequisites** (AC: Dependencies available)
+  - [x] Confirm Story 1.1 complete: `ls packages/pipeline/pyproject.toml`
+  - [x] Confirm Story 1.3 complete: `cd packages/pipeline && uv run python -c "from src.models import Source, Chunk, Extraction; print('OK')"`
+  - [x] Confirm Python 3.11+: `cd packages/pipeline && uv run python --version`
+  - [x] Confirm adapters module exists (Story 2.1 pattern reference): `ls packages/pipeline/src/adapters/base.py`
 
-- [ ] **Task 2: Create Extractors Module Structure** (AC: Module exists)
-  - [ ] Create `packages/pipeline/src/extractors/` directory
-  - [ ] Create `packages/pipeline/src/extractors/__init__.py`
-  - [ ] Create `packages/pipeline/src/extractors/base.py`
-  - [ ] Create `packages/pipeline/src/extractors/prompts/` directory for extraction prompts
+- [x] **Task 2: Create Extractors Module Structure** (AC: Module exists)
+  - [x] Create `packages/pipeline/src/extractors/` directory
+  - [x] Create `packages/pipeline/src/extractors/__init__.py`
+  - [x] Create `packages/pipeline/src/extractors/base.py`
+  - [x] Create `packages/pipeline/src/extractors/prompts/` directory for extraction prompts
 
-- [ ] **Task 3: Define Base Extraction Models** (AC: Common fields validated)
-  - [ ] Create `ExtractionBase` Pydantic model with common fields:
+- [x] **Task 3: Define Base Extraction Models** (AC: Common fields validated)
+  - [x] Create `ExtractionBase` Pydantic model with common fields:
     - `id: str` - Unique extraction ID (MongoDB ObjectId compatible)
     - `source_id: str` - Reference to source document
     - `chunk_id: str` - Reference to chunk extracted from
@@ -65,126 +65,126 @@ So that all extractors follow a consistent pattern and extraction outputs are va
     - `schema_version: str` - Schema version for evolution
     - `extracted_at: datetime` - Extraction timestamp
     - `confidence: float` - Extraction confidence score (0.0-1.0)
-  - [ ] Create `ExtractionType` enum: DECISION, PATTERN, WARNING, METHODOLOGY, CHECKLIST, PERSONA, WORKFLOW
-  - [ ] Create `ExtractionResult` model for extractor output with validation status
+  - [x] Create `ExtractionType` enum: DECISION, PATTERN, WARNING, METHODOLOGY, CHECKLIST, PERSONA, WORKFLOW
+  - [x] Create `ExtractionResult` model for extractor output with validation status
 
-- [ ] **Task 4: Define Type-Specific Extraction Models** (AC: All 7 types defined)
-  - [ ] Create `Decision` model extending ExtractionBase:
+- [x] **Task 4: Define Type-Specific Extraction Models** (AC: All 7 types defined)
+  - [x] Create `Decision` model extending ExtractionBase:
     - `question: str` - The decision point question
     - `options: list[str]` - Available options
     - `considerations: list[str]` - Factors to consider
     - `recommended_approach: str | None` - Recommended choice if stated
     - `context: str` - Surrounding context
-  - [ ] Create `Pattern` model extending ExtractionBase:
+  - [x] Create `Pattern` model extending ExtractionBase:
     - `name: str` - Pattern name
     - `problem: str` - Problem it solves
     - `solution: str` - Solution approach
     - `code_example: str | None` - Code snippet if applicable
     - `context: str` - When to use
     - `trade_offs: list[str]` - Pros/cons
-  - [ ] Create `Warning` model extending ExtractionBase:
+  - [x] Create `Warning` model extending ExtractionBase:
     - `title: str` - Warning title
     - `description: str` - What the warning is about
     - `symptoms: list[str]` - How to recognize the problem
     - `consequences: list[str]` - What happens if ignored
     - `prevention: str` - How to avoid
-  - [ ] Create `Methodology` model extending ExtractionBase:
+  - [x] Create `Methodology` model extending ExtractionBase:
     - `name: str` - Methodology name
     - `steps: list[MethodologyStep]` - Ordered steps
     - `prerequisites: list[str]` - Required before starting
     - `outputs: list[str]` - Expected deliverables
-  - [ ] Create `MethodologyStep` model:
+  - [x] Create `MethodologyStep` model:
     - `order: int` - Step number
     - `title: str` - Step title
     - `description: str` - Step details
     - `tips: list[str]` - Optional tips
-  - [ ] Create `Checklist` model extending ExtractionBase:
+  - [x] Create `Checklist` model extending ExtractionBase:
     - `name: str` - Checklist name
     - `items: list[ChecklistItem]` - Checklist items
     - `context: str` - When to use this checklist
-  - [ ] Create `ChecklistItem` model:
+  - [x] Create `ChecklistItem` model:
     - `item: str` - Checklist item text
     - `required: bool` - Whether mandatory
-  - [ ] Create `Persona` model extending ExtractionBase:
+  - [x] Create `Persona` model extending ExtractionBase:
     - `role: str` - Role title
     - `responsibilities: list[str]` - What they do
     - `expertise: list[str]` - Domain expertise
     - `communication_style: str` - How they communicate
-  - [ ] Create `Workflow` model extending ExtractionBase:
+  - [x] Create `Workflow` model extending ExtractionBase:
     - `name: str` - Workflow name
     - `trigger: str` - What starts the workflow
     - `steps: list[WorkflowStep]` - Workflow steps
     - `decision_points: list[str]` - Key decision points
-  - [ ] Create `WorkflowStep` model:
+  - [x] Create `WorkflowStep` model:
     - `order: int` - Step number
     - `action: str` - What to do
     - `outputs: list[str]` - Step outputs
 
-- [ ] **Task 5: Implement BaseExtractor ABC** (AC: Abstract methods defined)
-  - [ ] Create `BaseExtractor` abstract base class
-  - [ ] Define abstract method: `extract(chunk_content: str, chunk_id: str, source_id: str) -> list[ExtractionResult]`
-  - [ ] Define abstract method: `get_prompt() -> str`
-  - [ ] Define abstract property: `extraction_type: ExtractionType`
-  - [ ] Define abstract property: `model_class: Type[ExtractionBase]`
-  - [ ] Add `__init__(self, config: ExtractorConfig = None)` constructor
-  - [ ] Implement `_parse_llm_response(response: str) -> list[dict]` for JSON parsing
-  - [ ] Implement `_validate_extraction(data: dict) -> ExtractionResult` using Pydantic model
-  - [ ] Implement `_generate_topics(content: str) -> list[str]` for auto-tagging
+- [x] **Task 5: Implement BaseExtractor ABC** (AC: Abstract methods defined)
+  - [x] Create `BaseExtractor` abstract base class
+  - [x] Define abstract method: `extract(chunk_content: str, chunk_id: str, source_id: str) -> list[ExtractionResult]`
+  - [x] Define abstract method: `get_prompt() -> str`
+  - [x] Define abstract property: `extraction_type: ExtractionType`
+  - [x] Define abstract property: `model_class: Type[ExtractionBase]`
+  - [x] Add `__init__(self, config: ExtractorConfig = None)` constructor
+  - [x] Implement `_parse_llm_response(response: str) -> list[dict]` for JSON parsing
+  - [x] Implement `_validate_extraction(data: dict) -> ExtractionResult` using Pydantic model
+  - [x] Implement `_generate_topics(content: str) -> list[str]` for auto-tagging
 
-- [ ] **Task 6: Implement ExtractorConfig** (AC: Configuration available)
-  - [ ] Create `ExtractorConfig` Pydantic model:
+- [x] **Task 6: Implement ExtractorConfig** (AC: Configuration available)
+  - [x] Create `ExtractorConfig` Pydantic model:
     - `max_extractions_per_chunk: int = 5` - Limit extractions per chunk
     - `min_confidence: float = 0.5` - Minimum confidence threshold
     - `auto_tag_topics: bool = True` - Enable auto-tagging
     - `include_context: bool = True` - Include surrounding context
 
-- [ ] **Task 7: Implement Extractor Exceptions** (AC: Error handling)
-  - [ ] Create `ExtractorError` base exception inheriting from `KnowledgeError`
-  - [ ] Create `PromptLoadError` for prompt file loading failures
-  - [ ] Create `ExtractionParseError` for LLM response parsing failures
-  - [ ] Create `ExtractionValidationError` for Pydantic validation failures
-  - [ ] Create `UnsupportedExtractionTypeError` for unknown extraction types
-  - [ ] All exceptions follow structured format: `{code, message, details}`
+- [x] **Task 7: Implement Extractor Exceptions** (AC: Error handling)
+  - [x] Create `ExtractorError` base exception inheriting from `KnowledgeError`
+  - [x] Create `PromptLoadError` for prompt file loading failures
+  - [x] Create `ExtractionParseError` for LLM response parsing failures
+  - [x] Create `ExtractionValidationError` for Pydantic validation failures
+  - [x] Create `UnsupportedExtractionTypeError` for unknown extraction types
+  - [x] All exceptions follow structured format: `{code, message, details}`
 
-- [ ] **Task 8: Implement Extractor Registry** (AC: Extensibility pattern)
-  - [ ] Create `ExtractorRegistry` class for managing extractors
-  - [ ] Implement `register(extraction_type: ExtractionType, extractor_class: Type[BaseExtractor])` method
-  - [ ] Implement `get_extractor(extraction_type: ExtractionType) -> BaseExtractor` method
-  - [ ] Implement `list_extraction_types() -> list[ExtractionType]` method
-  - [ ] Implement `get_all_extractors() -> list[BaseExtractor]` method
-  - [ ] Create module-level registry instance: `extractor_registry = ExtractorRegistry()`
+- [x] **Task 8: Implement Extractor Registry** (AC: Extensibility pattern)
+  - [x] Create `ExtractorRegistry` class for managing extractors
+  - [x] Implement `register(extraction_type: ExtractionType, extractor_class: Type[BaseExtractor])` method
+  - [x] Implement `get_extractor(extraction_type: ExtractionType) -> BaseExtractor` method
+  - [x] Implement `list_extraction_types() -> list[ExtractionType]` method
+  - [x] Implement `get_all_extractors() -> list[BaseExtractor]` method
+  - [x] Create module-level registry instance: `extractor_registry = ExtractorRegistry()`
 
-- [ ] **Task 9: Create Prompt Templates Directory** (AC: Prompts structure ready)
-  - [ ] Create `packages/pipeline/src/extractors/prompts/` directory
-  - [ ] Create `_base.md` with common extraction instructions
-  - [ ] Create placeholder files for each extraction type (to be filled in Stories 3.2-3.5):
+- [x] **Task 9: Create Prompt Templates Directory** (AC: Prompts structure ready)
+  - [x] Create `packages/pipeline/src/extractors/prompts/` directory
+  - [x] Create `_base.md` with common extraction instructions
+  - [x] Create placeholder files for each extraction type (to be filled in Stories 3.2-3.5):
     - `decision.md`, `pattern.md`, `warning.md`, `methodology.md`
     - `checklist.md`, `persona.md`, `workflow.md`
-  - [ ] Implement `_load_prompt(prompt_name: str) -> str` utility method in base class
+  - [x] Implement `_load_prompt(prompt_name: str) -> str` utility method in base class
 
-- [ ] **Task 10: Create Module Exports** (AC: Clean imports)
-  - [ ] Export from `packages/pipeline/src/extractors/__init__.py`:
+- [x] **Task 10: Create Module Exports** (AC: Clean imports)
+  - [x] Export from `packages/pipeline/src/extractors/__init__.py`:
     - `BaseExtractor`
     - `ExtractionType`, `ExtractionBase`, `ExtractionResult`
     - All type-specific models: `Decision`, `Pattern`, `Warning`, `Methodology`, `Checklist`, `Persona`, `Workflow`
     - `ExtractorConfig`
     - All exceptions
     - `ExtractorRegistry`, `extractor_registry`
-  - [ ] Verify imports work: `from src.extractors import BaseExtractor, Decision, extractor_registry`
+  - [x] Verify imports work: `from src.extractors import BaseExtractor, Decision, extractor_registry`
 
-- [ ] **Task 11: Create Unit Tests** (AC: ABC works correctly)
-  - [ ] Create `packages/pipeline/tests/test_extractors/` directory
-  - [ ] Create `packages/pipeline/tests/test_extractors/conftest.py` with test fixtures
-  - [ ] Create `packages/pipeline/tests/test_extractors/test_base.py`
-  - [ ] Create `packages/pipeline/tests/test_extractors/test_models.py`
-  - [ ] Test that BaseExtractor cannot be instantiated directly
-  - [ ] Test that concrete implementation must define abstract methods
-  - [ ] Test all Pydantic models validate correctly
-  - [ ] Test all models include required common fields (source_id, chunk_id, topics, schema_version)
-  - [ ] Test registry registers and retrieves extractors
-  - [ ] Test exception hierarchy and structured error format
-  - [ ] Test prompt loading utility
-  - [ ] Document test results in completion notes
+- [x] **Task 11: Create Unit Tests** (AC: ABC works correctly)
+  - [x] Create `packages/pipeline/tests/test_extractors/` directory
+  - [x] Create `packages/pipeline/tests/test_extractors/conftest.py` with test fixtures
+  - [x] Create `packages/pipeline/tests/test_extractors/test_base.py`
+  - [x] Create `packages/pipeline/tests/test_extractors/test_models.py`
+  - [x] Test that BaseExtractor cannot be instantiated directly
+  - [x] Test that concrete implementation must define abstract methods
+  - [x] Test all Pydantic models validate correctly
+  - [x] Test all models include required common fields (source_id, chunk_id, topics, schema_version)
+  - [x] Test registry registers and retrieves extractors
+  - [x] Test exception hierarchy and structured error format
+  - [x] Test prompt loading utility
+  - [x] Document test results in completion notes
 
 ## Dev Notes
 
@@ -1178,26 +1178,68 @@ logger.error("extraction_failed",
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+No debug log issues encountered during implementation.
+
 ### Completion Notes List
+
+- **Implementation Complete (2025-12-30):** All 11 tasks completed successfully
+- **Test Results:** 105 tests written and passing in test_extractors module
+- **Full Regression:** 280 tests pass (excluding incomplete PDF adapter tests from Story 2.2)
+- **Linting:** All code passes ruff linting with line-length 100
+- **Pattern Followed:** ABC + Registry pattern matching Story 2.1 adapters pattern
+- **NFR6 Compliance:** Extensibility achieved via abstract base class and registry
+- **All 7 Extraction Types:** Decision, Pattern, Warning, Methodology, Checklist, Persona, Workflow models defined with common fields
+- **Common Fields Verified:** All models include source_id, chunk_id, topics[], schema_version, extracted_at, confidence
+- **Exception Hierarchy:** ExtractorError inherits from KnowledgeError with structured {code, message, details} format
 
 ### File List
 
-_To be filled by dev agent - list all files created/modified:_
 - packages/pipeline/src/extractors/__init__.py (CREATE)
 - packages/pipeline/src/extractors/base.py (CREATE)
 - packages/pipeline/src/extractors/prompts/_base.md (CREATE)
-- packages/pipeline/src/extractors/prompts/decision.md (CREATE - placeholder)
-- packages/pipeline/src/extractors/prompts/pattern.md (CREATE - placeholder)
-- packages/pipeline/src/extractors/prompts/warning.md (CREATE - placeholder)
-- packages/pipeline/src/extractors/prompts/methodology.md (CREATE - placeholder)
-- packages/pipeline/src/extractors/prompts/checklist.md (CREATE - placeholder)
-- packages/pipeline/src/extractors/prompts/persona.md (CREATE - placeholder)
-- packages/pipeline/src/extractors/prompts/workflow.md (CREATE - placeholder)
+- packages/pipeline/src/extractors/prompts/decision.md (CREATE)
+- packages/pipeline/src/extractors/prompts/pattern.md (CREATE)
+- packages/pipeline/src/extractors/prompts/warning.md (CREATE)
+- packages/pipeline/src/extractors/prompts/methodology.md (CREATE)
+- packages/pipeline/src/extractors/prompts/checklist.md (CREATE)
+- packages/pipeline/src/extractors/prompts/persona.md (CREATE)
+- packages/pipeline/src/extractors/prompts/workflow.md (CREATE)
 - packages/pipeline/tests/test_extractors/__init__.py (CREATE)
 - packages/pipeline/tests/test_extractors/conftest.py (CREATE)
 - packages/pipeline/tests/test_extractors/test_base.py (CREATE)
 - packages/pipeline/tests/test_extractors/test_models.py (CREATE)
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.5 (claude-opus-4-5-20251101)
+**Date:** 2025-12-30
+**Outcome:** APPROVED with fixes applied
+
+### Issues Found and Fixed
+
+| Severity | Issue | File | Fix Applied |
+|----------|-------|------|-------------|
+| HIGH | `datetime.utcnow()` deprecated in Python 3.12+ | base.py:73 | Changed to `datetime.now(UTC)` |
+| MEDIUM | Unused `sample_chunk_content` fixture | conftest.py | Removed dead code |
+| MEDIUM | Prompts lack base instruction combination | base.py | Added `_load_full_prompt()` method |
+
+### Tests After Review
+
+- **Total Tests:** 107 (was 105, added 2 for new method)
+- **All Passing:** Yes
+- **Linting:** All checks passed
+
+### Files Modified During Review
+
+- packages/pipeline/src/extractors/base.py (MODIFY - datetime fix, added _load_full_prompt)
+- packages/pipeline/tests/test_extractors/conftest.py (MODIFY - removed unused fixture)
+- packages/pipeline/tests/test_extractors/test_base.py (MODIFY - added prompt combination tests)
+
+## Change Log
+
+- 2025-12-30: Story 3.1 implementation complete - Base extractor interface, all 7 extraction models, registry pattern, and 105 tests
+- 2025-12-30: Code review completed - Fixed datetime deprecation, removed dead code, added _load_full_prompt() helper, 107 tests now passing

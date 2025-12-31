@@ -50,18 +50,20 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Document Ingestion Pipeline
+  # COURSE CORRECTION 2025-12-30: Docling refactor
+  # See: epic-2-sprint-change-proposal.md for details
   epic-2: in-progress
   2-1-base-source-adapter-interface: done
-  2-2-pdf-document-adapter: ready-for-dev
-  2-3-markdown-document-adapter: ready-for-dev
-  2-4-text-chunking-processor: ready-for-dev
-  2-5-local-embedding-generator: ready-for-dev
-  2-6-end-to-end-ingestion-pipeline: ready-for-dev
+  2-2-docling-document-adapter: in-progress   # RENAMED from pdf-document-adapter, reset
+  2-3-markdown-document-adapter: archived       # MERGED into 2-2 (Docling handles markdown)
+  2-4-text-chunking-processor: ready-for-dev    # REWRITE: now uses HybridChunker
+  2-5-local-embedding-generator: in-progress
+  2-6-end-to-end-ingestion-pipeline: ready-for-dev  # UPDATED: references Docling
   epic-2-retrospective: optional
 
   # Epic 3: Knowledge Extraction System
   epic-3: in-progress
-  3-1-base-extractor-interface-and-extraction-models: ready-for-dev
+  3-1-base-extractor-interface-and-extraction-models: done
   3-2-decision-extractor: ready-for-dev
   3-3-pattern-extractor: ready-for-dev
   3-4-warning-extractor: ready-for-dev
@@ -72,7 +74,7 @@ development_status:
 
   # Epic 4: Knowledge Query Interface (MCP Tools)
   epic-4: in-progress
-  4-1-fastapi-server-with-mcp-integration: ready-for-dev
+  4-1-fastapi-server-with-mcp-integration: in-progress
   4-2-semantic-search-tool-search-knowledge: ready-for-dev
   4-3-extraction-query-tools-get-decisions-get-patterns-get-warnings: ready-for-dev
   4-4-methodology-query-tool-get-methodologies: ready-for-dev
