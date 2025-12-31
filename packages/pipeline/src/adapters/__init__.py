@@ -39,6 +39,11 @@ from src.adapters.base import (
     AdapterRegistry,
     adapter_registry,
 )
+from src.adapters.docling_adapter import DoclingAdapter
+
+# Register DoclingAdapter for all supported file types
+for ext in DoclingAdapter.SUPPORTED_EXTENSIONS:
+    adapter_registry.register(ext, DoclingAdapter)
 
 __all__ = [
     # Base class
@@ -55,4 +60,6 @@ __all__ = [
     # Registry
     "AdapterRegistry",
     "adapter_registry",
+    # Adapters
+    "DoclingAdapter",
 ]
