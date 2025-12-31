@@ -55,6 +55,7 @@ from src.extractors.base import (
     ExtractorRegistry,
     extractor_registry,
 )
+from src.extractors.llm_client import LLMClient, LLMClientError
 
 __all__ = [
     # Enums
@@ -85,4 +86,7 @@ __all__ = [
     # Registry
     "ExtractorRegistry",
     "extractor_registry",
+    # LLM Client
+    "LLMClient",
+    "LLMClientError",
 ]

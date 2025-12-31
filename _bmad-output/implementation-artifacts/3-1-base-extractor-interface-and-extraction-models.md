@@ -18,6 +18,10 @@ So that all extractors follow a consistent pattern and extraction outputs are va
 **And** type-specific Pydantic models exist for Decision, Pattern, Warning, Methodology, Checklist, Persona, Workflow
 **And** all extraction models include `source_id`, `chunk_id`, `topics[]`, and `schema_version`
 **And** the pattern follows NFR6 (Extensibility for Extractors)
+**And** LLMClient utility class exists at `src/extractors/llm_client.py`
+**And** LLMClient provides `extract(prompt, content)` method for batch LLM extraction
+**And** LLMClient uses `ANTHROPIC_API_KEY` from settings
+**And** LLMClient includes retry logic with exponential backoff
 
 ## Dependency Analysis
 
@@ -186,7 +190,104 @@ So that all extractors follow a consistent pattern and extraction outputs are va
   - [x] Test prompt loading utility
   - [x] Document test results in completion notes
 
+- [x] **Task 12: Implement LLMClient Utility** (AC: LLMClient for automated extraction)
+  - [x] 12.1: Add `anthropic` and `tenacity` dependencies to pyproject.toml
+  - [x] 12.2: Update `src/config.py` with LLM settings (`anthropic_api_key`, `llm_model`, `llm_max_tokens`)
+  - [x] 12.3: Update `.env.example` with `ANTHROPIC_API_KEY` and `LLM_MODEL`
+  - [x] 12.4: Create `packages/pipeline/src/extractors/llm_client.py` with LLMClient class
+  - [x] 12.5: Implement `extract(prompt: str, content: str) -> str` method
+  - [x] 12.6: Add retry logic with exponential backoff using `tenacity`
+  - [x] 12.7: Add structured logging for API calls
+  - [x] 12.8: Export LLMClient from `src/extractors/__init__.py`
+  - [x] 12.9: Create unit tests in `tests/test_extractors/test_llm_client.py`
+  - [x] 12.10: Test with mock API calls (no real API usage in tests)
+
 ## Dev Notes
+
+### LLMClient Implementation Pattern (Task 12)
+
+**Reference:** `_bmad-output/sprint-change-proposal-2025-12-31.md`
+
+The LLMClient enables automated batch extraction using Claude Haiku API. This replaces manual "Claude-as-Extractor" interaction for processing ~2,400 chunks (16,800+ extraction calls).
+
+**File:** `packages/pipeline/src/extractors/llm_client.py`
+
+```python
+"""LLM client for automated knowledge extraction."""
+
+import anthropic
+import structlog
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+from src.config import settings
+
+logger = structlog.get_logger()
+
+
+class LLMClient:
+    """Client for LLM-based knowledge extraction.
+
+    Uses Claude Haiku for cost-effective batch extraction.
+    """
+
+    def __init__(
+        self,
+        model: str | None = None,
+        max_tokens: int = 1024,
+    ):
+        self.client = anthropic.Anthropic()
+        self.model = model or settings.llm_model
+        self.max_tokens = max_tokens
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=60)
+    )
+    async def extract(self, prompt: str, content: str) -> str:
+        """Extract structured knowledge using LLM.
+
+        Args:
+            prompt: Extraction prompt with instructions
+            content: Chunk content to extract from
+
+        Returns:
+            Raw LLM response (JSON string)
+        """
+        logger.debug(
+            "llm_extraction_start",
+            model=self.model,
+            content_length=len(content)
+        )
+
+        response = self.client.messages.create(
+            model=self.model,
+            max_tokens=self.max_tokens,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"{prompt}\n\n---\n\nCONTENT TO EXTRACT FROM:\n{content}"
+                }
+            ]
+        )
+
+        result = response.content[0].text
+        logger.info(
+            "llm_extraction_complete",
+            model=self.model,
+            response_length=len(result)
+        )
+        return result
+```
+
+**Config Updates (`src/config.py`):**
+```python
+# LLM Configuration
+anthropic_api_key: str = ""
+llm_model: str = "claude-3-haiku-20240307"
+llm_max_tokens: int = 1024
+```
+
+**Cost Model:** ~$10 per book via Claude Haiku batch extraction at ingestion time. Zero LLM costs at query time (pre-extracted knowledge served from storage).
 
 ### NFR6 Extensibility Pattern Requirement
 
@@ -1195,11 +1296,18 @@ No debug log issues encountered during implementation.
 - **All 7 Extraction Types:** Decision, Pattern, Warning, Methodology, Checklist, Persona, Workflow models defined with common fields
 - **Common Fields Verified:** All models include source_id, chunk_id, topics[], schema_version, extracted_at, confidence
 - **Exception Hierarchy:** ExtractorError inherits from KnowledgeError with structured {code, message, details} format
+- **Task 12 Complete (2025-12-31):** LLMClient utility implemented with async Anthropic API support
+- **LLMClient Features:** Async extract() method, retry logic with tenacity (3 attempts, exponential backoff), structured logging
+- **LLMClient Tests:** 17 unit tests with mocked API (no real API calls), testing initialization, extraction, error handling, retry logic, context manager
+- **Dependencies Added:** anthropic>=0.40.0, tenacity>=8.0.0
+- **Configuration Added:** anthropic_api_key, llm_model (default: claude-3-haiku-20240307), llm_max_tokens (default: 1024)
+- **Full Regression (Task 12):** 419 tests pass, 5 skipped
 
 ### File List
 
-- packages/pipeline/src/extractors/__init__.py (CREATE)
+- packages/pipeline/src/extractors/__init__.py (CREATE, MODIFY - Task 12)
 - packages/pipeline/src/extractors/base.py (CREATE)
+- packages/pipeline/src/extractors/llm_client.py (CREATE - Task 12)
 - packages/pipeline/src/extractors/prompts/_base.md (CREATE)
 - packages/pipeline/src/extractors/prompts/decision.md (CREATE)
 - packages/pipeline/src/extractors/prompts/pattern.md (CREATE)
@@ -1212,6 +1320,10 @@ No debug log issues encountered during implementation.
 - packages/pipeline/tests/test_extractors/conftest.py (CREATE)
 - packages/pipeline/tests/test_extractors/test_base.py (CREATE)
 - packages/pipeline/tests/test_extractors/test_models.py (CREATE)
+- packages/pipeline/tests/test_extractors/test_llm_client.py (CREATE - Task 12)
+- packages/pipeline/pyproject.toml (MODIFY - Task 12)
+- packages/pipeline/src/config.py (MODIFY - Task 12)
+- packages/pipeline/.env.example (CREATE - Task 12)
 
 ## Senior Developer Review (AI)
 
@@ -1243,3 +1355,4 @@ No debug log issues encountered during implementation.
 
 - 2025-12-30: Story 3.1 implementation complete - Base extractor interface, all 7 extraction models, registry pattern, and 105 tests
 - 2025-12-30: Code review completed - Fixed datetime deprecation, removed dead code, added _load_full_prompt() helper, 107 tests now passing
+- 2025-12-31: Task 12 complete - LLMClient utility with async Anthropic API, retry logic (tenacity), 17 unit tests, 419 total tests passing

@@ -62,6 +62,13 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Never hardcode secrets or connection strings
 - Export singleton: `settings = Settings()`
 
+### LLM Client Configuration
+- Use `ANTHROPIC_API_KEY` from environment via pydantic-settings
+- Default model: `claude-3-haiku-20240307`
+- Never hardcode API keys or model IDs
+- Use structured logging for all LLM API calls
+- Implement retry logic with exponential backoff (tenacity)
+
 ### Error Handling
 - Custom exceptions inherit from base `KnowledgeError`
 - Always include: `code`, `message`, `details` dict

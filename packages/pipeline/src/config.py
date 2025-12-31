@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     # Embedding settings
     embedding_model: str = "all-MiniLM-L6-v2"
 
+    # LLM settings
+    anthropic_api_key: str = ""
+    llm_model: str = "claude-3-haiku-20240307"
+    llm_max_tokens: int = 1024
+
     # Environment
     environment: str = "local"
 
