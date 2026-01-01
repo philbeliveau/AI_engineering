@@ -453,3 +453,198 @@ class TestMongoDBClientValidation:
         with pytest.raises(ValidationError) as exc_info:
             mongodb_client.delete_source("12345")
         assert exc_info.value.code == "VALIDATION_ERROR"
+
+
+class TestMongoDBClientSaveExtractionFromExtractor:
+    """Tests for save_extraction_from_extractor method.
+
+    This method handles extractions from the extractor system (Decision,
+    Pattern, Warning, etc.) and converts them to MongoDB format.
+    """
+
+    def test_save_decision_extraction(self, mongodb_client: MongoDBClient):
+        """Test saving a Decision extraction from extractor system."""
+        from src.extractors import Decision
+
+        decision = Decision(
+            source_id="507f1f77bcf86cd799439011",
+            chunk_id="507f1f77bcf86cd799439012",
+            question="Should I use RAG or fine-tuning?",
+            options=["RAG", "Fine-tuning"],
+            recommended_approach="RAG for most cases",
+            topics=["rag", "fine-tuning"],
+        )
+
+        extraction_id = mongodb_client.save_extraction_from_extractor(decision)
+
+        assert extraction_id is not None
+        assert len(extraction_id) == 24  # Valid ObjectId length
+
+        # Verify document structure in MongoDB
+        from bson import ObjectId
+
+        doc = mongodb_client._db.extractions.find_one({"_id": ObjectId(extraction_id)})
+        assert doc is not None
+        assert doc["source_id"] == "507f1f77bcf86cd799439011"
+        assert doc["chunk_id"] == "507f1f77bcf86cd799439012"
+        assert doc["type"] == "decision"
+        assert doc["topics"] == ["rag", "fine-tuning"]
+        assert "content" in doc
+        assert doc["content"]["question"] == "Should I use RAG or fine-tuning?"
+
+    def test_save_pattern_extraction(self, mongodb_client: MongoDBClient):
+        """Test saving a Pattern extraction from extractor system."""
+        from src.extractors import Pattern
+
+        pattern = Pattern(
+            source_id="507f1f77bcf86cd799439011",
+            chunk_id="507f1f77bcf86cd799439012",
+            name="Semantic Caching",
+            problem="High API costs",
+            solution="Use embedding-based cache",
+            topics=["caching", "embeddings"],
+        )
+
+        extraction_id = mongodb_client.save_extraction_from_extractor(pattern)
+
+        assert extraction_id is not None
+
+        from bson import ObjectId
+
+        doc = mongodb_client._db.extractions.find_one({"_id": ObjectId(extraction_id)})
+        assert doc["type"] == "pattern"
+        assert doc["content"]["name"] == "Semantic Caching"
+        assert doc["content"]["solution"] == "Use embedding-based cache"
+
+    def test_save_warning_extraction(self, mongodb_client: MongoDBClient):
+        """Test saving a Warning extraction from extractor system."""
+        from src.extractors import Warning
+
+        warning = Warning(
+            source_id="507f1f77bcf86cd799439011",
+            chunk_id="507f1f77bcf86cd799439012",
+            title="Token Overflow",
+            description="Context window limits cause truncation",
+            topics=["tokens"],
+        )
+
+        extraction_id = mongodb_client.save_extraction_from_extractor(warning)
+
+        assert extraction_id is not None
+
+        from bson import ObjectId
+
+        doc = mongodb_client._db.extractions.find_one({"_id": ObjectId(extraction_id)})
+        assert doc["type"] == "warning"
+        assert doc["content"]["title"] == "Token Overflow"
+
+    def test_duplicate_detection_returns_existing_id(self, mongodb_client: MongoDBClient):
+        """Test that duplicate extractions return existing ID."""
+        from src.extractors import Decision
+
+        decision = Decision(
+            source_id="507f1f77bcf86cd799439011",
+            chunk_id="507f1f77bcf86cd799439014",  # Unique chunk_id for this test
+            question="Duplicate test question",
+            topics=["test"],
+        )
+
+        # First save
+        first_id = mongodb_client.save_extraction_from_extractor(decision)
+
+        # Second save with same chunk_id + type should return existing ID
+        second_id = mongodb_client.save_extraction_from_extractor(decision)
+
+        assert first_id == second_id
+
+        # Verify only one document exists
+        count = mongodb_client._db.extractions.count_documents({
+            "chunk_id": "507f1f77bcf86cd799439014",
+            "type": "decision",
+        })
+        assert count == 1
+
+    def test_different_chunk_creates_new_extraction(self, mongodb_client: MongoDBClient):
+        """Test that different chunk_id creates new extraction."""
+        from src.extractors import Decision
+
+        decision1 = Decision(
+            source_id="507f1f77bcf86cd799439011",
+            chunk_id="507f1f77bcf86cd799439015",
+            question="First question",
+            topics=["test"],
+        )
+
+        decision2 = Decision(
+            source_id="507f1f77bcf86cd799439011",
+            chunk_id="507f1f77bcf86cd799439016",
+            question="Second question",
+            topics=["test"],
+        )
+
+        first_id = mongodb_client.save_extraction_from_extractor(decision1)
+        second_id = mongodb_client.save_extraction_from_extractor(decision2)
+
+        assert first_id != second_id
+
+    def test_different_type_creates_new_extraction(self, mongodb_client: MongoDBClient):
+        """Test that different type on same chunk creates new extraction."""
+        from src.extractors import Decision, Pattern
+
+        decision = Decision(
+            source_id="507f1f77bcf86cd799439011",
+            chunk_id="507f1f77bcf86cd799439017",
+            question="Test question",
+            topics=["test"],
+        )
+
+        pattern = Pattern(
+            source_id="507f1f77bcf86cd799439011",
+            chunk_id="507f1f77bcf86cd799439017",  # Same chunk
+            name="Test Pattern",
+            problem="Test problem",
+            solution="Test solution",
+            topics=["test"],
+        )
+
+        first_id = mongodb_client.save_extraction_from_extractor(decision)
+        second_id = mongodb_client.save_extraction_from_extractor(pattern)
+
+        # Different types should create different extractions
+        assert first_id != second_id
+
+    def test_content_fields_extracted_correctly(self, mongodb_client: MongoDBClient):
+        """Test that content fields are properly extracted from flat model."""
+        from src.extractors import Methodology, MethodologyStep
+
+        methodology = Methodology(
+            source_id="507f1f77bcf86cd799439011",
+            chunk_id="507f1f77bcf86cd799439018",
+            name="Test Methodology",
+            steps=[
+                MethodologyStep(order=1, title="Step 1", description="Do this"),
+                MethodologyStep(order=2, title="Step 2", description="Then this"),
+            ],
+            prerequisites=["Pre 1", "Pre 2"],
+            outputs=["Output 1"],
+            topics=["methodology"],
+        )
+
+        extraction_id = mongodb_client.save_extraction_from_extractor(methodology)
+
+        from bson import ObjectId
+
+        doc = mongodb_client._db.extractions.find_one({"_id": ObjectId(extraction_id)})
+
+        # Verify content structure
+        content = doc["content"]
+        assert content["name"] == "Test Methodology"
+        assert len(content["steps"]) == 2
+        assert content["prerequisites"] == ["Pre 1", "Pre 2"]
+        assert content["outputs"] == ["Output 1"]
+
+        # Verify base fields are NOT in content
+        assert "source_id" not in content
+        assert "chunk_id" not in content
+        assert "type" not in content
+        assert "topics" not in content

@@ -56,6 +56,10 @@ from src.extractors.base import (
     extractor_registry,
 )
 from src.extractors.llm_client import LLMClient, LLMClientError
+from src.extractors.utils import generate_extraction_summary
+from src.extractors.decision_extractor import DecisionExtractor
+from src.extractors.pattern_extractor import PatternExtractor
+from src.extractors.warning_extractor import WarningExtractor
 from src.extractors.methodology_extractor import MethodologyExtractor
 from src.extractors.checklist_extractor import ChecklistExtractor
 from src.extractors.persona_extractor import PersonaExtractor
@@ -93,7 +97,12 @@ __all__ = [
     # LLM Client
     "LLMClient",
     "LLMClientError",
+    # Utilities
+    "generate_extraction_summary",
     # Extractors
+    "DecisionExtractor",
+    "PatternExtractor",
+    "WarningExtractor",
     "MethodologyExtractor",
     "ChecklistExtractor",
     "PersonaExtractor",

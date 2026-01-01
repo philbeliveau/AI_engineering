@@ -4,9 +4,12 @@ This module provides a sync MongoDB client for the knowledge pipeline.
 pymongo is not async-native, so sync methods are used.
 """
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import structlog
+
+if TYPE_CHECKING:
+    from src.extractors.base import ExtractionBase as ExtractorExtractionBase
 from bson import ObjectId
 from bson.errors import InvalidId
 from pymongo import ASCENDING, MongoClient
@@ -614,6 +617,115 @@ class MongoDBClient:
                 "extractions_delete_by_source_failed", source_id=source_id, error=str(e)
             )
             raise StorageError("delete_extractions_by_source", {"error": str(e)}) from e
+
+    def save_extraction_from_extractor(
+        self,
+        extraction: "ExtractorExtractionBase",
+    ) -> str:
+        """Save an extraction from the extractor system to MongoDB.
+
+        This method handles the conversion from extractor ExtractionBase models
+        to the MongoDB storage format, with duplicate detection based on
+        chunk_id + type combination.
+
+        Args:
+            extraction: ExtractionBase model from extractors (Decision, Pattern, etc.)
+
+        Returns:
+            The extraction ID (new or existing if duplicate).
+
+        Raises:
+            StorageError: If save operation fails.
+        """
+        if self._db is None:
+            raise StorageError("save_extraction_from_extractor", {"error": "Not connected"})
+
+        # Check for duplicate (same chunk_id + type)
+        try:
+            existing = self._db.extractions.find_one({
+                "chunk_id": extraction.chunk_id,
+                "type": extraction.type.value,
+            })
+
+            if existing:
+                existing_id = str(existing["_id"])
+                logger.warning(
+                    "duplicate_extraction_skipped",
+                    chunk_id=extraction.chunk_id,
+                    type=extraction.type.value,
+                    existing_id=existing_id,
+                )
+                return existing_id
+
+            # Serialize extraction using Pydantic model_dump
+            # This converts the extractor model to a dict suitable for MongoDB
+            extraction_data = extraction.model_dump(mode="json")
+
+            # Convert type enum to string value if needed
+            if hasattr(extraction_data.get("type"), "value"):
+                extraction_data["type"] = extraction_data["type"].value
+
+            # Build MongoDB document structure
+            # The extractor model is flat, but MongoDB expects specific structure
+            doc = {
+                "_id": ObjectId(),
+                "source_id": extraction_data.get("source_id"),
+                "chunk_id": extraction_data.get("chunk_id"),
+                "type": extraction_data.get("type"),
+                "content": self._extract_content_from_extraction(extraction_data),
+                "topics": extraction_data.get("topics", []),
+                "schema_version": extraction_data.get("schema_version", "1.0.0"),
+                "extracted_at": extraction_data.get("extracted_at"),
+            }
+
+            result = self._db.extractions.insert_one(doc)
+            extraction_id = str(result.inserted_id)
+
+            logger.info(
+                "extraction_saved_from_extractor",
+                extraction_id=extraction_id,
+                type=extraction.type.value,
+                source_id=extraction.source_id,
+                chunk_id=extraction.chunk_id,
+            )
+
+            return extraction_id
+
+        except PyMongoError as e:
+            logger.error(
+                "extraction_save_failed",
+                chunk_id=extraction.chunk_id,
+                type=extraction.type.value,
+                error=str(e),
+            )
+            raise StorageError("save_extraction_from_extractor", {"error": str(e)}) from e
+
+    def _extract_content_from_extraction(self, extraction_data: dict) -> dict:
+        """Extract content fields from flat extraction data.
+
+        The extractor models are flat (all fields at top level), but MongoDB
+        expects a nested 'content' structure. This method extracts the
+        type-specific fields into a content dict.
+
+        Args:
+            extraction_data: Flat extraction dict from model_dump.
+
+        Returns:
+            Content dict with type-specific fields.
+        """
+        # Base fields that are NOT content (they are metadata)
+        base_fields = {
+            "id", "source_id", "chunk_id", "type", "topics",
+            "schema_version", "extracted_at", "confidence",
+        }
+
+        # Extract all fields that are not base metadata as content
+        content = {}
+        for key, value in extraction_data.items():
+            if key not in base_fields:
+                content[key] = value
+
+        return content
 
     # =========================================================================
     # Bulk Operations

@@ -12,7 +12,10 @@ from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Type
+from typing import TYPE_CHECKING, Optional, Type
+
+if TYPE_CHECKING:
+    from src.storage.extraction_storage import ExtractionStorage
 
 import structlog
 from pydantic import BaseModel, Field
@@ -389,18 +392,27 @@ class BaseExtractor(ABC):
                 return self._load_prompt("decision")
     """
 
-    def __init__(self, config: Optional[ExtractorConfig] = None):
-        """Initialize extractor with optional configuration.
+    def __init__(
+        self,
+        config: Optional[ExtractorConfig] = None,
+        storage: Optional["ExtractionStorage"] = None,
+    ):
+        """Initialize extractor with optional configuration and storage.
 
         Args:
             config: Extractor configuration. Uses defaults if not provided.
+            storage: Optional ExtractionStorage for auto-saving extractions.
+                If provided, extractions can be automatically persisted to
+                MongoDB and Qdrant using save_extractions() method.
         """
         self.config = config or ExtractorConfig()
+        self.storage = storage
         self.prompts_dir = Path(__file__).parent / "prompts"
         logger.debug(
             "extractor_initialized",
             extractor=self.__class__.__name__,
             extraction_type=self.extraction_type.value,
+            has_storage=storage is not None,
         )
 
     @property
@@ -587,6 +599,96 @@ class BaseExtractor(ABC):
                     break
 
         return topics[:5]  # Limit to 5 topics
+
+    # ========================================================================
+    # Storage Integration
+    # ========================================================================
+
+    def save_extractions(
+        self, results: list[ExtractionResult]
+    ) -> list[dict]:
+        """Save successful extractions to storage.
+
+        Requires storage to be configured on the extractor.
+        Only saves extractions where result.success is True.
+
+        Args:
+            results: List of ExtractionResult from extract() method.
+
+        Returns:
+            List of save results, one per successful extraction.
+            Each result is a dict with extraction_id, mongodb_saved, qdrant_saved.
+
+        Raises:
+            RuntimeError: If storage is not configured.
+        """
+        if self.storage is None:
+            raise RuntimeError(
+                "Storage not configured. Initialize extractor with storage parameter "
+                "or use ExtractionStorage directly."
+            )
+
+        save_results = []
+        for result in results:
+            if result.success and result.extraction is not None:
+                try:
+                    save_result = self.storage.save_extraction(result.extraction)
+                    save_results.append(save_result)
+                    logger.info(
+                        "extraction_saved_via_extractor",
+                        extraction_id=save_result["extraction_id"],
+                        type=self.extraction_type.value,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "extraction_save_failed_via_extractor",
+                        type=self.extraction_type.value,
+                        error=str(e),
+                    )
+                    save_results.append({
+                        "extraction_id": None,
+                        "mongodb_saved": False,
+                        "qdrant_saved": False,
+                        "error": str(e),
+                    })
+
+        return save_results
+
+    def extract_and_save(
+        self,
+        chunk_content: str,
+        chunk_id: str,
+        source_id: str,
+    ) -> tuple[list[ExtractionResult], list[dict]]:
+        """Extract knowledge and automatically save to storage.
+
+        Convenience method that combines extract() and save_extractions().
+        Requires storage to be configured on the extractor.
+
+        Args:
+            chunk_content: Text content of the chunk.
+            chunk_id: ID of the chunk being extracted from.
+            source_id: ID of the source document.
+
+        Returns:
+            Tuple of (extraction_results, save_results).
+
+        Raises:
+            RuntimeError: If storage is not configured.
+        """
+        if self.storage is None:
+            raise RuntimeError(
+                "Storage not configured. Initialize extractor with storage parameter "
+                "or use ExtractionStorage directly."
+            )
+
+        # Extract
+        results = self.extract(chunk_content, chunk_id, source_id)
+
+        # Save successful extractions
+        save_results = self.save_extractions(results)
+
+        return results, save_results
 
 
 # ============================================================================
