@@ -591,3 +591,43 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - ✅ Vector dimensions validated before Qdrant search (384d required)
 - ✅ Public `ping()` methods replace private attribute access
 - ✅ Credentials masked in logging per project-context.md:236
+
+---
+
+## Second Code Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2026-01-01
+**Outcome:** APPROVED (after fixes)
+**Context:** User asked "Do we actually have the MCP server working?"
+
+### Verification Results
+
+| Check | Result | Evidence |
+|-------|--------|----------|
+| Server starts | ✅ PASS | `mongodb_connected=True qdrant_connected=True` |
+| `/health` endpoint | ✅ PASS | Returns `{"status":"healthy","services":{"mongodb":"healthy","qdrant":"healthy"}}` |
+| `/mcp` endpoint | ✅ PASS | Returns MCP protocol response (406 without SSE = correct behavior) |
+| All tests pass | ✅ PASS | 97/97 tests pass |
+| Linting clean | ✅ PASS | `ruff check .` returns no errors |
+
+### Issues Found and Fixed
+
+| # | Severity | Issue | Fix Applied |
+|---|----------|-------|-------------|
+| 1 | MEDIUM | Health endpoint defined AFTER `mcp.mount_http()` causing confusing code flow | Moved health endpoint definition BEFORE MCP mount |
+| 2 | MEDIUM | Health endpoint not excluded from MCP tools (per context7 best practices) | Added `tags=["infrastructure"]` and `exclude_tags=["infrastructure"]` to MCP config |
+| 3 | LOW | MCP integration tests only checked existence, not configuration | Added 4 new tests for MCP configuration (exclude_tags, name, tag verification) |
+
+### Test Count
+- **Before Review:** 93 tests
+- **After Review:** 97 tests (+4 MCP configuration tests)
+
+### Files Modified
+- `packages/mcp-server/src/server.py` - Reordered health endpoint before MCP mount, added infrastructure tag and exclude_tags
+- `packages/mcp-server/tests/test_mcp_integration.py` - Added 4 new tests for MCP configuration verification
+
+### Context7 Documentation References
+- fastapi-mcp `exclude_tags` parameter: Excludes tagged endpoints from MCP tools
+- fastapi-mcp endpoint ordering: Endpoints defined before `mount_http()` are automatically captured
+- MCP best practices: Infrastructure endpoints should not be exposed as tools

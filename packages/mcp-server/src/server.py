@@ -90,19 +90,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Create and mount MCP server
-# Follows architecture.md:169-189 (fastapi-mcp integration pattern)
-# Using HTTP transport (recommended) per fastapi-mcp docs
-mcp = FastApiMCP(
-    app,
-    name="AI Engineering Knowledge",
-    description="Query AI engineering knowledge extracted from methodology books",
-)
-# Mount MCP at /mcp endpoint with HTTP transport
-mcp.mount_http()
-
-
-@app.get("/health", operation_id="health_check")
+# Define health endpoint BEFORE MCP mount so it can be explicitly excluded
+# Health is infrastructure, not a knowledge query tool
+@app.get("/health", operation_id="health_check", tags=["infrastructure"])
 async def health_endpoint() -> Response:
     """Health check endpoint.
 
@@ -116,6 +106,20 @@ async def health_endpoint() -> Response:
 
     status_code = 200 if result["status"] == "healthy" else 503
     return JSONResponse(content=result, status_code=status_code)
+
+
+# Create and mount MCP server AFTER defining endpoints
+# Follows architecture.md:169-189 (fastapi-mcp integration pattern)
+# Using HTTP transport (recommended) per fastapi-mcp docs
+# Exclude infrastructure endpoints from MCP tools (per context7 best practices)
+mcp = FastApiMCP(
+    app,
+    name="AI Engineering Knowledge",
+    description="Query AI engineering knowledge extracted from methodology books",
+    exclude_tags=["infrastructure"],  # Health check is not a knowledge query tool
+)
+# Mount MCP at /mcp endpoint with HTTP transport
+mcp.mount_http()
 
 
 def main() -> None:
