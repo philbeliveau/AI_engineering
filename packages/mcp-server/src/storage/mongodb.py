@@ -224,3 +224,53 @@ class MongoDBClient:
             return extractions
 
         return await asyncio.to_thread(_query_sync)
+
+    async def get_chunk_by_id(self, chunk_id: str) -> dict[str, Any] | None:
+        """Retrieve a single chunk by ID.
+
+        Used for enriching search results with full chunk content.
+        Note: Currently unused by search_knowledge (content comes from Qdrant payload).
+        Retained for future use cases like get_chunk_details tool.
+
+        Args:
+            chunk_id: The chunk document ID
+
+        Returns:
+            Chunk document or None if not found
+        """
+        logger.debug("mongodb_get_chunk_by_id", chunk_id=chunk_id)
+
+        def _query_sync() -> dict[str, Any] | None:
+            collection = self._get_collection("chunks")
+            result = collection.find_one({"_id": chunk_id})
+            if result:
+                # Convert ObjectId to string for API responses
+                result["id"] = str(result.pop("_id"))
+            return result
+
+        return await asyncio.to_thread(_query_sync)
+
+    async def get_extraction_by_id(self, extraction_id: str) -> dict[str, Any] | None:
+        """Retrieve a single extraction by ID.
+
+        Used for enriching search results with full extraction content.
+        Note: Currently unused by search_knowledge (content comes from Qdrant payload).
+        Retained for future use cases like get_extraction_details tool.
+
+        Args:
+            extraction_id: The extraction document ID
+
+        Returns:
+            Extraction document or None if not found
+        """
+        logger.debug("mongodb_get_extraction_by_id", extraction_id=extraction_id)
+
+        def _query_sync() -> dict[str, Any] | None:
+            collection = self._get_collection("extractions")
+            result = collection.find_one({"_id": extraction_id})
+            if result:
+                # Convert ObjectId to string for API responses
+                result["id"] = str(result.pop("_id"))
+            return result
+
+        return await asyncio.to_thread(_query_sync)

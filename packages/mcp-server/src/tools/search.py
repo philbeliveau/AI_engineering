@@ -1,0 +1,253 @@
+"""Search knowledge endpoint for MCP Server.
+
+Provides semantic search across chunks and extractions using vector similarity.
+Follows project-context.md:54-57 (async endpoints) and architecture.md response format.
+"""
+
+import asyncio
+import time
+from typing import Any
+
+import structlog
+from fastapi import APIRouter, HTTPException, Query
+
+from src.embeddings.embedding_service import embed_query
+from src.models.responses import (
+    SearchKnowledgeResponse,
+    SearchMetadata,
+    SearchResult,
+    SourceAttribution,
+    SourcePosition,
+)
+from src.storage.mongodb import MongoDBClient
+from src.storage.qdrant import QdrantStorageClient
+
+logger = structlog.get_logger()
+
+router = APIRouter()
+
+# Global clients - set by server.py during startup
+_qdrant_client: QdrantStorageClient | None = None
+_mongodb_client: MongoDBClient | None = None
+
+
+def set_clients(
+    qdrant: QdrantStorageClient | None, mongodb: MongoDBClient | None
+) -> None:
+    """Set the global storage clients.
+
+    Called by server.py during application startup.
+
+    Args:
+        qdrant: QdrantStorageClient instance
+        mongodb: MongoDBClient instance
+    """
+    global _qdrant_client, _mongodb_client
+    _qdrant_client = qdrant
+    _mongodb_client = mongodb
+
+
+def get_qdrant_client() -> QdrantStorageClient | None:
+    """Get the Qdrant client."""
+    return _qdrant_client
+
+
+def get_mongodb_client() -> MongoDBClient | None:
+    """Get the MongoDB client."""
+    return _mongodb_client
+
+
+async def _enrich_result(
+    hit: dict[str, Any],
+    result_type: str,
+    mongodb: MongoDBClient,
+    source_cache: dict[str, dict[str, Any] | None],
+) -> SearchResult | None:
+    """Enrich a search hit with source metadata.
+
+    Args:
+        hit: Qdrant search hit
+        result_type: "chunk" or "extraction"
+        mongodb: MongoDB client for enrichment
+        source_cache: Cache of source lookups
+
+    Returns:
+        SearchResult with source attribution, or None if source not found
+    """
+    payload = hit.get("payload", {})
+    source_id = payload.get("source_id")
+    # For chunks, chunk_id is the hit id; for extractions, it's in the payload
+    chunk_id = payload.get("chunk_id") if result_type == "extraction" else hit["id"]
+
+    if not source_id:
+        logger.warning("search_result_missing_source_id", hit_id=hit["id"])
+        return None
+
+    # Get source from cache or fetch
+    if source_id not in source_cache:
+        source_cache[source_id] = await mongodb.get_source(source_id)
+
+    source_data = source_cache[source_id]
+    if not source_data:
+        logger.debug("search_result_source_not_found", source_id=source_id)
+        # Create minimal source attribution
+        source = SourceAttribution(
+            source_id=source_id,
+            chunk_id=chunk_id,
+            title="Unknown Source",
+            authors=[],
+        )
+    else:
+        # Build position from payload if available
+        position = None
+        pos_data = payload.get("position")
+        if pos_data and isinstance(pos_data, dict) and "page" in pos_data:
+            position = SourcePosition(
+                chapter=pos_data.get("chapter"),
+                section=pos_data.get("section"),
+                page=pos_data.get("page", 0),
+            )
+
+        source = SourceAttribution(
+            source_id=source_id,
+            chunk_id=chunk_id,
+            title=source_data.get("title", "Unknown"),
+            authors=source_data.get("authors", []),
+            position=position,
+        )
+
+    # Get content based on type
+    if result_type == "chunk":
+        content = payload.get("content", "")
+    else:
+        # For extractions, content might be a dict
+        content_data = payload.get("content", {})
+        if isinstance(content_data, dict):
+            # Convert dict to readable string
+            content = str(content_data)
+        else:
+            content = str(content_data)
+
+    return SearchResult(
+        id=hit["id"],
+        score=hit["score"],
+        type=result_type,
+        content=content,
+        source=source,
+    )
+
+
+@router.post(
+    "/search_knowledge",
+    operation_id="search_knowledge",
+    response_model=SearchKnowledgeResponse,
+    tags=["search"],
+)
+async def search_knowledge(
+    query: str = Query(..., min_length=1, description="Natural language search query"),
+    limit: int = Query(10, ge=1, le=100, description="Maximum results to return"),
+) -> SearchKnowledgeResponse:
+    """Search across all knowledge content semantically.
+
+    Returns chunks and extractions ranked by relevance to your query.
+    Available at Public tier - no authentication required.
+
+    Args:
+        query: Natural language search query
+        limit: Maximum number of results to return (1-100)
+
+    Returns:
+        SearchKnowledgeResponse with results and metadata
+    """
+    start_time = time.time()
+    logger.info("search_knowledge_start", query=query, limit=limit)
+
+    qdrant = get_qdrant_client()
+    mongodb = get_mongodb_client()
+
+    # Generate query embedding (CPU-bound, run in thread pool to avoid blocking)
+    try:
+        query_vector = await asyncio.to_thread(embed_query, query)
+    except Exception as e:
+        logger.error("embedding_generation_failed", query=query, error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "INTERNAL_ERROR", "message": "Failed to generate query embedding"},
+        )
+
+    # Search both collections in parallel for better performance
+    chunk_results: list[dict[str, Any]] = []
+    extraction_results: list[dict[str, Any]] = []
+
+    if qdrant:
+        # Parallel search of chunks and extractions collections
+        chunk_results, extraction_results = await asyncio.gather(
+            qdrant.search_chunks(query_vector=query_vector, limit=limit),
+            qdrant.search_extractions(query_vector=query_vector, limit=limit),
+        )
+
+    # Merge and sort by score (descending)
+    all_hits = []
+    for hit in chunk_results:
+        all_hits.append({"hit": hit, "type": "chunk"})
+    for hit in extraction_results:
+        all_hits.append({"hit": hit, "type": "extraction"})
+
+    all_hits.sort(key=lambda x: x["hit"]["score"], reverse=True)
+
+    # Enrich results with source metadata
+    results: list[SearchResult] = []
+    sources_cited: set[str] = set()
+    source_cache: dict[str, dict[str, Any] | None] = {}
+
+    for item in all_hits[:limit]:
+        hit = item["hit"]
+        result_type = item["type"]
+
+        if mongodb:
+            enriched = await _enrich_result(hit, result_type, mongodb, source_cache)
+            if enriched:
+                results.append(enriched)
+                sources_cited.add(enriched.source.title)
+        else:
+            # Without MongoDB, create minimal result
+            payload = hit.get("payload", {})
+            # For chunks, chunk_id is the hit id; for extractions, it's in the payload
+            chunk_id = payload.get("chunk_id") if result_type == "extraction" else hit["id"]
+            source = SourceAttribution(
+                source_id=payload.get("source_id", "unknown"),
+                chunk_id=chunk_id,
+                title="Unknown",
+                authors=[],
+            )
+            content = payload.get("content", "")
+            if isinstance(content, dict):
+                content = str(content)
+            results.append(
+                SearchResult(
+                    id=hit["id"],
+                    score=hit["score"],
+                    type=result_type,
+                    content=content,
+                    source=source,
+                )
+            )
+
+    latency_ms = (time.time() - start_time) * 1000
+
+    logger.info(
+        "search_knowledge_complete",
+        query=query,
+        result_count=len(results),
+        latency_ms=round(latency_ms, 2),
+    )
+
+    return SearchKnowledgeResponse(
+        results=results,
+        metadata=SearchMetadata(
+            query=query,
+            sources_cited=sorted(sources_cited),
+            result_count=len(results),
+            search_type="semantic",
+        ),
+    )

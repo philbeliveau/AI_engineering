@@ -22,6 +22,7 @@ from src.config import settings
 from src.storage.mongodb import MongoDBClient
 from src.storage.qdrant import QdrantStorageClient
 from src.tools.health import health_check as check_health
+from src.tools.search import router as search_router, set_clients
 
 logger = structlog.get_logger()
 
@@ -62,6 +63,9 @@ async def lifespan(app: FastAPI):
         logger.error("qdrant_connection_failed", error=str(e))
         qdrant_client = None
 
+    # Set clients for search module
+    set_clients(qdrant=qdrant_client, mongodb=mongodb_client)
+
     logger.info(
         "server_started",
         mongodb_connected=mongodb_client is not None,
@@ -89,6 +93,9 @@ app = FastAPI(
     version=__version__,
     lifespan=lifespan,
 )
+
+# Include search router BEFORE MCP mount so endpoints are included
+app.include_router(search_router, tags=["search"])
 
 # Define health endpoint BEFORE MCP mount so it can be explicitly excluded
 # Health is infrastructure, not a knowledge query tool

@@ -163,3 +163,129 @@ class TestMaskUriCredentials:
         result = _mask_uri_credentials("")
         # Empty string has no password, returns as-is
         assert result == ""
+
+
+class TestMongoDBEnrichmentMethods:
+    """Test cases for MongoDB enrichment methods (Story 4.2)."""
+
+    def test_mongodb_client_has_get_chunk_by_id_method(self):
+        """Test that MongoDBClient has get_chunk_by_id method."""
+        from src.config import Settings
+        from src.storage.mongodb import MongoDBClient
+
+        settings = Settings()
+        client = MongoDBClient(settings)
+        assert hasattr(client, "get_chunk_by_id")
+        assert callable(client.get_chunk_by_id)
+
+    def test_mongodb_client_has_get_extraction_by_id_method(self):
+        """Test that MongoDBClient has get_extraction_by_id method."""
+        from src.config import Settings
+        from src.storage.mongodb import MongoDBClient
+
+        settings = Settings()
+        client = MongoDBClient(settings)
+        assert hasattr(client, "get_extraction_by_id")
+        assert callable(client.get_extraction_by_id)
+
+    @pytest.mark.asyncio
+    async def test_get_chunk_by_id_with_mock(self):
+        """Test get_chunk_by_id with mocked database."""
+        from unittest.mock import MagicMock
+
+        from src.config import Settings
+        from src.storage.mongodb import MongoDBClient
+
+        settings = Settings()
+        client = MongoDBClient(settings)
+
+        # Mock the database and collection
+        mock_db = MagicMock()
+        mock_collection = MagicMock()
+        mock_collection.find_one.return_value = {
+            "_id": "chunk-123",
+            "source_id": "src-001",
+            "content": "Test chunk content",
+            "position": {"chapter": "Ch 1", "section": "Sec 1", "page": 42},
+        }
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+        client._db = mock_db
+
+        result = await client.get_chunk_by_id("chunk-123")
+        assert result is not None
+        assert result["id"] == "chunk-123"
+        assert result["content"] == "Test chunk content"
+        assert result["position"]["page"] == 42
+
+    @pytest.mark.asyncio
+    async def test_get_chunk_by_id_not_found(self):
+        """Test get_chunk_by_id returns None when not found."""
+        from unittest.mock import MagicMock
+
+        from src.config import Settings
+        from src.storage.mongodb import MongoDBClient
+
+        settings = Settings()
+        client = MongoDBClient(settings)
+
+        # Mock the database returning None
+        mock_db = MagicMock()
+        mock_collection = MagicMock()
+        mock_collection.find_one.return_value = None
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+        client._db = mock_db
+
+        result = await client.get_chunk_by_id("nonexistent-chunk")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_extraction_by_id_with_mock(self):
+        """Test get_extraction_by_id with mocked database."""
+        from unittest.mock import MagicMock
+
+        from src.config import Settings
+        from src.storage.mongodb import MongoDBClient
+
+        settings = Settings()
+        client = MongoDBClient(settings)
+
+        # Mock the database and collection
+        mock_db = MagicMock()
+        mock_collection = MagicMock()
+        mock_collection.find_one.return_value = {
+            "_id": "ext-456",
+            "source_id": "src-001",
+            "chunk_id": "chunk-123",
+            "type": "decision",
+            "content": {"title": "Test Decision"},
+            "topics": ["architecture", "testing"],
+        }
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+        client._db = mock_db
+
+        result = await client.get_extraction_by_id("ext-456")
+        assert result is not None
+        assert result["id"] == "ext-456"
+        assert result["type"] == "decision"
+        assert result["topics"] == ["architecture", "testing"]
+
+    @pytest.mark.asyncio
+    async def test_get_extraction_by_id_not_found(self):
+        """Test get_extraction_by_id returns None when not found."""
+        from unittest.mock import MagicMock
+
+        from src.config import Settings
+        from src.storage.mongodb import MongoDBClient
+
+        settings = Settings()
+        client = MongoDBClient(settings)
+
+        # Mock the database returning None
+        mock_db = MagicMock()
+        mock_collection = MagicMock()
+        mock_collection.find_one.return_value = None
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+        client._db = mock_db
+
+        result = await client.get_extraction_by_id("nonexistent-ext")
+        assert result is None

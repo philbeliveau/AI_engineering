@@ -62,20 +62,20 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: Knowledge Extraction System
-  epic-3: in-progress
+  epic-3: done  # All stories completed 2026-01-01
   3-1-base-extractor-interface-and-extraction-models: done
   3-2-decision-extractor: done  # Code review passed 2025-12-31
   3-3-pattern-extractor: done
   3-4-warning-extractor: done  # Code review passed 2025-12-31
   3-5-methodology-and-process-extractors: done  # All 4 extractors + prompts + 86 tests
   3-6-extraction-storage-and-embedding: done  # Code review passed 2026-01-01
-  3-7-extraction-pipeline-cli: ready-for-dev
+  3-7-extraction-pipeline-cli: done
   epic-3-retrospective: optional
 
   # Epic 4: Knowledge Query Interface (MCP Tools)
   epic-4: in-progress
   4-1-fastapi-server-with-mcp-integration: done
-  4-2-semantic-search-tool-search-knowledge: in-progress
+  4-2-semantic-search-tool-search-knowledge: done  # Code review passed 2026-01-01
   4-3-extraction-query-tools-get-decisions-get-patterns-get-warnings: ready-for-dev
   4-4-methodology-query-tool-get-methodologies: ready-for-dev
   4-5-source-management-tools-list-sources-compare-sources: ready-for-dev
