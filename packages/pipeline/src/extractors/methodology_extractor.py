@@ -46,8 +46,8 @@ class MethodologyExtractor(BaseExtractor):
         for result in results:
             if result.success:
                 methodology = result.extraction
-                print(f"Name: {methodology.name}")
-                print(f"Steps: {len(methodology.steps)}")
+                logger.debug("methodology_parsed", name=methodology.name)
+                logger.debug("methodology_steps", step_count=len(methodology.steps))
     """
 
     def __init__(self, config: ExtractorConfig | None = None):

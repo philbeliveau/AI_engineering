@@ -45,8 +45,8 @@ class PersonaExtractor(BaseExtractor):
         for result in results:
             if result.success:
                 persona = result.extraction
-                print(f"Role: {persona.role}")
-                print(f"Responsibilities: {persona.responsibilities}")
+                logger.debug("persona_parsed", role=persona.role)
+                logger.debug("persona_details", responsibilities=persona.responsibilities)
     """
 
     def __init__(self, config: ExtractorConfig | None = None):

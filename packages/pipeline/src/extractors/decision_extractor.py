@@ -44,8 +44,8 @@ class DecisionExtractor(BaseExtractor):
         for result in results:
             if result.success:
                 decision = result.extraction
-                print(f"Question: {decision.question}")
-                print(f"Options: {decision.options}")
+                logger.debug("decision_parsed", question=decision.question)
+                logger.debug("decision_options", options=decision.options)
     """
 
     def __init__(self, config: ExtractorConfig | None = None):

@@ -45,8 +45,8 @@ class ChecklistExtractor(BaseExtractor):
         for result in results:
             if result.success:
                 checklist = result.extraction
-                print(f"Name: {checklist.name}")
-                print(f"Items: {len(checklist.items)}")
+                logger.debug("checklist_parsed", name=checklist.name)
+                logger.debug("checklist_items", item_count=len(checklist.items))
     """
 
     def __init__(self, config: ExtractorConfig | None = None):

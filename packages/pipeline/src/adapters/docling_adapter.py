@@ -35,8 +35,8 @@ class DoclingAdapter(SourceAdapter):
     Example:
         adapter = DoclingAdapter()
         result = adapter.extract_text(Path("document.pdf"))
-        print(result.text)
-        print(result.sections)
+        logger.debug("adapter_result", text_length=len(result.text))
+        logger.debug("adapter_sections", section_count=len(result.sections))
     """
 
     SUPPORTED_EXTENSIONS = [".pdf", ".md", ".docx", ".html", ".pptx"]

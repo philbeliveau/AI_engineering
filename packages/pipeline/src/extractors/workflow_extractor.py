@@ -46,8 +46,8 @@ class WorkflowExtractor(BaseExtractor):
         for result in results:
             if result.success:
                 workflow = result.extraction
-                print(f"Name: {workflow.name}")
-                print(f"Trigger: {workflow.trigger}")
+                logger.debug("workflow_parsed", name=workflow.name)
+                logger.debug("workflow_trigger", trigger=workflow.trigger)
     """
 
     def __init__(self, config: ExtractorConfig | None = None):
