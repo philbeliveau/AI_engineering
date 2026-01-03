@@ -4,14 +4,17 @@ Orchestrates extraction storage across MongoDB and Qdrant,
 handling summary generation, embedding, and dual-store persistence.
 """
 
+from typing import Any, Optional
+
 import structlog
 
+from src.config import settings
 from src.embeddings.local_embedder import LocalEmbedder
 from src.exceptions import KnowledgeError
 from src.extractors.base import ExtractionBase
 from src.extractors.utils import generate_extraction_summary
 from src.storage.mongodb import MongoDBClient
-from src.storage.qdrant import QdrantStorageClient
+from src.storage.qdrant import CONTENT_TYPE_EXTRACTION, QdrantStorageClient
 
 logger = structlog.get_logger()
 
@@ -63,6 +66,9 @@ class ExtractionStorage:
         self.mongodb = mongodb_client
         self.qdrant = qdrant_client
         self.embedder = embedder
+
+        # Ensure the unified knowledge collection exists for storing extractions
+        self.qdrant.ensure_knowledge_collection()
 
         logger.debug(
             "extraction_storage_initialized",
@@ -162,14 +168,8 @@ class ExtractionStorage:
                 },
             )
 
-        # Step 5: Construct Qdrant payload
-        payload = {
-            "source_id": extraction.source_id,
-            "chunk_id": extraction.chunk_id,
-            "extraction_id": extraction_id,
-            "type": extraction.type.value,
-            "topics": extraction.topics,
-        }
+        # Step 5: Build rich payload with denormalized source/chunk metadata
+        payload = self._build_rich_payload(extraction, extraction_id)
 
         # Step 6: Save to Qdrant (optional - log failures but don't raise)
         qdrant_saved = False
@@ -232,3 +232,132 @@ class ExtractionStorage:
                 message="Missing required field: chunk_id",
                 details={"field": "chunk_id", "type": extraction.type.value},
             )
+
+    def _get_extraction_title(self, extraction: ExtractionBase) -> str:
+        """Extract a human-readable title from the extraction content.
+
+        Args:
+            extraction: The extraction to get title from.
+
+        Returns:
+            Human-readable title for the extraction.
+        """
+        extraction_type = extraction.type.value
+
+        # Pattern extractions have a 'name' field
+        if extraction_type == "pattern" and hasattr(extraction, "name"):
+            return getattr(extraction, "name", "")
+
+        # Warning extractions have a 'title' field
+        if extraction_type == "warning" and hasattr(extraction, "title"):
+            return getattr(extraction, "title", "")
+
+        # Decision extractions have a 'question' field
+        if extraction_type == "decision" and hasattr(extraction, "question"):
+            question = getattr(extraction, "question", "")
+            return question[:100] if question else ""
+
+        # Methodology extractions have a 'name' field
+        if extraction_type == "methodology" and hasattr(extraction, "name"):
+            return getattr(extraction, "name", "")
+
+        # Checklist extractions have a 'name' field
+        if extraction_type == "checklist" and hasattr(extraction, "name"):
+            return getattr(extraction, "name", "")
+
+        # Persona extractions have a 'role' field
+        if extraction_type == "persona" and hasattr(extraction, "role"):
+            return getattr(extraction, "role", "")
+
+        # Workflow extractions have a 'name' field
+        if extraction_type == "workflow" and hasattr(extraction, "name"):
+            return getattr(extraction, "name", "")
+
+        return ""
+
+    def _build_rich_payload(
+        self,
+        extraction: ExtractionBase,
+        extraction_id: str,
+        project_id: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Build rich payload for Qdrant with denormalized source/chunk metadata.
+
+        Fetches source and chunk from MongoDB to enrich the payload with
+        metadata for filtering and display in the unified collection.
+
+        Args:
+            extraction: The extraction being stored.
+            extraction_id: MongoDB ID of the saved extraction.
+            project_id: Optional project ID override.
+
+        Returns:
+            Rich payload dict with indexed and display fields.
+        """
+        # Resolve project_id
+        resolved_project_id = project_id or settings.project_id
+
+        # Initialize payload with extraction data
+        payload: dict[str, Any] = {
+            # === INDEXED FIELDS (for filtering) ===
+            "project_id": resolved_project_id,
+            "content_type": CONTENT_TYPE_EXTRACTION,
+            "source_id": extraction.source_id,
+            "extraction_type": extraction.type.value,
+            "topics": extraction.topics,
+            # === NON-INDEXED FIELDS (for display) ===
+            "chunk_id": extraction.chunk_id,
+            "extraction_id": extraction_id,
+            "extraction_title": self._get_extraction_title(extraction),
+            "_original_id": extraction_id,
+        }
+
+        # Fetch source metadata for denormalization
+        try:
+            source = self.mongodb.get_source(extraction.source_id)
+            payload["source_type"] = source.type
+            payload["source_category"] = source.category
+            payload["source_year"] = source.year
+            payload["source_tags"] = source.tags
+            payload["source_title"] = source.title
+            logger.debug(
+                "source_metadata_fetched",
+                source_id=extraction.source_id,
+                source_title=source.title,
+            )
+        except Exception as e:
+            # Log but don't fail - source metadata is optional
+            logger.warning(
+                "source_metadata_fetch_failed",
+                source_id=extraction.source_id,
+                error=str(e),
+            )
+            payload["source_type"] = ""
+            payload["source_category"] = "foundational"
+            payload["source_year"] = None
+            payload["source_tags"] = []
+            payload["source_title"] = ""
+
+        # Fetch chunk metadata for position context
+        try:
+            chunk = self.mongodb.get_chunk(extraction.chunk_id)
+            payload["chapter"] = chunk.position.chapter
+            payload["section"] = chunk.position.section
+            payload["page"] = chunk.position.page
+            logger.debug(
+                "chunk_metadata_fetched",
+                chunk_id=extraction.chunk_id,
+                chapter=chunk.position.chapter,
+            )
+        except Exception as e:
+            # Log but don't fail - chunk metadata is optional
+            logger.warning(
+                "chunk_metadata_fetch_failed",
+                chunk_id=extraction.chunk_id,
+                error=str(e),
+            )
+            payload["chapter"] = None
+            payload["section"] = None
+            payload["page"] = None
+
+        return payload

@@ -13,14 +13,16 @@ from qdrant_client.http.models import (
     Distance,
     FieldCondition,
     Filter,
+    KeywordIndexParams,
     MatchAny,
     MatchValue,
+    PayloadSchemaType,
     PointIdsList,
     PointStruct,
     VectorParams,
 )
 
-from src.config import settings
+from src.config import KNOWLEDGE_VECTORS_COLLECTION, settings
 from src.exceptions import (
     QdrantCollectionError,
     QdrantConnectionError,
@@ -33,9 +35,18 @@ logger = structlog.get_logger()
 VECTOR_SIZE = 384  # all-MiniLM-L6-v2 output dimension
 DISTANCE_METRIC = Distance.COSINE
 
-# Collection names from architecture
-CHUNKS_COLLECTION = "chunks"
-EXTRACTIONS_COLLECTION = "extractions"
+# Single collection for all vectors (following Qdrant multitenancy best practices)
+# Uses payload-based filtering with project_id as tenant identifier
+COLLECTION_NAME = KNOWLEDGE_VECTORS_COLLECTION
+
+# Legacy collection names - kept for backwards compatibility during migration
+# These are DEPRECATED and will be removed in future versions
+CHUNKS_COLLECTION = settings.chunks_collection
+EXTRACTIONS_COLLECTION = settings.extractions_collection
+
+# Content type discriminator values
+CONTENT_TYPE_CHUNK = "chunk"
+CONTENT_TYPE_EXTRACTION = "extraction"
 
 # Namespace for generating deterministic UUIDs from string IDs
 QDRANT_UUID_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
@@ -73,18 +84,24 @@ class QdrantStorageClient:
         client: Underlying QdrantClient instance.
     """
 
-    def __init__(self, url: str | None = None):
+    def __init__(self, url: str | None = None, api_key: str | None = None):
         """Initialize Qdrant client with connection to Qdrant server.
 
         Args:
             url: Qdrant server URL. Defaults to settings.qdrant_url.
+            api_key: Qdrant API key for cloud authentication. Defaults to settings.qdrant_api_key.
 
         Raises:
             QdrantConnectionError: If connection to Qdrant fails.
         """
         self.url = url or settings.qdrant_url
+        self.api_key = api_key if api_key is not None else settings.qdrant_api_key
         try:
-            self.client = QdrantClient(url=self.url)
+            self.client = QdrantClient(
+                url=self.url,
+                api_key=self.api_key,
+                timeout=30,
+            )
             logger.info("qdrant_client_initialized", url=self.url)
         except Exception as e:
             raise QdrantConnectionError(
@@ -113,8 +130,8 @@ class QdrantStorageClient:
         Creates a collection with 384-dimensional vectors and Cosine distance metric.
         If the collection already exists, this method does nothing.
 
-        For the 'extractions' collection, payload indexes are created on 'type' and
-        'topics' fields for optimized filtered search performance (NFR1: <500ms).
+        For the unified 'knowledge_vectors' collection, comprehensive payload indexes
+        are created for optimized filtered search performance (NFR1: <500ms).
 
         Args:
             collection_name: Name of the collection to create/verify.
@@ -138,7 +155,7 @@ class QdrantStorageClient:
                 logger.info("qdrant_collection_created", collection=collection_name)
 
                 # Create payload indexes for filtered search performance
-                if create_indexes and collection_name == EXTRACTIONS_COLLECTION:
+                if create_indexes:
                     self._create_payload_indexes(collection_name)
             else:
                 logger.debug("qdrant_collection_exists", collection=collection_name)
@@ -149,22 +166,74 @@ class QdrantStorageClient:
                 details={"collection": collection_name, "error": str(e)},
             )
 
+    def ensure_knowledge_collection(self) -> None:
+        """Create the unified knowledge_vectors collection if it doesn't exist.
+
+        Convenience method that ensures the single collection architecture is set up
+        with all required payload indexes for multitenancy and filtering.
+        """
+        self.ensure_collection(COLLECTION_NAME, create_indexes=True)
+
     def _create_payload_indexes(self, collection_name: str) -> None:
         """Create payload indexes for optimized filtered search.
 
-        Creates keyword indexes on 'type', 'topics', and 'source_id' fields
-        to improve filtered search performance per NFR1 (<500ms latency).
+        Creates comprehensive indexes for the unified knowledge_vectors collection:
+        - project_id: Tenant index for multitenancy with is_tenant=True optimization
+        - content_type: Discriminator between chunks and extractions
+        - source_id: Filter by source document
+        - extraction_type: Filter extractions by type (decision, pattern, etc.)
+        - topics: Filter by topic tags
+        - source_type: Filter by source type (book, paper, case_study)
+        - source_category: Filter by category (foundational, advanced, etc.)
+        - source_year: Filter by publication year
 
         Args:
             collection_name: Target collection name.
         """
-        index_fields = ["type", "topics", "source_id"]
-        for field in index_fields:
+        # Create project_id index with is_tenant=True for optimized co-location (Qdrant v1.11+)
+        # This enables efficient multi-tenant queries by grouping vectors by project
+        # Uses KeywordIndexParams per Qdrant documentation for multitenancy
+        try:
+            self.client.create_payload_index(
+                collection_name=collection_name,
+                field_name="project_id",
+                field_schema=KeywordIndexParams(
+                    type="keyword",
+                    is_tenant=True,
+                ),
+            )
+            logger.debug(
+                "tenant_index_created",
+                collection=collection_name,
+                field="project_id",
+                is_tenant=True,
+            )
+        except Exception as e:
+            # Log but don't fail - index might already exist
+            logger.warning(
+                "tenant_index_creation_skipped",
+                collection=collection_name,
+                field="project_id",
+                reason=str(e),
+            )
+
+        # Keyword indexes for exact match filtering (non-tenant fields)
+        keyword_fields = [
+            "content_type",
+            "source_id",
+            "chunk_id",
+            "extraction_type",
+            "topics",
+            "source_type",
+            "source_category",
+        ]
+
+        for field in keyword_fields:
             try:
                 self.client.create_payload_index(
                     collection_name=collection_name,
                     field_name=field,
-                    field_schema="keyword",
+                    field_schema=PayloadSchemaType.KEYWORD,
                 )
                 logger.debug("payload_index_created", collection=collection_name, field=field)
             except Exception as e:
@@ -175,6 +244,22 @@ class QdrantStorageClient:
                     field=field,
                     reason=str(e),
                 )
+
+        # Integer index for year filtering
+        try:
+            self.client.create_payload_index(
+                collection_name=collection_name,
+                field_name="source_year",
+                field_schema=PayloadSchemaType.INTEGER,
+            )
+            logger.debug("payload_index_created", collection=collection_name, field="source_year")
+        except Exception as e:
+            logger.warning(
+                "payload_index_creation_skipped",
+                collection=collection_name,
+                field="source_year",
+                reason=str(e),
+            )
 
     def _validate_vector_size(self, vector: list[float], context: str = "vector") -> None:
         """Validate that vector has exactly 384 dimensions.
@@ -198,40 +283,82 @@ class QdrantStorageClient:
         chunk_id: str,
         vector: list[float],
         payload: dict[str, Any],
+        project_id: str | None = None,
     ) -> None:
-        """Upsert a chunk vector into the chunks collection.
+        """Upsert a chunk vector into the unified knowledge collection.
 
         Args:
             chunk_id: Unique identifier for the chunk (MongoDB ObjectId format).
             vector: 384-dimensional embedding vector.
-            payload: Metadata payload (must include source_id, chunk_id).
+            payload: Metadata payload (must include source_id).
+            project_id: Project identifier for multitenancy (defaults to settings.project_id).
 
         Raises:
             QdrantVectorError: If vector size is not 384.
             QdrantCollectionError: If upsert operation fails.
         """
         self._validate_vector_size(vector, "Chunk vector")
-        self._upsert_vector(CHUNKS_COLLECTION, chunk_id, vector, payload)
+
+        # Build rich payload with content_type discriminator
+        rich_payload = {
+            **payload,
+            "content_type": CONTENT_TYPE_CHUNK,
+            "project_id": project_id or settings.project_id,
+            "chunk_id": chunk_id,
+        }
+
+        self._upsert_vector(COLLECTION_NAME, chunk_id, vector, rich_payload)
 
     def upsert_extraction_vector(
         self,
         extraction_id: str,
         vector: list[float],
         payload: dict[str, Any],
+        project_id: str | None = None,
     ) -> None:
-        """Upsert an extraction vector into the extractions collection.
+        """Upsert an extraction vector into the unified knowledge collection.
 
         Args:
             extraction_id: Unique identifier for the extraction (MongoDB ObjectId format).
             vector: 384-dimensional embedding vector.
-            payload: Metadata payload (must include source_id, chunk_id, type, topics).
+            payload: Metadata payload containing:
+                - source_id: Reference to source document
+                - chunk_id: Reference to source chunk
+                - type: Extraction type (decision, pattern, warning, etc.)
+                - topics: Topic tags
+                - title: Human-readable extraction title (optional)
+                - source_title: Source document title (optional, denormalized)
+                - source_type: Source document type (optional, denormalized)
+                - source_category: Source category (optional, denormalized)
+                - source_year: Publication year (optional, denormalized)
+                - chapter: Chapter from source (optional, denormalized)
+            project_id: Project identifier for multitenancy (defaults to settings.project_id).
 
         Raises:
             QdrantVectorError: If vector size is not 384.
             QdrantCollectionError: If upsert operation fails.
         """
         self._validate_vector_size(vector, "Extraction vector")
-        self._upsert_vector(EXTRACTIONS_COLLECTION, extraction_id, vector, payload)
+
+        # Build rich payload with content_type discriminator
+        # extraction_type is set by ExtractionStorage._build_rich_payload()
+        rich_payload = {
+            **payload,
+            "content_type": CONTENT_TYPE_EXTRACTION,
+            "project_id": project_id or settings.project_id,
+            "extraction_id": extraction_id,
+        }
+
+        # Ensure extraction_type is always set for proper filtering
+        if "extraction_type" not in rich_payload:
+            logger.warning(
+                "extraction_type_missing",
+                extraction_id=extraction_id,
+                hint="payload should include extraction_type from _build_rich_payload",
+            )
+            rich_payload["extraction_type"] = ""
+
+        self._upsert_vector(COLLECTION_NAME, extraction_id, vector, rich_payload)
 
     def _upsert_vector(
         self,
@@ -458,6 +585,128 @@ class QdrantStorageClient:
                     "error": str(e),
                 },
             )
+
+    def search_knowledge(
+        self,
+        query_vector: list[float],
+        limit: int = 10,
+        project_id: str | None = None,
+        content_type: str | None = None,
+        extraction_type: str | None = None,
+        source_id: str | None = None,
+        topics: list[str] | None = None,
+        source_type: str | None = None,
+        source_category: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Search the unified knowledge collection with project isolation.
+
+        This is the primary search method for the single-collection architecture.
+        Always filters by project_id for proper multitenancy.
+
+        Args:
+            query_vector: 384-dimensional query embedding.
+            limit: Maximum number of results to return (default 10).
+            project_id: Project identifier (defaults to settings.project_id).
+            content_type: Filter by content type ('chunk' or 'extraction').
+            extraction_type: Filter extractions by type (decision, pattern, etc.).
+            source_id: Filter by source document.
+            topics: Filter by topic tags (match any).
+            source_type: Filter by source type (book, paper, case_study).
+            source_category: Filter by category (foundational, advanced, etc.).
+
+        Returns:
+            List of results with id, score, and payload.
+
+        Raises:
+            QdrantVectorError: If query vector size is not 384.
+            QdrantCollectionError: If search operation fails.
+        """
+        # Build filter dict with project isolation
+        filter_dict: dict[str, Any] = {
+            "project_id": project_id or settings.project_id,
+        }
+
+        if content_type:
+            filter_dict["content_type"] = content_type
+        if extraction_type:
+            filter_dict["extraction_type"] = extraction_type
+        if source_id:
+            filter_dict["source_id"] = source_id
+        if topics:
+            filter_dict["topics"] = topics
+        if source_type:
+            filter_dict["source_type"] = source_type
+        if source_category:
+            filter_dict["source_category"] = source_category
+
+        return self.search_with_filter(
+            collection=COLLECTION_NAME,
+            query_vector=query_vector,
+            filter_dict=filter_dict,
+            limit=limit,
+        )
+
+    def search_chunks(
+        self,
+        query_vector: list[float],
+        limit: int = 10,
+        project_id: str | None = None,
+        source_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Search for chunks in the unified collection.
+
+        Convenience method that filters by content_type='chunk'.
+
+        Args:
+            query_vector: 384-dimensional query embedding.
+            limit: Maximum number of results to return (default 10).
+            project_id: Project identifier (defaults to settings.project_id).
+            source_id: Filter by source document.
+
+        Returns:
+            List of chunk results with id, score, and payload.
+        """
+        return self.search_knowledge(
+            query_vector=query_vector,
+            limit=limit,
+            project_id=project_id,
+            content_type=CONTENT_TYPE_CHUNK,
+            source_id=source_id,
+        )
+
+    def search_extractions(
+        self,
+        query_vector: list[float],
+        limit: int = 10,
+        project_id: str | None = None,
+        extraction_type: str | None = None,
+        source_id: str | None = None,
+        topics: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Search for extractions in the unified collection.
+
+        Convenience method that filters by content_type='extraction'.
+
+        Args:
+            query_vector: 384-dimensional query embedding.
+            limit: Maximum number of results to return (default 10).
+            project_id: Project identifier (defaults to settings.project_id).
+            extraction_type: Filter by extraction type (decision, pattern, etc.).
+            source_id: Filter by source document.
+            topics: Filter by topic tags (match any).
+
+        Returns:
+            List of extraction results with id, score, and payload.
+        """
+        return self.search_knowledge(
+            query_vector=query_vector,
+            limit=limit,
+            project_id=project_id,
+            content_type=CONTENT_TYPE_EXTRACTION,
+            extraction_type=extraction_type,
+            source_id=source_id,
+            topics=topics,
+        )
 
     def delete_by_id(self, collection: str, point_id: str) -> None:
         """Delete a point by ID.

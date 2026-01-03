@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -10,7 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 OBJECTID_PATTERN = re.compile(r"^[a-f0-9]{24}$")
 
 # Current schema version for all documents
-CURRENT_SCHEMA_VERSION = "1.0"
+CURRENT_SCHEMA_VERSION = "1.1"
+
+# Valid source categories for categorization
+SourceCategory = Literal["foundational", "advanced", "reference", "case_study"]
 
 
 class Source(BaseModel):
@@ -29,6 +32,10 @@ class Source(BaseModel):
         status: Processing status of the source.
         metadata: Arbitrary JSON metadata for extensibility.
         schema_version: Version of the document schema.
+        project_id: Project identifier for multi-project isolation.
+        year: Publication year of the source (optional, 1900-2100).
+        category: Source category for classification.
+        tags: List of tags for filtering and search.
     """
 
     id: str = Field(..., description="MongoDB ObjectId as string")
@@ -40,6 +47,11 @@ class Source(BaseModel):
     status: Literal["pending", "processing", "complete", "failed"]
     metadata: dict = Field(default_factory=dict)
     schema_version: str = CURRENT_SCHEMA_VERSION
+    # v1.1 fields for multi-project support and rich metadata
+    project_id: str = Field(default="default", description="Project identifier for isolation")
+    year: Optional[int] = Field(default=None, ge=1900, le=2100, description="Publication year")
+    category: SourceCategory = Field(default="foundational", description="Source category")
+    tags: list[str] = Field(default_factory=list, description="Tags for filtering")
 
     @field_validator("id")
     @classmethod
@@ -78,7 +90,11 @@ class Source(BaseModel):
                 "ingested_at": "2025-12-30T10:30:00Z",
                 "status": "complete",
                 "metadata": {"pages": 800},
-                "schema_version": "1.0",
+                "schema_version": "1.1",
+                "project_id": "ai_engineering",
+                "year": 2024,
+                "category": "foundational",
+                "tags": ["llm", "production", "rag"],
             }
         },
     )

@@ -62,6 +62,58 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Never hardcode secrets or connection strings
 - Export singleton: `settings = Settings()`
 
+### Project Namespacing (Single Collection Architecture)
+- Use `PROJECT_ID` environment variable to isolate knowledge bases
+- Default: `"default"` when `PROJECT_ID` not set
+
+**MongoDB:** Uses project-prefixed collections
+- Collection naming pattern: `{project_id}_{type}` (e.g., `ai_engineering_sources`)
+- Access collections via settings properties, NEVER hardcode names
+
+**Qdrant:** Uses SINGLE `knowledge_vectors` collection with payload filtering
+- All vectors (chunks AND extractions) go to `knowledge_vectors`
+- Project isolation via `project_id` payload field with `is_tenant=True` index
+- Content type discrimination via `content_type` payload: `"chunk"` or `"extraction"`
+
+```python
+# CORRECT: MongoDB - Use settings properties
+collection = self._db[settings.sources_collection]
+
+# CORRECT: Qdrant - Use single collection constant
+from config import KNOWLEDGE_VECTORS_COLLECTION
+self._qdrant.ensure_collection(KNOWLEDGE_VECTORS_COLLECTION)
+
+# WRONG: Hardcoded MongoDB collection names
+collection = self._db["sources"]  # NEVER DO THIS
+
+# WRONG: Dynamic Qdrant collection names (OLD PATTERN - DEPRECATED)
+self._qdrant.ensure_collection(f"{project_id}_chunks")  # NEVER DO THIS
+```
+
+### Qdrant Rich Payload Requirements
+All vectors stored in `knowledge_vectors` MUST include these payload fields:
+
+**Required Fields (ALL vectors):**
+- `project_id`: str - Project namespace (is_tenant=True index)
+- `content_type`: str - "chunk" or "extraction"
+- `source_id`: str - MongoDB source document ID
+
+**For Chunks:**
+- `chunk_id`: str - MongoDB chunk document ID
+- `source_title`: str - Human-readable source title
+- `source_type`: str - "book", "paper", "case_study"
+- `chapter`: Optional[str] - Chapter/section identifier
+- `page`: Optional[int] - Page number
+
+**For Extractions:**
+- `extraction_id`: str - MongoDB extraction document ID
+- `extraction_type`: str - "decision", "pattern", "warning", "methodology"
+- `extraction_title`: str - Human-readable extraction title
+- `topics`: list[str] - Topic tags
+- `source_category`: str - "foundational", "advanced", "reference", "case_study"
+- `source_year`: Optional[int] - Publication year
+- `source_tags`: list[str] - Custom tags
+
 ### LLM Client Configuration
 - Use `ANTHROPIC_API_KEY` from environment via pydantic-settings
 - Default model: `claude-3-haiku-20240307`
@@ -266,4 +318,4 @@ uv run uvicorn src.server:app --reload  # Dev server
 
 ---
 
-_Last Updated: 2025-12-30_
+_Last Updated: 2026-01-03_

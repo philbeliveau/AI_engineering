@@ -126,7 +126,7 @@ class TestExtractionStorageSaveExtraction:
         assert payload["source_id"] == sample_decision.source_id
         assert payload["chunk_id"] == sample_decision.chunk_id
         assert payload["extraction_id"] == "507f1f77bcf86cd799439013"
-        assert payload["type"] == "decision"
+        assert payload["extraction_type"] == "decision"  # New schema uses extraction_type
         assert payload["topics"] == ["rag", "fine-tuning"]
 
     def test_save_pattern_extraction(self, extraction_storage, sample_pattern):

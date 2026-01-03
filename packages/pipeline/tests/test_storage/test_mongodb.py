@@ -4,6 +4,7 @@ from datetime import datetime
 
 import pytest
 
+from src.config import settings
 from src.exceptions import NotFoundError, StorageError
 from src.models import Chunk, ChunkPosition, Extraction, Source
 from src.storage import MongoDBClient
@@ -342,9 +343,9 @@ class TestMongoDBClientIndexes:
     def test_indexes_created(self, mongodb_client: MongoDBClient):
         """Test that required indexes are created on connect."""
         # Check indexes exist on collections
-        source_indexes = list(mongodb_client._db.sources.list_indexes())
-        chunk_indexes = list(mongodb_client._db.chunks.list_indexes())
-        extraction_indexes = list(mongodb_client._db.extractions.list_indexes())
+        source_indexes = list(mongodb_client._db[settings.sources_collection].list_indexes())
+        chunk_indexes = list(mongodb_client._db[settings.chunks_collection].list_indexes())
+        extraction_indexes = list(mongodb_client._db[settings.extractions_collection].list_indexes())
 
         # Check for expected index names
         source_index_names = [idx["name"] for idx in source_indexes]
@@ -483,7 +484,7 @@ class TestMongoDBClientSaveExtractionFromExtractor:
         # Verify document structure in MongoDB
         from bson import ObjectId
 
-        doc = mongodb_client._db.extractions.find_one({"_id": ObjectId(extraction_id)})
+        doc = mongodb_client._db[settings.extractions_collection].find_one({"_id": ObjectId(extraction_id)})
         assert doc is not None
         assert doc["source_id"] == "507f1f77bcf86cd799439011"
         assert doc["chunk_id"] == "507f1f77bcf86cd799439012"
@@ -511,7 +512,7 @@ class TestMongoDBClientSaveExtractionFromExtractor:
 
         from bson import ObjectId
 
-        doc = mongodb_client._db.extractions.find_one({"_id": ObjectId(extraction_id)})
+        doc = mongodb_client._db[settings.extractions_collection].find_one({"_id": ObjectId(extraction_id)})
         assert doc["type"] == "pattern"
         assert doc["content"]["name"] == "Semantic Caching"
         assert doc["content"]["solution"] == "Use embedding-based cache"
@@ -534,7 +535,7 @@ class TestMongoDBClientSaveExtractionFromExtractor:
 
         from bson import ObjectId
 
-        doc = mongodb_client._db.extractions.find_one({"_id": ObjectId(extraction_id)})
+        doc = mongodb_client._db[settings.extractions_collection].find_one({"_id": ObjectId(extraction_id)})
         assert doc["type"] == "warning"
         assert doc["content"]["title"] == "Token Overflow"
 
@@ -558,7 +559,7 @@ class TestMongoDBClientSaveExtractionFromExtractor:
         assert first_id == second_id
 
         # Verify only one document exists
-        count = mongodb_client._db.extractions.count_documents({
+        count = mongodb_client._db[settings.extractions_collection].count_documents({
             "chunk_id": "507f1f77bcf86cd799439014",
             "type": "decision",
         })
@@ -634,7 +635,7 @@ class TestMongoDBClientSaveExtractionFromExtractor:
 
         from bson import ObjectId
 
-        doc = mongodb_client._db.extractions.find_one({"_id": ObjectId(extraction_id)})
+        doc = mongodb_client._db[settings.extractions_collection].find_one({"_id": ObjectId(extraction_id)})
 
         # Verify content structure
         content = doc["content"]

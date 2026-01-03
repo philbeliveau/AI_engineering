@@ -205,7 +205,7 @@ class TestChunkModel:
         )
 
         assert chunk.schema_version == CURRENT_SCHEMA_VERSION
-        assert chunk.schema_version == "1.0"
+        assert chunk.schema_version == "1.1"
 
     def test_chunk_schema_version_in_serialized_output(
         self, valid_object_id: str, valid_object_id_2: str
@@ -262,3 +262,63 @@ class TestChunkPositionValidation:
 
         pos = ChunkPosition(page=999)
         assert pos.page == 999
+
+
+class TestChunkV11Fields:
+    """Tests for Chunk v1.1 schema fields (project_id)."""
+
+    def test_chunk_project_id_default(
+        self, valid_object_id: str, valid_object_id_2: str
+    ) -> None:
+        """Test that project_id defaults to 'default'."""
+        chunk = Chunk(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            content="Test content",
+            token_count=2,
+        )
+
+        assert chunk.project_id == "default"
+
+    def test_chunk_project_id_custom(
+        self, valid_object_id: str, valid_object_id_2: str
+    ) -> None:
+        """Test that project_id can be set to custom value."""
+        chunk = Chunk(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            content="Test content",
+            token_count=2,
+            project_id="ai_engineering",
+        )
+
+        assert chunk.project_id == "ai_engineering"
+
+    def test_chunk_schema_version_v11(
+        self, valid_object_id: str, valid_object_id_2: str
+    ) -> None:
+        """Test that schema_version is '1.1'."""
+        chunk = Chunk(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            content="Test",
+            token_count=1,
+        )
+
+        assert chunk.schema_version == "1.1"
+
+    def test_chunk_v11_fields_in_serialization(
+        self, valid_object_id: str, valid_object_id_2: str
+    ) -> None:
+        """Test that v1.1 fields appear in serialized output."""
+        chunk = Chunk(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            content="Test",
+            token_count=1,
+            project_id="my_project",
+        )
+
+        data = chunk.model_dump()
+        assert "project_id" in data
+        assert data["project_id"] == "my_project"

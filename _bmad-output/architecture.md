@@ -92,7 +92,9 @@ This system serves **two distinct audiences** with different needs:
 
 | Constraint | Architectural Impact |
 |------------|---------------------|
-| Zero LLM API costs | Claude-as-extractor during ingestion, local embeddings |
+| Zero LLM API costs at query time | Pre-extracted knowledge served from storage |
+| Ingestion costs | ~$10/book via Claude Haiku batch extraction |
+| Zero embedding costs | Local all-MiniLM-L6-v2 model |
 | MCP protocol | All interactions via MCP tools |
 | Multi-source synthesis | Claude judges across sources at query time |
 | Local-first | Docker Compose required, cloud deployment optional |
@@ -205,6 +207,8 @@ Custom project structure defined in brief is used directly:
 | sentence-transformers | >=5.0 | Local embeddings |
 | pymongo | latest | MongoDB client |
 | pymupdf | latest | PDF parsing |
+| anthropic | >=0.40.0 | LLM API client for extraction |
+| tenacity | >=8.0.0 | Retry logic with backoff |
 | pydantic | >=2.0 | Data validation |
 | uv | latest | Package management |
 
@@ -295,20 +299,154 @@ knowledge_db/
 - `extractions.source_id`
 - `chunks.source_id`
 
-**Qdrant Configuration:**
+**Qdrant Configuration (Single Collection Architecture):**
+
+Per [Qdrant's multitenancy best practices](https://qdrant.tech/documentation/guides/multitenancy/), all vectors are stored in a **single `knowledge_vectors` collection** with payload-based filtering:
 
 | Setting | Value | Rationale |
 |---------|-------|-----------|
 | Vector size | 384 | all-MiniLM-L6-v2 output |
 | Distance metric | Cosine | Standard for text embeddings |
-| Collection: `chunks` | Semantic search on raw text |
-| Collection: `extractions` | Semantic search on extraction summaries |
-| Payload | `{source_id, chunk_id, type, topics}` | For filtered search |
+| Collection | `knowledge_vectors` | Single collection for all vectors |
+| Content discrimination | `content_type` payload | "chunk" or "extraction" |
+| Project isolation | `project_id` payload | `is_tenant=True` index optimization |
+
+**Rich Payload Schema:**
+
+```python
+payload = {
+    # === INDEXED FIELDS (for filtering) ===
+    "project_id": "ai_engineering",      # is_tenant=True
+    "content_type": "extraction",         # "chunk" | "extraction"
+    "source_id": "507f1f77...",
+    "source_type": "book",
+    "source_category": "foundational",
+    "source_year": 2024,
+    "source_tags": ["llm-ops", "production"],
+    "extraction_type": "pattern",         # Only for extractions
+    "topics": ["reliability", "api"],
+    "chapter": "5",
+
+    # === NON-INDEXED FIELDS (for display) ===
+    "chunk_id": "507f1f77...",
+    "extraction_id": "507f1f77...",
+    "source_title": "LLM Engineer's Handbook",
+    "extraction_title": "Retry with Exponential Backoff",
+    "section": "Error Handling",
+    "page": 142,
+}
+```
+
+**Payload Indexes:**
+
+```python
+# Tenant index (co-locates vectors for performance)
+client.create_payload_index(
+    collection_name="knowledge_vectors",
+    field_name="project_id",
+    field_schema=models.PayloadSchemaType.KEYWORD,
+    is_tenant=True,  # Qdrant v1.11+ optimization
+)
+
+# Content type and source filters
+for field in ["content_type", "source_id", "source_type", "source_category"]:
+    client.create_payload_index(
+        collection_name="knowledge_vectors",
+        field_name=field,
+        field_schema=models.PayloadSchemaType.KEYWORD,
+    )
+
+# Integer index for year filtering
+client.create_payload_index(
+    collection_name="knowledge_vectors",
+    field_name="source_year",
+    field_schema=models.PayloadSchemaType.INTEGER,
+)
+
+# Extraction-specific indexes
+for field in ["extraction_type", "topics", "chapter"]:
+    client.create_payload_index(
+        collection_name="knowledge_vectors",
+        field_name=field,
+        field_schema=models.PayloadSchemaType.KEYWORD,
+    )
+```
 
 **Schema Versioning:**
 - All documents include `schema_version` field
 - Application code handles version differences
 - Migration scripts for breaking changes
+
+**Project Namespacing (Payload-Based Isolation):**
+
+Projects are isolated via **payload filtering** rather than separate collections. This follows Qdrant's recommended multitenancy pattern:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│             SINGLE COLLECTION ARCHITECTURE                   │
+│                                                               │
+│  Qdrant: knowledge_vectors (single collection)              │
+│    ├── project_id: "ai_engineering" (payload filter)        │
+│    ├── project_id: "bmad_docs" (payload filter)             │
+│    └── project_id: "default" (when PROJECT_ID not set)      │
+│                                                               │
+│  MongoDB: Still uses project-prefixed collections           │
+│    ├── ai_engineering_sources                                │
+│    ├── ai_engineering_chunks                                 │
+│    ├── ai_engineering_extractions                            │
+│    ├── bmad_docs_sources                                     │
+│    └── ...                                                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Why Single Qdrant Collection:**
+- Per Qdrant docs: "Creating too many collections may result in resource overhead"
+- `is_tenant=True` on `project_id` index enables optimized co-location
+- Cross-project queries are possible by omitting `project_id` filter
+- Rich metadata filtering (year, category, tags) without collection proliferation
+
+**Query Examples:**
+
+```python
+# Project-scoped search
+client.query_points(
+    collection_name="knowledge_vectors",
+    query=embedding,
+    query_filter=models.Filter(
+        must=[
+            models.FieldCondition(key="project_id", match=models.MatchValue(value="ai_engineering")),
+            models.FieldCondition(key="content_type", match=models.MatchValue(value="extraction")),
+        ]
+    ),
+)
+
+# Cross-project search (omit project_id filter)
+client.query_points(
+    collection_name="knowledge_vectors",
+    query=embedding,
+    query_filter=models.Filter(
+        must=[
+            models.FieldCondition(key="extraction_type", match=models.MatchValue(value="warning")),
+        ]
+    ),
+)
+```
+
+**CLI Usage:**
+
+```bash
+# Session-wide project selection
+export PROJECT_ID=ai_engineering
+uv run scripts/ingest.py book1.pdf
+
+# CLI flags for metadata
+uv run scripts/ingest.py \
+    --project ai_engineering \
+    --category foundational \
+    --tags "rag,embeddings" \
+    --year 2024 \
+    book.pdf
+```
 
 ### Authentication & Security
 
@@ -624,6 +762,7 @@ ai-engineering-knowledge/              # Monorepo root
 │   │   │   ├── extractors/            # FR-2: Knowledge Extraction
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── base.py
+│   │   │   │   ├── llm_client.py      # LLM API wrapper for batch extraction
 │   │   │   │   ├── decision_extractor.py
 │   │   │   │   ├── pattern_extractor.py
 │   │   │   │   ├── warning_extractor.py
@@ -755,11 +894,12 @@ ai-engineering-knowledge/              # Monorepo root
 
 | Store | Pipeline (Write) | MCP Server (Read) |
 |-------|-----------------|-------------------|
-| MongoDB `sources` | ✓ | ✓ |
-| MongoDB `chunks` | ✓ | ✓ |
-| MongoDB `extractions` | ✓ | ✓ |
-| Qdrant `chunks` | ✓ | ✓ |
-| Qdrant `extractions` | ✓ | ✓ |
+| MongoDB `{project}_sources` | ✓ | ✓ |
+| MongoDB `{project}_chunks` | ✓ | ✓ |
+| MongoDB `{project}_extractions` | ✓ | ✓ |
+| Qdrant `knowledge_vectors` | ✓ | ✓ |
+
+*Note: MongoDB uses project-prefixed collections. Qdrant uses a single `knowledge_vectors` collection with `project_id` payload filtering.*
 
 ### Integration Points
 

@@ -117,34 +117,71 @@ class MongoDBClient:
 
         Creates indexes with background=True for non-blocking creation.
         Index naming convention: idx_{collection}_{field}
+
+        Indexes support multi-project architecture with project_id filtering.
         """
         if self._db is None:
             raise StorageError("_ensure_indexes", {"error": "Not connected"})
 
         try:
             # Sources indexes
-            self._db.sources.create_index(
+            sources_col = self._db[settings.sources_collection]
+            sources_col.create_index(
                 [("status", ASCENDING)],
                 name="idx_sources_status",
                 background=True,
             )
+            # Multi-project indexes for sources
+            sources_col.create_index(
+                [("project_id", ASCENDING), ("type", ASCENDING)],
+                name="idx_sources_project_type",
+                background=True,
+            )
+            sources_col.create_index(
+                [("project_id", ASCENDING), ("category", ASCENDING)],
+                name="idx_sources_project_category",
+                background=True,
+            )
+            sources_col.create_index(
+                [("project_id", ASCENDING), ("tags", ASCENDING)],
+                name="idx_sources_project_tags",
+                background=True,
+            )
 
             # Chunks indexes
-            self._db.chunks.create_index(
+            chunks_col = self._db[settings.chunks_collection]
+            chunks_col.create_index(
                 [("source_id", ASCENDING)],
                 name="idx_chunks_source_id",
                 background=True,
             )
+            chunks_col.create_index(
+                [("project_id", ASCENDING), ("source_id", ASCENDING)],
+                name="idx_chunks_project_source",
+                background=True,
+            )
 
             # Extractions indexes
-            self._db.extractions.create_index(
+            extractions_col = self._db[settings.extractions_collection]
+            extractions_col.create_index(
                 [("type", ASCENDING), ("topics", ASCENDING)],
                 name="idx_extractions_type_topics",
                 background=True,
             )
-            self._db.extractions.create_index(
+            extractions_col.create_index(
                 [("source_id", ASCENDING)],
                 name="idx_extractions_source_id",
+                background=True,
+            )
+            # Multi-project indexes for extractions
+            extractions_col.create_index(
+                [("project_id", ASCENDING), ("source_id", ASCENDING)],
+                name="idx_extractions_project_source",
+                background=True,
+            )
+            extractions_col.create_index(
+                [("project_id", ASCENDING), ("type", ASCENDING)],
+                name="idx_extractions_project_type",
                 background=True,
             )
 
@@ -179,7 +216,7 @@ class MongoDBClient:
             if "id" in doc:
                 del doc["id"]
 
-            result = self._db.sources.insert_one(doc)
+            result = self._db[settings.sources_collection].insert_one(doc)
             source_id = str(result.inserted_id)
             logger.info("source_created", source_id=source_id, type=source.type)
             return source_id
@@ -207,7 +244,7 @@ class MongoDBClient:
         oid = self._validate_object_id(source_id, "source")
 
         try:
-            doc = self._db.sources.find_one({"_id": oid})
+            doc = self._db[settings.sources_collection].find_one({"_id": oid})
             if not doc:
                 raise NotFoundError("source", source_id)
             # Convert MongoDB _id to string id for Pydantic model
@@ -251,7 +288,7 @@ class MongoDBClient:
             )
 
         try:
-            result = self._db.sources.update_one(
+            result = self._db[settings.sources_collection].update_one(
                 {"_id": oid},
                 {"$set": updates},
             )
@@ -285,7 +322,7 @@ class MongoDBClient:
         oid = self._validate_object_id(source_id, "source")
 
         try:
-            result = self._db.sources.delete_one({"_id": oid})
+            result = self._db[settings.sources_collection].delete_one({"_id": oid})
             deleted = result.deleted_count > 0
             if deleted:
                 logger.info("source_deleted", source_id=source_id)
@@ -315,7 +352,7 @@ class MongoDBClient:
                 query["status"] = status
 
             sources = []
-            for doc in self._db.sources.find(query):
+            for doc in self._db[settings.sources_collection].find(query):
                 doc["id"] = str(doc.pop("_id"))
                 sources.append(Source.model_validate(doc))
             return sources
@@ -348,7 +385,7 @@ class MongoDBClient:
             if "id" in doc:
                 del doc["id"]
 
-            result = self._db.chunks.insert_one(doc)
+            result = self._db[settings.chunks_collection].insert_one(doc)
             chunk_id = str(result.inserted_id)
             logger.info("chunk_created", chunk_id=chunk_id, source_id=chunk.source_id)
             return chunk_id
@@ -376,7 +413,7 @@ class MongoDBClient:
         oid = self._validate_object_id(chunk_id, "chunk")
 
         try:
-            doc = self._db.chunks.find_one({"_id": oid})
+            doc = self._db[settings.chunks_collection].find_one({"_id": oid})
             if not doc:
                 raise NotFoundError("chunk", chunk_id)
             doc["id"] = str(doc.pop("_id"))
@@ -404,7 +441,7 @@ class MongoDBClient:
 
         try:
             chunks = []
-            for doc in self._db.chunks.find({"source_id": source_id}):
+            for doc in self._db[settings.chunks_collection].find({"source_id": source_id}):
                 doc["id"] = str(doc.pop("_id"))
                 chunks.append(Chunk.model_validate(doc))
             return chunks
@@ -428,7 +465,7 @@ class MongoDBClient:
             raise StorageError("delete_chunks_by_source", {"error": "Not connected"})
 
         try:
-            result = self._db.chunks.delete_many({"source_id": source_id})
+            result = self._db[settings.chunks_collection].delete_many({"source_id": source_id})
             deleted_count = result.deleted_count
             logger.info("chunks_deleted_by_source", source_id=source_id, count=deleted_count)
             return deleted_count
@@ -452,7 +489,7 @@ class MongoDBClient:
             raise StorageError("count_chunks_by_source", {"error": "Not connected"})
 
         try:
-            return self._db.chunks.count_documents({"source_id": source_id})
+            return self._db[settings.chunks_collection].count_documents({"source_id": source_id})
         except PyMongoError as e:
             logger.error("chunks_count_by_source_failed", source_id=source_id, error=str(e))
             raise StorageError("count_chunks_by_source", {"error": str(e)}) from e
@@ -482,7 +519,7 @@ class MongoDBClient:
             if "id" in doc:
                 del doc["id"]
 
-            result = self._db.extractions.insert_one(doc)
+            result = self._db[settings.extractions_collection].insert_one(doc)
             extraction_id = str(result.inserted_id)
             logger.info(
                 "extraction_created",
@@ -515,7 +552,7 @@ class MongoDBClient:
         oid = self._validate_object_id(extraction_id, "extraction")
 
         try:
-            doc = self._db.extractions.find_one({"_id": oid})
+            doc = self._db[settings.extractions_collection].find_one({"_id": oid})
             if not doc:
                 raise NotFoundError("extraction", extraction_id)
             doc["id"] = str(doc.pop("_id"))
@@ -543,7 +580,7 @@ class MongoDBClient:
 
         try:
             extractions = []
-            for doc in self._db.extractions.find({"source_id": source_id}):
+            for doc in self._db[settings.extractions_collection].find({"source_id": source_id}):
                 doc["id"] = str(doc.pop("_id"))
                 extractions.append(Extraction.model_validate(doc))
             return extractions
@@ -577,7 +614,7 @@ class MongoDBClient:
                 query["topics"] = {"$in": topics}
 
             extractions = []
-            for doc in self._db.extractions.find(query):
+            for doc in self._db[settings.extractions_collection].find(query):
                 doc["id"] = str(doc.pop("_id"))
                 extractions.append(Extraction.model_validate(doc))
             return extractions
@@ -606,7 +643,7 @@ class MongoDBClient:
             raise StorageError("delete_extractions_by_source", {"error": "Not connected"})
 
         try:
-            result = self._db.extractions.delete_many({"source_id": source_id})
+            result = self._db[settings.extractions_collection].delete_many({"source_id": source_id})
             deleted_count = result.deleted_count
             logger.info(
                 "extractions_deleted_by_source", source_id=source_id, count=deleted_count
@@ -642,7 +679,7 @@ class MongoDBClient:
 
         # Check for duplicate (same chunk_id + type)
         try:
-            existing = self._db.extractions.find_one({
+            existing = self._db[settings.extractions_collection].find_one({
                 "chunk_id": extraction.chunk_id,
                 "type": extraction.type.value,
             })
@@ -678,7 +715,7 @@ class MongoDBClient:
                 "extracted_at": extraction_data.get("extracted_at"),
             }
 
-            result = self._db.extractions.insert_one(doc)
+            result = self._db[settings.extractions_collection].insert_one(doc)
             extraction_id = str(result.inserted_id)
 
             logger.info(
@@ -760,7 +797,7 @@ class MongoDBClient:
                     del doc["id"]
                 docs.append(doc)
 
-            result = self._db.chunks.insert_many(docs, ordered=False)
+            result = self._db[settings.chunks_collection].insert_many(docs, ordered=False)
             chunk_ids = [str(oid) for oid in result.inserted_ids]
             logger.info("chunks_bulk_created", count=len(chunk_ids))
             return chunk_ids
@@ -797,7 +834,7 @@ class MongoDBClient:
                     del doc["id"]
                 docs.append(doc)
 
-            result = self._db.extractions.insert_many(docs, ordered=False)
+            result = self._db[settings.extractions_collection].insert_many(docs, ordered=False)
             extraction_ids = [str(oid) for oid in result.inserted_ids]
             logger.info("extractions_bulk_created", count=len(extraction_ids))
             return extraction_ids

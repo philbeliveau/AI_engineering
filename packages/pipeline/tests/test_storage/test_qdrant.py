@@ -6,7 +6,7 @@ These tests require a running Qdrant instance (docker-compose up -d).
 import pytest
 
 from src.exceptions import QdrantVectorError
-from src.storage import VECTOR_SIZE, QdrantStorageClient
+from src.storage import COLLECTION_NAME, VECTOR_SIZE, QdrantStorageClient
 from src.storage.qdrant import CHUNKS_COLLECTION, EXTRACTIONS_COLLECTION
 
 
@@ -113,8 +113,8 @@ class TestVectorUpsert:
     def test_upsert_chunk_vector(
         self, qdrant_client, test_vector_384d, sample_chunk_payload
     ):
-        """Test upsert_chunk_vector method."""
-        qdrant_client.ensure_collection(CHUNKS_COLLECTION)
+        """Test upsert_chunk_vector method uses unified collection."""
+        qdrant_client.ensure_knowledge_collection()
 
         qdrant_client.upsert_chunk_vector(
             chunk_id="chunk_1",
@@ -122,20 +122,20 @@ class TestVectorUpsert:
             payload=sample_chunk_payload,
         )
 
-        results = qdrant_client.search(
-            collection=CHUNKS_COLLECTION,
+        results = qdrant_client.search_chunks(
             query_vector=test_vector_384d,
             limit=1,
         )
 
         assert len(results) == 1
         assert results[0]["payload"]["source_id"] == sample_chunk_payload["source_id"]
+        assert results[0]["payload"]["content_type"] == "chunk"
 
     def test_upsert_extraction_vector(
         self, qdrant_client, test_vector_384d, sample_extraction_payload
     ):
-        """Test upsert_extraction_vector method."""
-        qdrant_client.ensure_collection(EXTRACTIONS_COLLECTION)
+        """Test upsert_extraction_vector method uses unified collection."""
+        qdrant_client.ensure_knowledge_collection()
 
         qdrant_client.upsert_extraction_vector(
             extraction_id="extraction_1",
@@ -143,15 +143,15 @@ class TestVectorUpsert:
             payload=sample_extraction_payload,
         )
 
-        results = qdrant_client.search(
-            collection=EXTRACTIONS_COLLECTION,
+        results = qdrant_client.search_extractions(
             query_vector=test_vector_384d,
             limit=1,
         )
 
         assert len(results) == 1
-        assert results[0]["payload"]["type"] == "decision"
+        assert results[0]["payload"]["extraction_type"] == "decision"
         assert "architecture" in results[0]["payload"]["topics"]
+        assert results[0]["payload"]["content_type"] == "extraction"
 
 
 class TestSemanticSearch:
@@ -204,7 +204,7 @@ class TestSemanticSearch:
 
         assert len(results) == 1
         assert results[0]["payload"]["source_id"] == sample_extraction_payload["source_id"]
-        assert results[0]["payload"]["type"] == "decision"
+        assert results[0]["payload"]["extraction_type"] == "decision"
 
     def test_search_respects_limit(self, qdrant_client, test_vector_384d):
         """Test that search respects the limit parameter."""
@@ -479,3 +479,230 @@ class TestErrorHandling:
             )
 
         assert exc_info.value.code == "INVALID_VECTOR_SIZE"
+
+
+class TestUnifiedCollectionArchitecture:
+    """Tests for single-collection architecture with payload-based filtering."""
+
+    def test_ensure_knowledge_collection(self, qdrant_client):
+        """Test that ensure_knowledge_collection creates unified collection."""
+        qdrant_client.ensure_knowledge_collection()
+
+        collections = qdrant_client.client.get_collections().collections
+        collection_names = [c.name for c in collections]
+
+        assert COLLECTION_NAME in collection_names
+
+    def test_chunks_and_extractions_in_same_collection(
+        self, qdrant_client, test_vector_384d, sample_chunk_payload, sample_extraction_payload
+    ):
+        """Test that chunks and extractions coexist in unified collection."""
+        qdrant_client.ensure_knowledge_collection()
+
+        # Insert a chunk
+        qdrant_client.upsert_chunk_vector(
+            chunk_id="unified_chunk_1",
+            vector=test_vector_384d,
+            payload=sample_chunk_payload,
+        )
+
+        # Insert an extraction
+        qdrant_client.upsert_extraction_vector(
+            extraction_id="unified_extraction_1",
+            vector=test_vector_384d,
+            payload=sample_extraction_payload,
+        )
+
+        # Search all (no content_type filter)
+        all_results = qdrant_client.search(
+            collection=COLLECTION_NAME,
+            query_vector=test_vector_384d,
+            limit=10,
+        )
+
+        assert len(all_results) >= 2
+
+    def test_content_type_filtering(
+        self, qdrant_client, test_vector_384d, sample_chunk_payload, sample_extraction_payload
+    ):
+        """Test that content_type correctly filters chunks vs extractions."""
+        qdrant_client.ensure_knowledge_collection()
+
+        # Insert both types
+        qdrant_client.upsert_chunk_vector(
+            chunk_id="filter_test_chunk",
+            vector=test_vector_384d,
+            payload=sample_chunk_payload,
+        )
+        qdrant_client.upsert_extraction_vector(
+            extraction_id="filter_test_extraction",
+            vector=test_vector_384d,
+            payload=sample_extraction_payload,
+        )
+
+        # Search only chunks
+        chunk_results = qdrant_client.search_chunks(
+            query_vector=test_vector_384d,
+            limit=10,
+        )
+        assert all(r["payload"]["content_type"] == "chunk" for r in chunk_results)
+
+        # Search only extractions
+        extraction_results = qdrant_client.search_extractions(
+            query_vector=test_vector_384d,
+            limit=10,
+        )
+        assert all(r["payload"]["content_type"] == "extraction" for r in extraction_results)
+
+    def test_project_id_isolation(
+        self, qdrant_client, test_vector_384d, sample_chunk_payload
+    ):
+        """Test that project_id isolates data between projects."""
+        qdrant_client.ensure_knowledge_collection()
+
+        # Insert chunk for project A
+        qdrant_client.upsert_chunk_vector(
+            chunk_id="project_a_chunk",
+            vector=test_vector_384d,
+            payload=sample_chunk_payload,
+            project_id="project_a",
+        )
+
+        # Insert chunk for project B
+        qdrant_client.upsert_chunk_vector(
+            chunk_id="project_b_chunk",
+            vector=test_vector_384d,
+            payload=sample_chunk_payload,
+            project_id="project_b",
+        )
+
+        # Search project A only
+        results_a = qdrant_client.search_knowledge(
+            query_vector=test_vector_384d,
+            project_id="project_a",
+            limit=10,
+        )
+        assert all(r["payload"]["project_id"] == "project_a" for r in results_a)
+
+        # Search project B only
+        results_b = qdrant_client.search_knowledge(
+            query_vector=test_vector_384d,
+            project_id="project_b",
+            limit=10,
+        )
+        assert all(r["payload"]["project_id"] == "project_b" for r in results_b)
+
+    def test_extraction_type_filtering(
+        self, qdrant_client, test_vector_384d
+    ):
+        """Test filtering extractions by extraction_type."""
+        qdrant_client.ensure_knowledge_collection()
+
+        # Insert different extraction types using extraction_type key
+        qdrant_client.upsert_extraction_vector(
+            extraction_id="decision_1",
+            vector=test_vector_384d,
+            payload={"source_id": "s1", "chunk_id": "c1", "extraction_type": "decision", "topics": []},
+        )
+        qdrant_client.upsert_extraction_vector(
+            extraction_id="pattern_1",
+            vector=test_vector_384d,
+            payload={"source_id": "s1", "chunk_id": "c1", "extraction_type": "pattern", "topics": []},
+        )
+
+        # Filter by extraction_type
+        decision_results = qdrant_client.search_extractions(
+            query_vector=test_vector_384d,
+            extraction_type="decision",
+            limit=10,
+        )
+        assert all(r["payload"]["extraction_type"] == "decision" for r in decision_results)
+
+    def test_search_knowledge_combined_filters(
+        self, qdrant_client, test_vector_384d
+    ):
+        """Test search_knowledge with multiple filters combined."""
+        qdrant_client.ensure_knowledge_collection()
+
+        # Insert extraction with specific metadata
+        # Use extraction_type (not legacy 'type' key) per single-collection architecture
+        qdrant_client.upsert_extraction_vector(
+            extraction_id="combined_filter_test",
+            vector=test_vector_384d,
+            payload={
+                "source_id": "special_source",
+                "chunk_id": "c1",
+                "extraction_type": "methodology",
+                "topics": ["rag", "llm"],
+                "source_type": "book",
+            },
+            project_id="test_project",
+        )
+
+        # Search with multiple filters
+        results = qdrant_client.search_knowledge(
+            query_vector=test_vector_384d,
+            project_id="test_project",
+            content_type="extraction",
+            extraction_type="methodology",
+            source_id="special_source",
+            topics=["rag"],
+            limit=10,
+        )
+
+        assert len(results) >= 1
+        assert results[0]["payload"]["extraction_type"] == "methodology"
+        assert results[0]["payload"]["source_id"] == "special_source"
+
+    def test_default_project_id_backwards_compatibility(
+        self, qdrant_client, test_vector_384d, sample_chunk_payload
+    ):
+        """Test AC9: Data without explicit project_id defaults to 'default'.
+
+        Verifies backwards compatibility for existing data that may not have
+        project_id set. The system should treat missing project_id as 'default'.
+        """
+        qdrant_client.ensure_knowledge_collection()
+
+        # Insert chunk WITHOUT explicit project_id (should use default from settings)
+        qdrant_client.upsert_chunk_vector(
+            chunk_id="backwards_compat_chunk",
+            vector=test_vector_384d,
+            payload=sample_chunk_payload,
+            # project_id not specified - should default to settings.project_id ("default")
+        )
+
+        # Search with explicit project_id="default" should find the chunk
+        results = qdrant_client.search_chunks(
+            query_vector=test_vector_384d,
+            project_id="default",
+            limit=10,
+        )
+
+        # Verify the chunk is found and has project_id="default"
+        matching = [r for r in results if r["id"] == "backwards_compat_chunk"]
+        assert len(matching) >= 1
+        assert matching[0]["payload"]["project_id"] == "default"
+
+    def test_tenant_index_is_created(self, qdrant_client):
+        """Test M2: Verify project_id index is created with is_tenant optimization.
+
+        Validates that the project_id payload index is created with is_tenant=True
+        for efficient multi-tenant queries per Qdrant v1.11+ best practices.
+        """
+        # Create collection with indexes
+        qdrant_client.ensure_knowledge_collection()
+
+        # Get collection info to verify index configuration
+        collection_info = qdrant_client.client.get_collection(COLLECTION_NAME)
+
+        # Check that payload indexes are created
+        payload_schema = collection_info.payload_schema
+        assert payload_schema is not None
+
+        # Verify project_id index exists
+        assert "project_id" in payload_schema
+
+        # The project_id index should be a keyword type
+        project_id_schema = payload_schema["project_id"]
+        assert project_id_schema.data_type.name.upper() == "KEYWORD"

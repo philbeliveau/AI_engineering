@@ -213,7 +213,7 @@ class TestSourceModel:
         )
 
         assert source.schema_version == CURRENT_SCHEMA_VERSION
-        assert source.schema_version == "1.0"
+        assert source.schema_version == "1.1"
 
     def test_source_schema_version_in_serialized_output(
         self, valid_object_id: str, sample_datetime: datetime
@@ -314,3 +314,218 @@ class TestSourceModel:
 
         errors = exc_info.value.errors()
         assert any("future" in str(e["msg"]).lower() for e in errors)
+
+
+class TestSourceV11Fields:
+    """Tests for Source v1.1 schema fields (project_id, year, category, tags)."""
+
+    def test_source_project_id_default(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that project_id defaults to 'default'."""
+        source = Source(
+            id=valid_object_id,
+            type="book",
+            title="Test",
+            path="/test",
+            ingested_at=sample_datetime,
+            status="pending",
+        )
+
+        assert source.project_id == "default"
+
+    def test_source_project_id_custom(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that project_id can be set to custom value."""
+        source = Source(
+            id=valid_object_id,
+            type="book",
+            title="Test",
+            path="/test",
+            ingested_at=sample_datetime,
+            status="pending",
+            project_id="ai_engineering",
+        )
+
+        assert source.project_id == "ai_engineering"
+
+    def test_source_year_default(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that year defaults to None."""
+        source = Source(
+            id=valid_object_id,
+            type="book",
+            title="Test",
+            path="/test",
+            ingested_at=sample_datetime,
+            status="pending",
+        )
+
+        assert source.year is None
+
+    def test_source_year_valid(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that year accepts valid values."""
+        source = Source(
+            id=valid_object_id,
+            type="book",
+            title="Test",
+            path="/test",
+            ingested_at=sample_datetime,
+            status="pending",
+            year=2024,
+        )
+
+        assert source.year == 2024
+
+    def test_source_year_min_bound(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that year rejects values below 1900."""
+        with pytest.raises(ValidationError):
+            Source(
+                id=valid_object_id,
+                type="book",
+                title="Test",
+                path="/test",
+                ingested_at=sample_datetime,
+                status="pending",
+                year=1899,
+            )
+
+    def test_source_year_max_bound(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that year rejects values above 2100."""
+        with pytest.raises(ValidationError):
+            Source(
+                id=valid_object_id,
+                type="book",
+                title="Test",
+                path="/test",
+                ingested_at=sample_datetime,
+                status="pending",
+                year=2101,
+            )
+
+    def test_source_category_default(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that category defaults to 'foundational'."""
+        source = Source(
+            id=valid_object_id,
+            type="book",
+            title="Test",
+            path="/test",
+            ingested_at=sample_datetime,
+            status="pending",
+        )
+
+        assert source.category == "foundational"
+
+    def test_source_category_all_values(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test all valid category values."""
+        for category in ["foundational", "advanced", "reference", "case_study"]:
+            source = Source(
+                id=valid_object_id,
+                type="book",
+                title="Test",
+                path="/test",
+                ingested_at=sample_datetime,
+                status="pending",
+                category=category,
+            )
+            assert source.category == category
+
+    def test_source_category_invalid(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that invalid category is rejected."""
+        with pytest.raises(ValidationError):
+            Source(
+                id=valid_object_id,
+                type="book",
+                title="Test",
+                path="/test",
+                ingested_at=sample_datetime,
+                status="pending",
+                category="invalid_category",
+            )
+
+    def test_source_tags_default(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that tags defaults to empty list."""
+        source = Source(
+            id=valid_object_id,
+            type="book",
+            title="Test",
+            path="/test",
+            ingested_at=sample_datetime,
+            status="pending",
+        )
+
+        assert source.tags == []
+
+    def test_source_tags_custom(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that tags can be set."""
+        source = Source(
+            id=valid_object_id,
+            type="book",
+            title="Test",
+            path="/test",
+            ingested_at=sample_datetime,
+            status="pending",
+            tags=["llm", "rag", "production"],
+        )
+
+        assert source.tags == ["llm", "rag", "production"]
+
+    def test_source_schema_version_v11(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that schema_version is '1.1' for new fields."""
+        source = Source(
+            id=valid_object_id,
+            type="book",
+            title="Test",
+            path="/test",
+            ingested_at=sample_datetime,
+            status="pending",
+        )
+
+        assert source.schema_version == "1.1"
+
+    def test_source_v11_fields_in_serialization(
+        self, valid_object_id: str, sample_datetime: datetime
+    ) -> None:
+        """Test that v1.1 fields appear in serialized output."""
+        source = Source(
+            id=valid_object_id,
+            type="book",
+            title="Test",
+            path="/test",
+            ingested_at=sample_datetime,
+            status="pending",
+            project_id="my_project",
+            year=2024,
+            category="advanced",
+            tags=["test"],
+        )
+
+        data = source.model_dump()
+        assert "project_id" in data
+        assert "year" in data
+        assert "category" in data
+        assert "tags" in data
+        assert data["project_id"] == "my_project"
+        assert data["year"] == 2024
+        assert data["category"] == "advanced"
+        assert data["tags"] == ["test"]

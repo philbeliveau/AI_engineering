@@ -82,11 +82,20 @@ class PipelineConfig(BaseModel):
         chunk_size: Target maximum tokens per chunk.
         dry_run: If True, validate without storing.
         verbose: If True, enable verbose logging.
+        project_id: Override PROJECT_ID for this ingestion.
+        category: Source category (foundational, advanced, reference, case_study).
+        tags: Source tags for filtering (comma-separated in CLI).
+        year: Publication year for the source.
     """
 
     chunk_size: int = Field(default=512, ge=50, le=2048)
     dry_run: bool = False
     verbose: bool = False
+    # Source metadata fields (v1.1 schema)
+    project_id: Optional[str] = None  # Override PROJECT_ID env var
+    category: Optional[str] = None  # foundational, advanced, reference, case_study
+    tags: list[str] = Field(default_factory=list)
+    year: Optional[int] = Field(default=None, ge=1900, le=2100)
 
 
 # ============================================================================
@@ -311,6 +320,10 @@ class IngestionPipeline:
             # Stage 2: Create source with pending status
             # ================================================================
             if not self.config.dry_run:
+                # Resolve project_id: CLI flag > env var > default
+                from src.config import settings
+                resolved_project_id = self.config.project_id or settings.project_id
+
                 source = Source(
                     id="0" * 24,  # Placeholder, will be replaced by MongoDB
                     title=file_path.name,
@@ -319,9 +332,20 @@ class IngestionPipeline:
                     ingested_at=datetime.now(),
                     status=IngestionStatus.PENDING.value,
                     metadata={"file_extension": file_path.suffix},
+                    # v1.1 schema fields from CLI
+                    project_id=resolved_project_id,
+                    category=self.config.category or "foundational",
+                    tags=self.config.tags,
+                    year=self.config.year,
                 )
                 source_id = self.mongodb.create_source(source)
-                logger.info("source_created", source_id=source_id, status="pending")
+                logger.info(
+                    "source_created",
+                    source_id=source_id,
+                    project_id=resolved_project_id,
+                    category=source.category,
+                    status="pending",
+                )
 
                 # Update status to processing
                 self.mongodb.update_source(

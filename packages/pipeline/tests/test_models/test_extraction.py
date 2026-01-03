@@ -344,7 +344,7 @@ class TestExtractionModel:
         )
 
         assert extraction.schema_version == CURRENT_SCHEMA_VERSION
-        assert extraction.schema_version == "1.0"
+        assert extraction.schema_version == "1.1"
 
     def test_extraction_content_type_mismatch_rejected(
         self,
@@ -541,3 +541,215 @@ class TestTypedExtractionModels:
         assert extraction.content.name == "CI/CD Pipeline"
         assert extraction.content.trigger == "Push to main"
         assert len(extraction.content.steps) == 3
+
+
+class TestExtractionV11Fields:
+    """Tests for Extraction v1.1 schema fields (project_id, title, source_*, chapter)."""
+
+    def test_extraction_project_id_default(
+        self,
+        valid_object_id: str,
+        valid_object_id_2: str,
+        valid_object_id_3: str,
+        sample_datetime: datetime,
+    ) -> None:
+        """Test that project_id defaults to 'default'."""
+        extraction = Extraction(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            chunk_id=valid_object_id_3,
+            type="decision",
+            content={"question": "Test?"},
+            extracted_at=sample_datetime,
+        )
+
+        assert extraction.project_id == "default"
+
+    def test_extraction_project_id_custom(
+        self,
+        valid_object_id: str,
+        valid_object_id_2: str,
+        valid_object_id_3: str,
+        sample_datetime: datetime,
+    ) -> None:
+        """Test that project_id can be set to custom value."""
+        extraction = Extraction(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            chunk_id=valid_object_id_3,
+            type="decision",
+            content={"question": "Test?"},
+            extracted_at=sample_datetime,
+            project_id="ai_engineering",
+        )
+
+        assert extraction.project_id == "ai_engineering"
+
+    def test_extraction_title_default(
+        self,
+        valid_object_id: str,
+        valid_object_id_2: str,
+        valid_object_id_3: str,
+        sample_datetime: datetime,
+    ) -> None:
+        """Test that title defaults to empty string."""
+        extraction = Extraction(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            chunk_id=valid_object_id_3,
+            type="decision",
+            content={"question": "Test?"},
+            extracted_at=sample_datetime,
+        )
+
+        assert extraction.title == ""
+
+    def test_extraction_title_custom(
+        self,
+        valid_object_id: str,
+        valid_object_id_2: str,
+        valid_object_id_3: str,
+        sample_datetime: datetime,
+    ) -> None:
+        """Test that title can be set."""
+        extraction = Extraction(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            chunk_id=valid_object_id_3,
+            type="decision",
+            content={"question": "Which database?"},
+            extracted_at=sample_datetime,
+            title="Database Selection Decision",
+        )
+
+        assert extraction.title == "Database Selection Decision"
+
+    def test_extraction_source_title_default(
+        self,
+        valid_object_id: str,
+        valid_object_id_2: str,
+        valid_object_id_3: str,
+        sample_datetime: datetime,
+    ) -> None:
+        """Test that source_title defaults to empty string."""
+        extraction = Extraction(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            chunk_id=valid_object_id_3,
+            type="decision",
+            content={"question": "Test?"},
+            extracted_at=sample_datetime,
+        )
+
+        assert extraction.source_title == ""
+
+    def test_extraction_source_type_default(
+        self,
+        valid_object_id: str,
+        valid_object_id_2: str,
+        valid_object_id_3: str,
+        sample_datetime: datetime,
+    ) -> None:
+        """Test that source_type defaults to empty string."""
+        extraction = Extraction(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            chunk_id=valid_object_id_3,
+            type="decision",
+            content={"question": "Test?"},
+            extracted_at=sample_datetime,
+        )
+
+        assert extraction.source_type == ""
+
+    def test_extraction_chapter_default(
+        self,
+        valid_object_id: str,
+        valid_object_id_2: str,
+        valid_object_id_3: str,
+        sample_datetime: datetime,
+    ) -> None:
+        """Test that chapter defaults to None."""
+        extraction = Extraction(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            chunk_id=valid_object_id_3,
+            type="decision",
+            content={"question": "Test?"},
+            extracted_at=sample_datetime,
+        )
+
+        assert extraction.chapter is None
+
+    def test_extraction_chapter_custom(
+        self,
+        valid_object_id: str,
+        valid_object_id_2: str,
+        valid_object_id_3: str,
+        sample_datetime: datetime,
+    ) -> None:
+        """Test that chapter can be set."""
+        extraction = Extraction(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            chunk_id=valid_object_id_3,
+            type="decision",
+            content={"question": "Test?"},
+            extracted_at=sample_datetime,
+            chapter="5",
+        )
+
+        assert extraction.chapter == "5"
+
+    def test_extraction_schema_version_v11(
+        self,
+        valid_object_id: str,
+        valid_object_id_2: str,
+        valid_object_id_3: str,
+        sample_datetime: datetime,
+    ) -> None:
+        """Test that schema_version is '1.1'."""
+        extraction = Extraction(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            chunk_id=valid_object_id_3,
+            type="decision",
+            content={"question": "Test?"},
+            extracted_at=sample_datetime,
+        )
+
+        assert extraction.schema_version == "1.1"
+
+    def test_extraction_v11_fields_in_serialization(
+        self,
+        valid_object_id: str,
+        valid_object_id_2: str,
+        valid_object_id_3: str,
+        sample_datetime: datetime,
+    ) -> None:
+        """Test that v1.1 fields appear in serialized output."""
+        extraction = Extraction(
+            id=valid_object_id,
+            source_id=valid_object_id_2,
+            chunk_id=valid_object_id_3,
+            type="pattern",
+            content={"name": "Test", "problem": "Problem", "solution": "Solution"},
+            extracted_at=sample_datetime,
+            project_id="my_project",
+            title="Test Pattern",
+            source_title="LLM Handbook",
+            source_type="book",
+            chapter="3",
+        )
+
+        data = extraction.model_dump()
+        assert "project_id" in data
+        assert "title" in data
+        assert "source_title" in data
+        assert "source_type" in data
+        assert "chapter" in data
+        assert data["project_id"] == "my_project"
+        assert data["title"] == "Test Pattern"
+        assert data["source_title"] == "LLM Handbook"
+        assert data["source_type"] == "book"
+        assert data["chapter"] == "3"

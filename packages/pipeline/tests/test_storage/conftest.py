@@ -4,6 +4,7 @@ from datetime import datetime
 
 import pytest
 
+from src.config import settings
 from src.models import Chunk, ChunkPosition, Extraction, Source
 from src.storage import MongoDBClient, QdrantStorageClient
 
@@ -16,12 +17,17 @@ def mongodb_client():
     """
     client = MongoDBClient(database="knowledge_db_test")
     client.connect()
-    yield client
-    # Cleanup: drop test collections
+    # Cleanup before test to ensure clean state
     if client._db is not None:
-        client._db.sources.delete_many({})
-        client._db.chunks.delete_many({})
-        client._db.extractions.delete_many({})
+        client._db[settings.sources_collection].delete_many({})
+        client._db[settings.chunks_collection].delete_many({})
+        client._db[settings.extractions_collection].delete_many({})
+    yield client
+    # Cleanup after test
+    if client._db is not None:
+        client._db[settings.sources_collection].delete_many({})
+        client._db[settings.chunks_collection].delete_many({})
+        client._db[settings.extractions_collection].delete_many({})
     client.close()
 
 
@@ -83,19 +89,31 @@ def sample_extraction(sample_source, sample_chunk) -> Extraction:
 def qdrant_client():
     """Provide a Qdrant client for testing.
 
-    Creates test collections and cleans up after tests.
+    Creates test collections and cleans up before and after tests.
     Requires Qdrant to be running (docker-compose up -d).
     """
+    from src.config import KNOWLEDGE_VECTORS_COLLECTION
+
     client = QdrantStorageClient()
-    yield client
-    # Cleanup: delete all test and real collections created during tests
+
+    # Cleanup collections before test to ensure clean state
     collections_to_cleanup = [
         "test_chunks",
         "test_extractions",
         "test_collection",
-        "chunks",  # Real collection created in tests
-        "extractions",  # Real collection created in tests
+        settings.chunks_collection,
+        settings.extractions_collection,
+        KNOWLEDGE_VECTORS_COLLECTION,  # Unified collection
     ]
+    for collection in collections_to_cleanup:
+        try:
+            client.client.delete_collection(collection)
+        except Exception:
+            pass
+
+    yield client
+
+    # Cleanup: delete all test and real collections created during tests
     for collection in collections_to_cleanup:
         try:
             client.client.delete_collection(collection)
@@ -126,10 +144,15 @@ def sample_chunk_payload(sample_source, sample_chunk) -> dict:
 
 @pytest.fixture
 def sample_extraction_payload(sample_source, sample_chunk) -> dict:
-    """Provide a sample extraction payload for Qdrant."""
+    """Provide a sample extraction payload for Qdrant.
+
+    Uses the new unified collection schema with:
+    - extraction_type: The type of extraction (decision, pattern, etc.)
+    - topics: Topic tags for filtering
+    """
     return {
         "source_id": sample_source.id,
         "chunk_id": sample_chunk.id,
-        "type": "decision",
+        "extraction_type": "decision",  # New schema uses extraction_type
         "topics": ["architecture", "database"],
     }

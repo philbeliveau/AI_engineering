@@ -10,6 +10,9 @@ from src.storage.extraction_storage import ExtractionStorage, ExtractionStorageE
 from src.storage.mongodb import MongoDBClient
 from src.storage.qdrant import (
     CHUNKS_COLLECTION,
+    COLLECTION_NAME,
+    CONTENT_TYPE_CHUNK,
+    CONTENT_TYPE_EXTRACTION,
     DISTANCE_METRIC,
     EXTRACTIONS_COLLECTION,
     VECTOR_SIZE,
@@ -23,6 +26,10 @@ __all__ = [
     "QdrantStorageClient",
     "VECTOR_SIZE",
     "DISTANCE_METRIC",
+    "COLLECTION_NAME",  # Single unified collection
+    "CONTENT_TYPE_CHUNK",
+    "CONTENT_TYPE_EXTRACTION",
+    # Legacy collection names (DEPRECATED)
     "CHUNKS_COLLECTION",
     "EXTRACTIONS_COLLECTION",
     # Extraction Storage Service

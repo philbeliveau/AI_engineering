@@ -169,7 +169,7 @@ class ExtractionPipeline:
 
         # Initialize Qdrant
         self._qdrant = QdrantStorageClient()
-        self._qdrant.ensure_collection("extractions")
+        self._qdrant.ensure_collection(settings.extractions_collection)
 
         # Initialize embedder
         self._embedder = LocalEmbedder()

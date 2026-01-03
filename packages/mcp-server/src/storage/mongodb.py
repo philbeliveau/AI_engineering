@@ -118,7 +118,7 @@ class MongoDBClient:
         Raises:
             RuntimeError: If not connected
         """
-        if not self._db:
+        if self._db is None:
             raise RuntimeError("MongoDB client not connected")
         return self._db[name]
 
@@ -134,7 +134,7 @@ class MongoDBClient:
         logger.debug("mongodb_get_source", source_id=source_id)
 
         def _query_sync() -> dict[str, Any] | None:
-            collection = self._get_collection("sources")
+            collection = self._get_collection(self._settings.sources_collection)
             result = collection.find_one({"_id": source_id})
             if result:
                 # Convert ObjectId to string for API responses
@@ -155,7 +155,7 @@ class MongoDBClient:
         logger.debug("mongodb_list_sources", limit=limit)
 
         def _query_sync() -> list[dict[str, Any]]:
-            collection = self._get_collection("sources")
+            collection = self._get_collection(self._settings.sources_collection)
             cursor = collection.find({}).limit(limit)
             sources = []
             for doc in cursor:
@@ -177,7 +177,7 @@ class MongoDBClient:
         logger.debug("mongodb_get_chunks", source_id=source_id)
 
         def _query_sync() -> list[dict[str, Any]]:
-            collection = self._get_collection("chunks")
+            collection = self._get_collection(self._settings.chunks_collection)
             cursor = collection.find({"source_id": source_id})
             chunks = []
             for doc in cursor:
@@ -208,7 +208,7 @@ class MongoDBClient:
         )
 
         def _query_sync() -> list[dict[str, Any]]:
-            collection = self._get_collection("extractions")
+            collection = self._get_collection(self._settings.extractions_collection)
             # Build query filter
             query: dict[str, Any] = {}
             if extraction_type:
@@ -241,7 +241,7 @@ class MongoDBClient:
         logger.debug("mongodb_get_chunk_by_id", chunk_id=chunk_id)
 
         def _query_sync() -> dict[str, Any] | None:
-            collection = self._get_collection("chunks")
+            collection = self._get_collection(self._settings.chunks_collection)
             result = collection.find_one({"_id": chunk_id})
             if result:
                 # Convert ObjectId to string for API responses
@@ -266,7 +266,7 @@ class MongoDBClient:
         logger.debug("mongodb_get_extraction_by_id", extraction_id=extraction_id)
 
         def _query_sync() -> dict[str, Any] | None:
-            collection = self._get_collection("extractions")
+            collection = self._get_collection(self._settings.extractions_collection)
             result = collection.find_one({"_id": extraction_id})
             if result:
                 # Convert ObjectId to string for API responses

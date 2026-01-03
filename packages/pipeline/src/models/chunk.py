@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 OBJECTID_PATTERN = re.compile(r"^[a-f0-9]{24}$")
 
 # Current schema version for all documents
-CURRENT_SCHEMA_VERSION = "1.0"
+CURRENT_SCHEMA_VERSION = "1.1"
 
 
 class ChunkPosition(BaseModel):
@@ -41,6 +41,7 @@ class Chunk(BaseModel):
         position: Location information within the source document.
         token_count: Number of tokens in the chunk content.
         schema_version: Version of the document schema.
+        project_id: Project identifier for multi-project isolation (denormalized).
     """
 
     id: str = Field(..., description="MongoDB ObjectId as string")
@@ -49,6 +50,8 @@ class Chunk(BaseModel):
     position: ChunkPosition = Field(default_factory=ChunkPosition)
     token_count: int = Field(..., ge=0)
     schema_version: str = CURRENT_SCHEMA_VERSION
+    # v1.1 field for multi-project support (denormalized from source)
+    project_id: str = Field(default="default", description="Project identifier (denormalized)")
 
     @field_validator("id", "source_id")
     @classmethod
@@ -76,7 +79,8 @@ class Chunk(BaseModel):
                 "content": "Large Language Models (LLMs) are neural networks trained on massive text corpora...",
                 "position": {"chapter": "1", "section": "Introduction", "page": 5},
                 "token_count": 150,
-                "schema_version": "1.0",
+                "schema_version": "1.1",
+                "project_id": "ai_engineering",
             }
         },
     )
