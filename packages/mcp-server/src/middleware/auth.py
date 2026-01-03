@@ -195,8 +195,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         Returns:
             The response from the next handler.
         """
-        # Extract API key from header (case-insensitive)
-        api_key_header = request.headers.get("x-api-key") or request.headers.get("X-API-Key")
+        # Extract API key from header (Starlette headers are case-insensitive)
+        api_key_header = request.headers.get("x-api-key")
 
         if api_key_header:
             # Validate the key

@@ -58,6 +58,14 @@ class TestAPIKeyValidator:
         """Test non-hex characters fail validation."""
         assert validator.validate_format("kp_gggggggggggggggggggggggggggggggg") is False
 
+    def test_validate_format_uppercase_hex(self, validator: APIKeyValidator) -> None:
+        """Test uppercase hex characters pass validation."""
+        assert validator.validate_format("kp_A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6") is True
+
+    def test_validate_format_mixed_case_hex(self, validator: APIKeyValidator) -> None:
+        """Test mixed case hex characters pass validation."""
+        assert validator.validate_format("kp_a1B2c3D4e5F6a7B8c9D0e1F2a3B4c5D6") is True
+
     def test_validate_unregistered_key(self, validator: APIKeyValidator, valid_key: str) -> None:
         """Test unregistered key returns None."""
         assert validator.validate(valid_key) is None
@@ -109,6 +117,17 @@ class TestAPIKeyValidator:
 
         validator.clear()
         assert validator.validate(registered_api_key.key) is None
+
+    def test_validate_uppercase_key(self, validator: APIKeyValidator) -> None:
+        """Test uppercase hex key validation works end-to-end."""
+        uppercase_key = APIKey(
+            key="kp_A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6",
+            tier=UserTier.PREMIUM,
+        )
+        validator.register_key(uppercase_key)
+        result = validator.validate(uppercase_key.key)
+        assert result is not None
+        assert result.tier == UserTier.PREMIUM
 
 
 class TestAuthMiddleware:

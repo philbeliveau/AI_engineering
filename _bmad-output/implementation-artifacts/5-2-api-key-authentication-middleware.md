@@ -281,9 +281,9 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
-- All 192 tests pass (45 auth tests + existing tests)
+- All 195 tests pass (48 auth tests + existing tests)
 - Tests in `tests/test_models/test_auth.py` (16 tests)
-- Tests in `tests/test_middleware/test_auth.py` (29 tests, including 4 server integration tests)
+- Tests in `tests/test_middleware/test_auth.py` (32 tests, including 4 server integration tests)
 
 ### Completion Notes List
 
@@ -317,7 +317,8 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### Change Log
 
 - 2026-01-03: Story 5.2 implemented - API key authentication middleware with tiered access control
-- 2026-01-03: Code review fixes applied (see Senior Developer Review below)
+- 2026-01-03: First code review fixes applied (see Senior Developer Review below)
+- 2026-01-03: Second code review - 3 minor fixes applied (see Second Code Review below)
 
 ## Senior Developer Review (AI)
 
@@ -347,4 +348,38 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - Issue #5 is not a defect: `require_tier` dependency is implemented and exported, ready for use by tier-restricted tools in stories 4.4 (get_methodologies) and 4.5 (compare_sources)
 - Security improvement: True constant-time comparison now prevents timing attacks during API key validation
 
+## Second Code Review (AI)
+
+**Reviewer:** Claude Opus 4.5
+**Date:** 2026-01-03
+**Outcome:** APPROVED
+
+### Previous Review Fixes Verified
+
+All 6 issues from the first code review were confirmed fixed:
+1. ✅ AuthMiddleware integrated in `server.py:142`
+2. ✅ `load_api_keys()` called during startup at `server.py:88`
+3. ✅ Server integration tests added (`TestServerIntegration` class)
+4. ✅ Constant-time comparison using `secrets.compare_digest()` at `auth.py:91`
+5. ✅ `datetime.utcnow()` replaced with `datetime.now(timezone.utc)`
+
+### Additional Issues Found and Fixed
+
+| # | Severity | Issue | Resolution |
+|---|----------|-------|------------|
+| 1 | MEDIUM | `get_auth_context` not exported from `middleware/__init__.py` | Added to exports |
+| 2 | MEDIUM | Uppercase hex keys untested (regex allows, no tests) | Added 3 test cases |
+| 3 | LOW | Redundant header case check (Starlette already case-insensitive) | Simplified to single call |
+
+### Test Results Post-Fix
+
+- **195 tests pass** (was 192, added 3 new tests)
+- All 48 auth tests pass (16 model + 32 middleware)
+- No regressions in other test suites
+
+### Files Modified
+
+- `packages/mcp-server/src/middleware/__init__.py` - Added `get_auth_context` export
+- `packages/mcp-server/src/middleware/auth.py` - Simplified header extraction
+- `packages/mcp-server/tests/test_middleware/test_auth.py` - Added 3 uppercase hex tests
 
