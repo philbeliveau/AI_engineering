@@ -20,8 +20,9 @@ from fastapi_mcp import FastApiMCP
 from src import __version__
 from src.config import settings
 from src.exceptions import AuthError, ForbiddenError, KnowledgeError
-from src.middleware.auth import APIKeyValidator, AuthMiddleware, get_validator
+from src.middleware.auth import AuthMiddleware, get_validator
 from src.models.auth import APIKey, UserTier
+from src.storage import validate_environment
 from src.storage.mongodb import MongoDBClient
 from src.storage.qdrant import QdrantStorageClient
 from src.tools.health import health_check as check_health
@@ -73,6 +74,7 @@ async def lifespan(app: FastAPI):
     """Manage application lifecycle (startup and shutdown).
 
     Initializes database connections on startup and closes them on shutdown.
+    Validates environment configuration before connecting.
     """
     global mongodb_client, qdrant_client
 
@@ -82,6 +84,35 @@ async def lifespan(app: FastAPI):
         environment=settings.environment,
         host=settings.server_host,
         port=settings.server_port,
+        project_id=settings.project_id,
+    )
+
+    # Validate environment configuration (fail fast for production with invalid config)
+    validation = validate_environment(
+        environment=settings.environment,
+        mongodb_uri=settings.mongodb_uri,
+        qdrant_url=settings.qdrant_url,
+    )
+
+    if not validation.is_valid:
+        logger.critical(
+            "environment_validation_failed",
+            errors=validation.errors,
+        )
+        if settings.environment == "production":
+            # Fail fast in production with invalid configuration
+            raise RuntimeError(
+                f"Invalid production configuration: {'; '.join(validation.errors)}"
+            )
+
+    # Log startup configuration (without secrets)
+    logger.info(
+        "database_configuration",
+        environment=settings.environment,
+        mongodb_is_cloud="mongodb+srv://" in settings.mongodb_uri or "mongodb.net" in settings.mongodb_uri,
+        qdrant_is_cloud="cloud.qdrant.io" in settings.qdrant_url,
+        connection_timeout_ms=settings.connection_timeout_ms,
+        max_pool_size=settings.max_pool_size,
     )
 
     # Load API keys from configuration
@@ -91,6 +122,7 @@ async def lifespan(app: FastAPI):
     mongodb_client = MongoDBClient(settings)
     try:
         await mongodb_client.connect()
+        logger.info("mongodb_connected", database=settings.mongodb_database)
     except Exception as e:
         logger.error("mongodb_connection_failed", error=str(e))
         mongodb_client = None
@@ -99,6 +131,7 @@ async def lifespan(app: FastAPI):
     qdrant_client = QdrantStorageClient(settings)
     try:
         await qdrant_client.connect()
+        logger.info("qdrant_connected")
     except Exception as e:
         logger.error("qdrant_connection_failed", error=str(e))
         qdrant_client = None
@@ -108,6 +141,7 @@ async def lifespan(app: FastAPI):
 
     logger.info(
         "server_started",
+        environment=settings.environment,
         mongodb_connected=mongodb_client is not None,
         qdrant_connected=qdrant_client is not None,
     )
@@ -119,9 +153,11 @@ async def lifespan(app: FastAPI):
 
     if mongodb_client:
         await mongodb_client.disconnect()
+        logger.info("mongodb_disconnected")
 
     if qdrant_client:
         await qdrant_client.disconnect()
+        logger.info("qdrant_disconnected")
 
     logger.info("server_shutdown_complete")
 

@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     """Application configuration loaded from environment variables.
 
     All settings can be overridden via environment variables or a .env file.
+    Supports cloud database configuration for MongoDB Atlas and Qdrant Cloud.
     """
 
     model_config = SettingsConfigDict(
@@ -27,15 +28,45 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    # Environment
-    environment: str = "local"
+    # Environment: local | staging | production
+    environment: str = Field(
+        default="local",
+        description="Deployment environment (local, staging, production)",
+    )
 
     # MongoDB Configuration
-    mongodb_uri: str = "mongodb://localhost:27017"
-    mongodb_database: str = "knowledge_db"
+    mongodb_uri: str = Field(
+        default="mongodb://localhost:27017",
+        description="MongoDB connection URI. Use mongodb+srv:// for Atlas.",
+    )
+    mongodb_database: str = Field(
+        default="knowledge_db",
+        description="MongoDB database name",
+    )
 
     # Qdrant Configuration
-    qdrant_url: str = "http://localhost:6333"
+    qdrant_url: str = Field(
+        default="http://localhost:6333",
+        description="Qdrant URL. Use https://<cluster>.cloud.qdrant.io for Cloud.",
+    )
+    qdrant_api_key: str | None = Field(
+        default=None,
+        description="Qdrant Cloud API key (required for Qdrant Cloud)",
+    )
+
+    # Connection Settings
+    ssl_enabled: bool = Field(
+        default=True,
+        description="Enable SSL/TLS for database connections",
+    )
+    connection_timeout_ms: int = Field(
+        default=5000,
+        description="Database connection timeout in milliseconds",
+    )
+    max_pool_size: int = Field(
+        default=10,
+        description="MongoDB connection pool size",
+    )
 
     # Server Configuration
     server_host: str = "0.0.0.0"

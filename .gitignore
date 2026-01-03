@@ -20,6 +20,8 @@ build/
 .env
 .env.*
 !.env.example
+!.env.local.example
+!.env.production.example
 
 # Data directories (keep structure, ignore contents)
 data/raw/
