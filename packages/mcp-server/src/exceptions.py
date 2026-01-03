@@ -115,3 +115,45 @@ class RateLimitError(KnowledgeError):
             details: Additional context about rate limits
         """
         super().__init__(code="RATE_LIMITED", message=message, details=details)
+
+
+class AuthError(KnowledgeError):
+    """Exception for authentication failures.
+
+    Used when API key validation fails (invalid, malformed, or expired key).
+    Returns HTTP 401 Unauthorized.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize AuthError.
+
+        Args:
+            message: Human-readable error message
+            details: Additional context about auth failure
+        """
+        super().__init__(code="UNAUTHORIZED", message=message, details=details)
+
+
+class ForbiddenError(KnowledgeError):
+    """Exception for authorization failures.
+
+    Used when a user's tier is insufficient for the requested resource.
+    Returns HTTP 403 Forbidden.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize ForbiddenError.
+
+        Args:
+            message: Human-readable error message
+            details: Additional context about required permissions
+        """
+        super().__init__(code="FORBIDDEN", message=message, details=details)

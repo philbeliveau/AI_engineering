@@ -76,6 +76,8 @@ development_status:
   epic-4: in-progress
   4-1-fastapi-server-with-mcp-integration: done
   4-2-semantic-search-tool-search-knowledge: done  # Code review passed 2026-01-01
+  4-cc-multi-project-collection-architecture: superseded  # Superseded by 4-cc-v2 (wrong approach)
+  4-cc-v2-single-collection-architecture: in-progress  # APPROVED 2026-01-03: Research-backed single collection
   4-3-extraction-query-tools-get-decisions-get-patterns-get-warnings: ready-for-dev
   4-4-methodology-query-tool-get-methodologies: ready-for-dev
   4-5-source-management-tools-list-sources-compare-sources: ready-for-dev
@@ -85,7 +87,7 @@ development_status:
   # Epic 5: Production Deployment & Access Control
   epic-5: in-progress
   5-1-rate-limiting-middleware: ready-for-dev
-  5-2-api-key-authentication-middleware: ready-for-dev
+  5-2-api-key-authentication-middleware: done  # Code review passed 2026-01-03
   5-3-dockerfile-and-container-configuration: ready-for-dev
   5-4-cloud-database-configuration: ready-for-dev
   5-5-railway-deployment-pipeline: ready-for-dev
