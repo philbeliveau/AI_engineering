@@ -160,3 +160,216 @@ class SearchKnowledgeResponse(BaseModel):
         default_factory=list, description="List of search results"
     )
     metadata: SearchMetadata = Field(..., description="Search metadata")
+
+
+# Extraction Query Tool Response Models (Story 4.3)
+
+
+class ExtractionMetadata(BaseModel):
+    """Metadata for extraction query responses.
+
+    Attributes:
+        query: Topic filter applied or "all" if no filter
+        sources_cited: List of source titles in results
+        result_count: Total number of results returned
+        search_type: Type of search ("filtered")
+    """
+
+    query: str = Field(..., description="Topic filter applied or 'all'")
+    sources_cited: list[str] = Field(
+        default_factory=list, description="List of source titles in results"
+    )
+    result_count: int = Field(..., description="Total number of results returned")
+    search_type: str = Field(default="filtered", description='Type of search ("filtered")')
+
+
+class DecisionResult(BaseModel):
+    """Individual decision extraction result.
+
+    Represents a decision point extracted from source material.
+
+    Attributes:
+        id: Unique identifier of the extraction
+        question: The decision question or dilemma
+        options: List of available options or choices
+        considerations: Factors to consider when deciding
+        recommended_approach: Suggested approach if available
+        topics: Topic tags for categorization
+        source_title: Title of the source document
+        source_id: Unique identifier of the source
+        chunk_id: Unique identifier of the parent chunk
+    """
+
+    id: str = Field(..., description="Unique identifier of the extraction")
+    question: str = Field(..., description="The decision question or dilemma")
+    options: list[str] = Field(default_factory=list, description="Available options")
+    considerations: list[str] = Field(default_factory=list, description="Factors to consider")
+    recommended_approach: str | None = Field(
+        default=None, description="Suggested approach if available"
+    )
+    topics: list[str] = Field(default_factory=list, description="Topic tags")
+    source_title: str = Field(..., description="Title of the source document")
+    source_id: str = Field(..., description="Source document ID")
+    chunk_id: str | None = Field(default=None, description="Parent chunk ID")
+
+
+class PatternResult(BaseModel):
+    """Individual pattern extraction result.
+
+    Represents a code or design pattern extracted from source material.
+
+    Attributes:
+        id: Unique identifier of the extraction
+        name: Name of the pattern
+        problem: Problem the pattern solves
+        solution: How the pattern solves the problem
+        code_example: Example code if available
+        context: When to use this pattern
+        trade_offs: Trade-offs of using this pattern
+        topics: Topic tags for categorization
+        source_title: Title of the source document
+        source_id: Unique identifier of the source
+        chunk_id: Unique identifier of the parent chunk
+    """
+
+    id: str = Field(..., description="Unique identifier of the extraction")
+    name: str = Field(..., description="Name of the pattern")
+    problem: str = Field(..., description="Problem the pattern solves")
+    solution: str = Field(..., description="How the pattern solves the problem")
+    code_example: str | None = Field(default=None, description="Example code if available")
+    context: str | None = Field(default=None, description="When to use this pattern")
+    trade_offs: list[str] | None = Field(default=None, description="Trade-offs of using pattern")
+    topics: list[str] = Field(default_factory=list, description="Topic tags")
+    source_title: str = Field(..., description="Title of the source document")
+    source_id: str = Field(..., description="Source document ID")
+    chunk_id: str | None = Field(default=None, description="Parent chunk ID")
+
+
+class WarningResult(BaseModel):
+    """Individual warning extraction result.
+
+    Represents a warning or pitfall extracted from source material.
+
+    Attributes:
+        id: Unique identifier of the extraction
+        title: Short title for the warning
+        description: Detailed description of the warning
+        symptoms: Signs that indicate this problem
+        consequences: What happens if ignored
+        prevention: How to avoid this problem
+        topics: Topic tags for categorization
+        source_title: Title of the source document
+        source_id: Unique identifier of the source
+        chunk_id: Unique identifier of the parent chunk
+    """
+
+    id: str = Field(..., description="Unique identifier of the extraction")
+    title: str = Field(..., description="Short title for the warning")
+    description: str = Field(..., description="Detailed description of the warning")
+    symptoms: list[str] | None = Field(default=None, description="Signs of this problem")
+    consequences: list[str] | None = Field(default=None, description="What happens if ignored")
+    prevention: str | None = Field(default=None, description="How to avoid this problem")
+    topics: list[str] = Field(default_factory=list, description="Topic tags")
+    source_title: str = Field(..., description="Title of the source document")
+    source_id: str = Field(..., description="Source document ID")
+    chunk_id: str | None = Field(default=None, description="Parent chunk ID")
+
+
+class DecisionsResponse(BaseModel):
+    """Response model for get_decisions endpoint.
+
+    Follows the mandatory response format from architecture.md.
+
+    Attributes:
+        results: List of decision extractions
+        metadata: Response metadata
+    """
+
+    results: list[DecisionResult] = Field(
+        default_factory=list, description="List of decision extractions"
+    )
+    metadata: ExtractionMetadata = Field(..., description="Response metadata")
+
+
+class PatternsResponse(BaseModel):
+    """Response model for get_patterns endpoint.
+
+    Follows the mandatory response format from architecture.md.
+
+    Attributes:
+        results: List of pattern extractions
+        metadata: Response metadata
+    """
+
+    results: list[PatternResult] = Field(
+        default_factory=list, description="List of pattern extractions"
+    )
+    metadata: ExtractionMetadata = Field(..., description="Response metadata")
+
+
+class WarningsResponse(BaseModel):
+    """Response model for get_warnings endpoint.
+
+    Follows the mandatory response format from architecture.md.
+
+    Attributes:
+        results: List of warning extractions
+        metadata: Response metadata
+    """
+
+    results: list[WarningResult] = Field(
+        default_factory=list, description="List of warning extractions"
+    )
+    metadata: ExtractionMetadata = Field(..., description="Response metadata")
+
+
+# Methodology Query Tool Response Models (Story 4.4)
+
+
+class MethodologyResult(BaseModel):
+    """Individual methodology extraction result.
+
+    Represents a step-by-step process extracted from source material.
+
+    Attributes:
+        id: Unique identifier of the extraction
+        name: Name of the methodology
+        steps: Step-by-step process instructions
+        prerequisites: Required knowledge or setup (optional)
+        outputs: Expected outputs or deliverables (optional)
+        topics: Topic tags for categorization
+        source_title: Human-readable source document title
+        source_id: Reference to sources collection
+        chunk_id: Reference to chunks collection
+    """
+
+    id: str = Field(..., description="Unique identifier of the extraction")
+    name: str = Field(..., description="Name of the methodology")
+    steps: list[str] = Field(..., description="Step-by-step process instructions")
+    prerequisites: list[str] | None = Field(
+        default=None, description="Required knowledge or setup"
+    )
+    outputs: list[str] | None = Field(
+        default=None, description="Expected outputs or deliverables"
+    )
+    topics: list[str] = Field(default_factory=list, description="Topic tags")
+    source_title: str = Field(..., description="Human-readable source document title")
+    source_id: str = Field(..., description="Reference to sources collection")
+    chunk_id: str | None = Field(default=None, description="Reference to chunks collection")
+
+
+class MethodologyResponse(BaseModel):
+    """Response model for get_methodologies endpoint.
+
+    Follows the mandatory response format from architecture.md.
+    Requires Registered tier access (API key authentication).
+
+    Attributes:
+        results: List of methodology results
+        metadata: Response metadata
+    """
+
+    results: list[MethodologyResult] = Field(
+        default_factory=list, description="List of methodology results"
+    )
+    metadata: ExtractionMetadata = Field(..., description="Response metadata")

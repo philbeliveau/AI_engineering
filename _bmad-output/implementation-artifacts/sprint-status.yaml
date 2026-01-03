@@ -78,8 +78,8 @@ development_status:
   4-2-semantic-search-tool-search-knowledge: done  # Code review passed 2026-01-01
   4-cc-multi-project-collection-architecture: superseded  # Superseded by 4-cc-v2 (wrong approach)
   4-cc-v2-single-collection-architecture: review  # COMPLETED 2026-01-03: Single collection architecture implemented
-  4-3-extraction-query-tools-get-decisions-get-patterns-get-warnings: ready-for-dev
-  4-4-methodology-query-tool-get-methodologies: ready-for-dev
+  4-3-extraction-query-tools-get-decisions-get-patterns-get-warnings: done  # Code review passed 2026-01-03: 62 tests total (21 added in review)
+  4-4-methodology-query-tool-get-methodologies: done  # COMPLETED 2026-01-03: Registered tier access, 24 tests pass, 300 total
   4-5-source-management-tools-list-sources-compare-sources: ready-for-dev
   4-6-response-models-and-error-handling: ready-for-dev
   epic-4-retrospective: optional

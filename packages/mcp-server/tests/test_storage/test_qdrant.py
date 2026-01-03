@@ -196,3 +196,116 @@ class TestVectorDimensionValidation:
         wrong_vector = [0.1] * 500
         with pytest.raises(ValidationError):
             await client.search_extractions(wrong_vector)
+
+
+class TestListExtractions:
+    """Tests for list_extractions method (Story 4.3)."""
+
+    def test_list_extractions_method_exists(self):
+        """Test that list_extractions method exists."""
+        from src.config import Settings
+        from src.storage.qdrant import QdrantStorageClient
+
+        settings = Settings()
+        client = QdrantStorageClient(settings)
+        assert hasattr(client, "list_extractions")
+        assert callable(client.list_extractions)
+
+    @pytest.mark.asyncio
+    async def test_list_extractions_raises_when_not_connected(self):
+        """Test that list_extractions raises RuntimeError when not connected."""
+        from src.config import Settings
+        from src.storage.qdrant import QdrantStorageClient
+
+        settings = Settings()
+        client = QdrantStorageClient(settings)
+
+        with pytest.raises(RuntimeError, match="not connected"):
+            await client.list_extractions(extraction_type="decision")
+
+    @pytest.mark.asyncio
+    async def test_list_extractions_calls_scroll(self):
+        """Test that list_extractions uses scroll API."""
+        from unittest.mock import MagicMock
+
+        from src.config import Settings
+        from src.storage.qdrant import QdrantStorageClient
+
+        settings = Settings()
+        client = QdrantStorageClient(settings)
+
+        # Mock the Qdrant client
+        mock_qdrant = MagicMock()
+        mock_qdrant.scroll.return_value = ([], None)  # Empty results
+        client._client = mock_qdrant
+
+        await client.list_extractions(
+            extraction_type="decision",
+            limit=50,
+            topic="rag",
+        )
+
+        # Verify scroll was called
+        mock_qdrant.scroll.assert_called_once()
+        call_kwargs = mock_qdrant.scroll.call_args.kwargs
+        assert call_kwargs["limit"] == 50
+        assert call_kwargs["with_payload"] is True
+        assert call_kwargs["with_vectors"] is False
+
+    @pytest.mark.asyncio
+    async def test_list_extractions_returns_correct_format(self):
+        """Test that list_extractions returns list of dicts with id and payload."""
+        from unittest.mock import MagicMock
+
+        from src.config import Settings
+        from src.storage.qdrant import QdrantStorageClient
+
+        settings = Settings()
+        client = QdrantStorageClient(settings)
+
+        # Mock result
+        mock_point = MagicMock()
+        mock_point.id = "ext-123"
+        mock_point.payload = {"content": {"title": "Test"}, "topics": ["rag"]}
+
+        mock_qdrant = MagicMock()
+        mock_qdrant.scroll.return_value = ([mock_point], None)
+        client._client = mock_qdrant
+
+        results = await client.list_extractions(extraction_type="decision")
+
+        assert len(results) == 1
+        assert results[0]["id"] == "ext-123"
+        assert results[0]["payload"]["topics"] == ["rag"]
+
+    @pytest.mark.asyncio
+    async def test_list_extractions_uses_project_id(self):
+        """Test that list_extractions filters by project_id."""
+        from unittest.mock import MagicMock
+
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+        from src.config import Settings
+        from src.storage.qdrant import QdrantStorageClient
+
+        settings = Settings(project_id="test-project")
+        client = QdrantStorageClient(settings)
+
+        mock_qdrant = MagicMock()
+        mock_qdrant.scroll.return_value = ([], None)
+        client._client = mock_qdrant
+
+        await client.list_extractions(extraction_type="pattern")
+
+        # Verify filter includes project_id
+        call_kwargs = mock_qdrant.scroll.call_args.kwargs
+        scroll_filter = call_kwargs["scroll_filter"]
+        assert isinstance(scroll_filter, Filter)
+
+        # Check that project_id is in the filter conditions
+        project_id_found = False
+        for cond in scroll_filter.must:
+            if isinstance(cond, FieldCondition) and cond.key == "project_id":
+                project_id_found = True
+                assert cond.match.value == "test-project"
+        assert project_id_found, "project_id filter not found"

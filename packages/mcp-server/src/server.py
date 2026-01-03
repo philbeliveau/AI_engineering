@@ -27,6 +27,10 @@ from src.storage.mongodb import MongoDBClient
 from src.storage.qdrant import QdrantStorageClient
 from src.tools.health import health_check as check_health
 from src.tools.search import router as search_router, set_clients
+from src.tools.decisions import router as decisions_router, set_qdrant_client as set_decisions_client
+from src.tools.patterns import router as patterns_router, set_qdrant_client as set_patterns_client
+from src.tools.warnings import router as warnings_router, set_qdrant_client as set_warnings_client
+from src.tools.methodologies import router as methodologies_router, set_clients as set_methodologies_clients
 
 logger = structlog.get_logger()
 
@@ -139,6 +143,14 @@ async def lifespan(app: FastAPI):
     # Set clients for search module
     set_clients(qdrant=qdrant_client, mongodb=mongodb_client)
 
+    # Set Qdrant client for extraction query tools (Story 4.3)
+    set_decisions_client(qdrant_client)
+    set_patterns_client(qdrant_client)
+    set_warnings_client(qdrant_client)
+
+    # Set clients for methodologies tool (Story 4.4)
+    set_methodologies_clients(qdrant=qdrant_client, mongodb=mongodb_client)
+
     logger.info(
         "server_started",
         environment=settings.environment,
@@ -177,8 +189,12 @@ app = FastAPI(
 # - Invalid key = 401 Unauthorized
 app.add_middleware(AuthMiddleware)
 
-# Include search router BEFORE MCP mount so endpoints are included
+# Include routers BEFORE MCP mount so endpoints are included
 app.include_router(search_router, tags=["search"])
+app.include_router(decisions_router, tags=["extractions"])
+app.include_router(patterns_router, tags=["extractions"])
+app.include_router(warnings_router, tags=["extractions"])
+app.include_router(methodologies_router, tags=["extractions"])
 
 
 # Exception handlers for authentication/authorization errors

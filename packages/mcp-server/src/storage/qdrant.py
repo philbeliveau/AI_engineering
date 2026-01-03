@@ -376,3 +376,74 @@ class QdrantStorageClient:
             ]
 
         return await asyncio.to_thread(_search_sync)
+
+    async def list_extractions(
+        self,
+        extraction_type: str,
+        limit: int = 100,
+        project_id: str | None = None,
+        topic: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List extractions by type without semantic search.
+
+        Uses Qdrant scroll API to list extractions filtered by type and optional topic.
+        No embedding required - returns all matching extractions up to limit.
+
+        Args:
+            extraction_type: Type of extraction (decision, pattern, warning, etc.)
+            limit: Maximum number of results to return
+            project_id: Override project filter (defaults to settings.project_id)
+            topic: Optional topic filter (returns extractions containing this topic)
+
+        Returns:
+            List of extraction payloads from Qdrant
+
+        Raises:
+            RuntimeError: If client not connected
+        """
+        if not self._client:
+            raise RuntimeError("Qdrant client not connected")
+
+        effective_project_id = project_id or self._settings.project_id
+
+        logger.debug(
+            "qdrant_list_extractions",
+            extraction_type=extraction_type,
+            limit=limit,
+            project_id=effective_project_id,
+            topic=topic,
+        )
+
+        def _scroll_sync() -> list[dict[str, Any]]:
+            # Build filter for extractions with project isolation
+            must_conditions = [
+                FieldCondition(key="project_id", match=MatchValue(value=effective_project_id)),
+                FieldCondition(key="content_type", match=MatchValue(value=CONTENT_TYPE_EXTRACTION)),
+                FieldCondition(key="extraction_type", match=MatchValue(value=extraction_type)),
+            ]
+
+            if topic:
+                must_conditions.append(
+                    FieldCondition(key="topics", match=MatchAny(any=[topic]))
+                )
+
+            qdrant_filter = Filter(must=must_conditions)
+
+            # Use scroll for non-semantic listing
+            results, _next_offset = self._client.scroll(
+                collection_name=self._collection,
+                scroll_filter=qdrant_filter,
+                limit=limit,
+                with_payload=True,
+                with_vectors=False,  # Don't need vectors for listing
+            )
+
+            return [
+                {
+                    "id": str(point.id),
+                    "payload": point.payload or {},
+                }
+                for point in results
+            ]
+
+        return await asyncio.to_thread(_scroll_sync)

@@ -1,6 +1,6 @@
 # Story 4.3: Extraction Query Tools (get_decisions, get_patterns, get_warnings)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -34,49 +34,117 @@ So that I can find decisions, patterns, or warnings relevant to my current probl
    **When** access tier is checked
    **Then** all three tools are available at Public tier (FR4.2, FR4.3, FR4.4)
 
+## Dependency Analysis
+
+**Depends On (MUST BE COMPLETE):**
+- **Story 4-CC-V2:** Single Collection Architecture - Provides `KNOWLEDGE_VECTORS_COLLECTION` constant and payload-based filtering for all Qdrant operations
+- **Story 4.1:** FastAPI Server with MCP Integration - Provides server.py base with MCP mounting
+
+**Implementation Note:** Story 4-CC-V2 must be complete before implementing Task 1 (storage client creation). Qdrant queries MUST use the single `knowledge_vectors` collection with payload filtering (`content_type="extraction"`, `extraction_type`, `project_id`).
+
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create shared extraction query utilities (AC: #1, #2, #3, #4)
-  - [ ] 1.1: Create `packages/mcp-server/src/storage/mongodb.py` with read-only MongoDB client
-  - [ ] 1.2: Implement `query_extractions_by_type()` method with topic filtering
-  - [ ] 1.3: Add compound index query support for `type + topics`
+- [x] Task 1: Create shared extraction query utilities (AC: #1, #2, #3, #4)
+  - [x] 1.1: Added `list_extractions()` method to `QdrantStorageClient` using scroll API
+  - [x] 1.2: Implement extraction filtering by type with optional topic filter
+  - [x] 1.3: Uses single-collection architecture with payload-based filtering
 
-- [ ] Task 2: Create Pydantic request/response models (AC: #5)
-  - [ ] 2.1: Create `packages/mcp-server/src/models/requests.py` with query parameter models
-  - [ ] 2.2: Create `packages/mcp-server/src/models/responses.py` with standard response format
-  - [ ] 2.3: Create type-specific extraction result models (DecisionResult, PatternResult, WarningResult)
+- [x] Task 2: Create Pydantic request/response models (AC: #5)
+  - [x] 2.1: Query parameters handled inline in endpoint definitions
+  - [x] 2.2: Added `ExtractionMetadata` response model to responses.py
+  - [x] 2.3: Added `DecisionResult`, `PatternResult`, `WarningResult`, and response models
 
-- [ ] Task 3: Implement get_decisions tool (AC: #1, #4, #5, #6)
-  - [ ] 3.1: Create `packages/mcp-server/src/tools/decisions.py`
-  - [ ] 3.2: Implement FastAPI endpoint with topic filter parameter
-  - [ ] 3.3: Map Decision extraction fields to response schema
-  - [ ] 3.4: Include source attribution from extraction documents
+- [x] Task 3: Implement get_decisions tool (AC: #1, #4, #5, #6)
+  - [x] 3.1: Created `packages/mcp-server/src/tools/decisions.py`
+  - [x] 3.2: Implemented FastAPI endpoint with topic filter parameter
+  - [x] 3.3: Map Decision extraction fields to response schema
+  - [x] 3.4: Include source attribution from extraction documents
 
-- [ ] Task 4: Implement get_patterns tool (AC: #2, #4, #5, #6)
-  - [ ] 4.1: Create `packages/mcp-server/src/tools/patterns.py`
-  - [ ] 4.2: Implement FastAPI endpoint with topic filter parameter
-  - [ ] 4.3: Map Pattern extraction fields to response schema
-  - [ ] 4.4: Include source attribution from extraction documents
+- [x] Task 4: Implement get_patterns tool (AC: #2, #4, #5, #6)
+  - [x] 4.1: Created `packages/mcp-server/src/tools/patterns.py`
+  - [x] 4.2: Implemented FastAPI endpoint with topic filter parameter
+  - [x] 4.3: Map Pattern extraction fields to response schema
+  - [x] 4.4: Include source attribution from extraction documents
 
-- [ ] Task 5: Implement get_warnings tool (AC: #3, #4, #5, #6)
-  - [ ] 5.1: Create `packages/mcp-server/src/tools/warnings.py`
-  - [ ] 5.2: Implement FastAPI endpoint with topic filter parameter
-  - [ ] 5.3: Map Warning extraction fields to response schema
-  - [ ] 5.4: Include source attribution from extraction documents
+- [x] Task 5: Implement get_warnings tool (AC: #3, #4, #5, #6)
+  - [x] 5.1: Created `packages/mcp-server/src/tools/warnings.py`
+  - [x] 5.2: Implemented FastAPI endpoint with topic filter parameter
+  - [x] 5.3: Map Warning extraction fields to response schema
+  - [x] 5.4: Include source attribution from extraction documents
 
-- [ ] Task 6: Register tools with FastAPI-MCP (AC: #6)
-  - [ ] 6.1: Create/update `packages/mcp-server/src/server.py` with FastAPI app
-  - [ ] 6.2: Import and register all three tool endpoints
-  - [ ] 6.3: Mount MCP server using `mcp.mount_http()`
-  - [ ] 6.4: Set explicit `operation_id` for each endpoint
+- [x] Task 6: Register tools with FastAPI-MCP (AC: #6)
+  - [x] 6.1: Updated `packages/mcp-server/src/server.py` with router imports
+  - [x] 6.2: Imported and registered all three tool routers with "extractions" tag
+  - [x] 6.3: Tools exposed via existing MCP mount
+  - [x] 6.4: Each endpoint has explicit `operation_id`
 
-- [ ] Task 7: Write tests (AC: #1-6)
-  - [ ] 7.1: Create `packages/mcp-server/tests/test_tools/test_decisions.py`
-  - [ ] 7.2: Create `packages/mcp-server/tests/test_tools/test_patterns.py`
-  - [ ] 7.3: Create `packages/mcp-server/tests/test_tools/test_warnings.py`
-  - [ ] 7.4: Test topic filtering, empty results, and response format
+- [x] Task 7: Write tests (AC: #1-6)
+  - [x] 7.1: Created `packages/mcp-server/tests/test_tools/test_decisions.py` (12 tests)
+  - [x] 7.2: Created `packages/mcp-server/tests/test_tools/test_patterns.py` (12 tests)
+  - [x] 7.3: Created `packages/mcp-server/tests/test_tools/test_warnings.py` (12 tests)
+  - [x] 7.4: Added `TestListExtractions` tests to test_qdrant.py (5 tests)
 
 ## Dev Notes
+
+### Single Collection Architecture (Course Correction 2026-01-03)
+
+**CRITICAL:** This story must implement the single-collection architecture from Story 4-CC-V2.
+
+All Qdrant operations use a single `knowledge_vectors` collection with payload-based filtering:
+
+```python
+# packages/mcp-server/src/config.py
+from src.config import KNOWLEDGE_VECTORS_COLLECTION  # = "knowledge_vectors"
+
+class Settings(BaseSettings):
+    mongodb_uri: str = "mongodb://localhost:27017"
+    mongodb_database: str = "knowledge_db"
+    qdrant_url: str = "http://localhost:6333"
+
+    # Project namespacing - used for payload filtering
+    project_id: str = Field(
+        default="default",
+        description="Project identifier for payload filtering"
+    )
+```
+
+**Qdrant queries MUST use single collection with payload filters:**
+```python
+from qdrant_client import models
+
+# CORRECT - Single collection with payload filters
+client.query_points(
+    collection_name=KNOWLEDGE_VECTORS_COLLECTION,  # "knowledge_vectors"
+    query=embedding,
+    query_filter=models.Filter(
+        must=[
+            models.FieldCondition(key="project_id", match=models.MatchValue(value=settings.project_id)),
+            models.FieldCondition(key="content_type", match=models.MatchValue(value="extraction")),
+            models.FieldCondition(key="extraction_type", match=models.MatchValue(value="decision")),
+        ]
+    ),
+    limit=100,
+)
+
+# WRONG - Never use multiple collections
+client.query_points(collection_name=f"{project_id}_extractions", ...)  # ❌ NEVER DO THIS
+```
+
+**Rich Payload Fields Available for Filtering:**
+- `project_id` (indexed, is_tenant=True)
+- `content_type` ("chunk" | "extraction")
+- `extraction_type` ("decision" | "pattern" | "warning" | "methodology" | ...)
+- `source_id`, `source_type`, `source_category`, `source_year`
+- `topics` (array of strings)
+
+**Environment Variable:**
+```bash
+PROJECT_ID=ai_engineering uv run uvicorn src.server:app
+```
+
+See: `_bmad-output/implementation-artifacts/4-cc-v2-single-collection-architecture.md` for full details.
+
+---
 
 ### Architecture Compliance
 
@@ -214,25 +282,45 @@ class WarningResult(BaseModel):
     chunk_id: str
 ```
 
-### MongoDB Query Pattern
+### Qdrant Query Pattern
 
-For topic filtering with compound index:
+For extraction filtering using single collection with payload filters:
 
 ```python
-async def query_extractions_by_type(
-    extraction_type: str,
-    topic: Optional[str] = None
-) -> list[dict]:
-    """Query extractions collection with type and optional topic filter."""
-    query = {"type": extraction_type}
-    if topic:
-        query["topics"] = topic  # MongoDB matches if topic is in array
+from qdrant_client import models
+from src.config import KNOWLEDGE_VECTORS_COLLECTION, settings
 
-    cursor = db.extractions.find(query)
-    return await cursor.to_list(length=100)  # Limit results
+async def query_extractions_by_type(
+    self,
+    extraction_type: str,
+    topic: Optional[str] = None,
+    limit: int = 100
+) -> list[dict]:
+    """Query extractions using Qdrant single collection with payload filters.
+
+    Uses KNOWLEDGE_VECTORS_COLLECTION with content_type and extraction_type filters.
+    """
+    must_conditions = [
+        models.FieldCondition(key="project_id", match=models.MatchValue(value=settings.project_id)),
+        models.FieldCondition(key="content_type", match=models.MatchValue(value="extraction")),
+        models.FieldCondition(key="extraction_type", match=models.MatchValue(value=extraction_type)),
+    ]
+
+    if topic:
+        must_conditions.append(
+            models.FieldCondition(key="topics", match=models.MatchAny(any=[topic]))
+        )
+
+    results = self.client.scroll(
+        collection_name=KNOWLEDGE_VECTORS_COLLECTION,
+        scroll_filter=models.Filter(must=must_conditions),
+        limit=limit,
+        with_payload=True,
+    )
+    return [point.payload for point, _ in results]
 ```
 
-**Index used:** `idx_extractions_type_topics` (compound on type + topics)
+**Payload indexes used:** `project_id` (is_tenant=True), `content_type`, `extraction_type`, `topics`
 
 ### Configuration Pattern
 
@@ -348,10 +436,81 @@ async def test_get_decisions_with_topic_filter():
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+N/A
+
 ### Completion Notes List
 
+- Implemented all 7 tasks with 41 new tests (all passing)
+- Total test count for MCP server: 300 tests passing
+- Used Qdrant `scroll()` API for non-semantic listing (no embedding required)
+- Each tool uses single-collection architecture with payload-based filtering
+- Response models follow mandatory format from architecture.md
+
 ### File List
+
+**New Files Created:**
+- `packages/mcp-server/src/tools/decisions.py` - get_decisions endpoint
+- `packages/mcp-server/src/tools/patterns.py` - get_patterns endpoint
+- `packages/mcp-server/src/tools/warnings.py` - get_warnings endpoint
+- `packages/mcp-server/src/tools/base.py` - Shared extraction tool infrastructure (Code Review Fix)
+- `packages/mcp-server/tests/test_tools/test_decisions.py` - 19 tests (7 added in code review)
+- `packages/mcp-server/tests/test_tools/test_patterns.py` - 19 tests (7 added in code review)
+- `packages/mcp-server/tests/test_tools/test_warnings.py` - 19 tests (7 added in code review)
+
+**Modified Files:**
+- `packages/mcp-server/src/storage/qdrant.py` - Added `list_extractions()` method
+- `packages/mcp-server/src/models/responses.py` - Added ExtractionMetadata, DecisionResult, PatternResult, WarningResult, and response models
+- `packages/mcp-server/src/server.py` - Added router imports and registrations
+- `packages/mcp-server/tests/test_storage/test_qdrant.py` - Added TestListExtractions class (5 tests)
+
+## Senior Developer Review (AI)
+
+**Review Date:** 2026-01-03
+**Reviewer:** Claude Opus 4.5 (code-review workflow)
+**Outcome:** Changes Requested → Fixed
+
+### Issues Found and Fixed
+
+| Severity | Issue | Resolution |
+|----------|-------|------------|
+| HIGH | Missing HTTP integration tests - endpoints not tested via actual HTTP | Added 12 HTTP tests (4 per endpoint) including limit validation |
+| HIGH | No error handling for Qdrant failures - unhandled 500 errors | Added try/except with KnowledgeError conversion in all 3 endpoints |
+| HIGH | Duplicate global state pattern across 3 modules | Created `src/tools/base.py` with shared infrastructure |
+| MEDIUM | No tests for limit parameter validation (ge=1, le=500) | Added HTTP tests verifying 422 for limit=0 and limit=501 |
+| MEDIUM | extraction_title fallback untested for dict content | Added 3 tests for dict content with missing primary key |
+| MEDIUM | Error handling tests missing | Added 6 error handling tests (2 per endpoint) |
+
+### Tests Added (Code Review)
+
+**test_decisions.py:** +7 tests
+- `test_handles_dict_content_missing_question` - extraction_title fallback
+- `test_get_decisions_via_http` - HTTP integration
+- `test_get_decisions_with_topic_via_http` - HTTP with params
+- `test_get_decisions_limit_validation_too_low` - limit=0 rejected
+- `test_get_decisions_limit_validation_too_high` - limit=501 rejected
+- `test_get_decisions_handles_runtime_error` - Qdrant error handling
+- `test_get_decisions_handles_unexpected_error` - Generic error handling
+
+**test_patterns.py:** +7 tests (same pattern)
+
+**test_warnings.py:** +7 tests (same pattern)
+
+### Code Changes
+
+1. **Error Handling:** All three tool endpoints now catch `RuntimeError` and generic `Exception`, converting them to `KnowledgeError` with proper error codes and logging.
+
+2. **Shared Infrastructure:** Created `src/tools/base.py` with `set_extraction_clients()` and `get_qdrant_client()` functions. Individual modules can still override for testing while sharing the base implementation.
+
+3. **Test Coverage:** Total tests for Story 4.3 increased from 41 to 62 (57 in tool tests + 5 in Qdrant tests).
+
+### Final Test Results
+
+```
+57 passed in 1.72s
+```
+
+All acceptance criteria verified via both unit tests and HTTP integration tests.
