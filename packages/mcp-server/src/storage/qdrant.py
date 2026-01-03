@@ -447,3 +447,197 @@ class QdrantStorageClient:
             ]
 
         return await asyncio.to_thread(_scroll_sync)
+
+    async def count_extractions_by_source(
+        self,
+        source_id: str,
+        project_id: str | None = None,
+    ) -> dict[str, int]:
+        """Count extractions grouped by type for a source.
+
+        Uses Qdrant scroll to retrieve all extractions for a source and count by type.
+
+        Args:
+            source_id: Source document ID to count extractions for
+            project_id: Override project filter (defaults to settings.project_id)
+
+        Returns:
+            Dictionary of extraction counts by type (e.g., {"decision": 5, "pattern": 3})
+
+        Raises:
+            RuntimeError: If client not connected
+        """
+        if not self._client:
+            raise RuntimeError("Qdrant client not connected")
+
+        effective_project_id = project_id or self._settings.project_id
+
+        logger.debug(
+            "qdrant_count_extractions_by_source",
+            source_id=source_id,
+            project_id=effective_project_id,
+        )
+
+        def _count_sync() -> dict[str, int]:
+            # Build filter for extractions from this source
+            qdrant_filter = Filter(
+                must=[
+                    FieldCondition(key="project_id", match=MatchValue(value=effective_project_id)),
+                    FieldCondition(key="content_type", match=MatchValue(value=CONTENT_TYPE_EXTRACTION)),
+                    FieldCondition(key="source_id", match=MatchValue(value=source_id)),
+                ]
+            )
+
+            # Scroll through all extractions (with limited payload)
+            results, _ = self._client.scroll(
+                collection_name=self._collection,
+                scroll_filter=qdrant_filter,
+                limit=1000,  # Should be enough for most sources
+                with_payload=["extraction_type"],
+                with_vectors=False,
+            )
+
+            # Count by extraction_type
+            counts: dict[str, int] = {}
+            for point in results:
+                ext_type = point.payload.get("extraction_type", "unknown") if point.payload else "unknown"
+                counts[ext_type] = counts.get(ext_type, 0) + 1
+
+            return counts
+
+        return await asyncio.to_thread(_count_sync)
+
+    async def count_extractions_by_sources(
+        self,
+        source_ids: list[str],
+        project_id: str | None = None,
+    ) -> dict[str, dict[str, int]]:
+        """Count extractions grouped by type for multiple sources in one query.
+
+        Optimized batch version of count_extractions_by_source to avoid N+1 queries.
+
+        Args:
+            source_ids: List of source document IDs to count extractions for
+            project_id: Override project filter (defaults to settings.project_id)
+
+        Returns:
+            Dictionary mapping source_id to extraction counts by type
+            Example: {"src-1": {"decision": 5, "pattern": 3}, "src-2": {"warning": 2}}
+
+        Raises:
+            RuntimeError: If client not connected
+        """
+        if not self._client:
+            raise RuntimeError("Qdrant client not connected")
+
+        if not source_ids:
+            return {}
+
+        effective_project_id = project_id or self._settings.project_id
+
+        logger.debug(
+            "qdrant_count_extractions_by_sources",
+            source_count=len(source_ids),
+            project_id=effective_project_id,
+        )
+
+        def _count_sync() -> dict[str, dict[str, int]]:
+            # Build filter for extractions from any of these sources
+            qdrant_filter = Filter(
+                must=[
+                    FieldCondition(key="project_id", match=MatchValue(value=effective_project_id)),
+                    FieldCondition(key="content_type", match=MatchValue(value=CONTENT_TYPE_EXTRACTION)),
+                    FieldCondition(key="source_id", match=MatchAny(any=source_ids)),
+                ]
+            )
+
+            # Scroll through all extractions for these sources
+            # Use higher limit since we're fetching for multiple sources
+            results, _ = self._client.scroll(
+                collection_name=self._collection,
+                scroll_filter=qdrant_filter,
+                limit=len(source_ids) * 1000,  # Up to 1000 extractions per source
+                with_payload=["extraction_type", "source_id"],
+                with_vectors=False,
+            )
+
+            # Group counts by source_id, then by extraction_type
+            counts: dict[str, dict[str, int]] = {sid: {} for sid in source_ids}
+            for point in results:
+                if point.payload:
+                    src_id = point.payload.get("source_id", "")
+                    ext_type = point.payload.get("extraction_type", "unknown")
+                    if src_id in counts:
+                        counts[src_id][ext_type] = counts[src_id].get(ext_type, 0) + 1
+
+            return counts
+
+        return await asyncio.to_thread(_count_sync)
+
+    async def get_extractions_for_comparison(
+        self,
+        source_ids: list[str],
+        topic: str,
+        limit_per_source: int = 10,
+        project_id: str | None = None,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Get extractions from multiple sources for a topic.
+
+        Retrieves extractions matching a topic from specified sources for comparison.
+
+        Args:
+            source_ids: List of source IDs to compare
+            topic: Topic to filter by (matches any in topics array)
+            limit_per_source: Maximum extractions per source
+            project_id: Override project filter (defaults to settings.project_id)
+
+        Returns:
+            Dictionary mapping source_id to list of extraction payloads
+
+        Raises:
+            RuntimeError: If client not connected
+        """
+        if not self._client:
+            raise RuntimeError("Qdrant client not connected")
+
+        effective_project_id = project_id or self._settings.project_id
+
+        logger.debug(
+            "qdrant_get_extractions_for_comparison",
+            source_ids=source_ids,
+            topic=topic,
+            limit_per_source=limit_per_source,
+            project_id=effective_project_id,
+        )
+
+        def _query_sync() -> dict[str, list[dict[str, Any]]]:
+            results: dict[str, list[dict[str, Any]]] = {}
+
+            for source_id in source_ids:
+                # Build filter for extractions from this source with topic
+                qdrant_filter = Filter(
+                    must=[
+                        FieldCondition(key="project_id", match=MatchValue(value=effective_project_id)),
+                        FieldCondition(key="content_type", match=MatchValue(value=CONTENT_TYPE_EXTRACTION)),
+                        FieldCondition(key="source_id", match=MatchValue(value=source_id)),
+                        FieldCondition(key="topics", match=MatchAny(any=[topic])),
+                    ]
+                )
+
+                # Scroll for extractions (no semantic search needed)
+                points, _ = self._client.scroll(
+                    collection_name=self._collection,
+                    scroll_filter=qdrant_filter,
+                    limit=limit_per_source,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+
+                results[source_id] = [
+                    {"id": str(point.id), "payload": point.payload or {}}
+                    for point in points
+                ]
+
+            return results
+
+        return await asyncio.to_thread(_query_sync)
