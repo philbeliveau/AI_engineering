@@ -1,90 +1,146 @@
 # Knowledge Pipeline
 
-**An AI-powered knowledge system that gives developers instant access to best practices, patterns, and pitfalls from the AI engineering literature.**
+**A cognitive framework for building AI applications — specialized agents guide you through structured workflows, backed by contextual RAG search across the AI engineering literature.**
 
 ---
 
 ## Why This Exists
 
-Building AI applications is hard. The best practices are scattered across books, research papers, and case studies. Developers waste hours searching for answers to questions like:
+Building AI applications is overwhelming. You face hundreds of decisions:
 
-- *"Should I use RAG or fine-tuning for my use case?"*
-- *"What's the best chunking strategy for legal documents?"*
-- *"What are common production pitfalls with LLM APIs?"*
+- *"What chunking strategy for my domain? What size? Semantic or fixed?"*
+- *"RAG or fine-tuning? Hybrid? What are the trade-offs for my scale?"*
+- *"What embedding model? What vector DB? How do I evaluate quality?"*
 
-**Knowledge Pipeline solves this** by extracting structured knowledge from authoritative sources and making it instantly accessible through Claude Code and Claude Desktop via MCP.
+The answers exist — scattered across books, papers, and case studies. But finding and synthesizing them while holding your specific context in mind is exhausting.
+
+**Knowledge Pipeline is a cognitive framework that carries this load for you.**
+
+It's not just search. It's a **workflow of specialized AI agents** that:
+1. Guide you through structured steps (specification → architecture → implementation)
+2. Ask the right questions at each stage
+3. Search the knowledge base **contextually** — your domain, scale, and constraints shape every query
+4. Synthesize across multiple sources to shrink the solution space
 
 ---
 
-## What It Does
+## The Power: MCP + Agentic Workflows
 
-| Capability | Description |
-|------------|-------------|
-| **Instant Answers** | Ask Claude about AI engineering and get answers grounded in expert sources |
-| **Structured Knowledge** | Decisions, patterns, warnings, and methodologies — not just raw text |
-| **Multi-Source Synthesis** | Combines insights from multiple books and papers for balanced perspective |
-| **Contextual Guidance** | Recommendations adapt to your specific domain, scale, and constraints |
+The magic happens when **MCP search meets structured workflows**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  WITHOUT THIS FRAMEWORK                                                 │
+│                                                                         │
+│  Developer → Vague question → Generic search → Overwhelming results    │
+│            → Still confused → Wrong decisions → Costly rework           │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  WITH THIS FRAMEWORK                                                    │
+│                                                                         │
+│  Workflow Step: "Define your domain, scale, constraints"                │
+│        ↓                                                                │
+│  Context loaded: domain=legal, scale=enterprise, constraint=compliance │
+│        ↓                                                                │
+│  Agent searches: "legal document chunking compliance enterprise"        │
+│        ↓                                                                │
+│  Results: Focused, relevant, synthesized with warnings                  │
+│        ↓                                                                │
+│  Decision space: Shrunk from 100 options to 3 validated approaches      │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**The workflow enforces structure. Structure shrinks the solution space. Smaller space = better decisions.**
+
+---
+
+## What's Encoded in the Knowledge Base
+
+This isn't just book content. We extract **actionable structure**:
+
+| Extraction Type | What It Captures |
+|-----------------|------------------|
+| **Decisions** | Architectural choices with trade-offs, options, and recommendations |
+| **Patterns** | Reusable implementations with code examples and context |
+| **Warnings** | Anti-patterns, pitfalls, and failure modes to avoid |
+| **Methodologies** | Step-by-step processes for complex tasks |
+| **Agent Personas** | Role definitions for specialized agents (Analyst, Architect, Data Engineer, AI Engineer) |
+| **Workflow Steps** | Question sequences, decision trees, validation checkpoints |
+
+The agents themselves are built from this knowledge — their questions, their expertise, their decision patterns all come from the encoded literature.
+
+---
+
+## Specialized Agents
+
+Each agent brings domain expertise and asks the right questions:
+
+| Agent | Role | Focus |
+|-------|------|-------|
+| **Analyst** | Business context | Domain, users, constraints, success metrics |
+| **Architect** | System design | Infrastructure, scalability, integration patterns |
+| **Data Engineer** | Data pipeline | Ingestion, chunking, processing, storage |
+| **AI Engineer** | ML systems | Embeddings, retrieval, generation, evaluation |
+
+Agents don't just answer — they **guide**. They know what to ask, when to warn, and how to validate.
 
 ---
 
 ## Who It's For
 
-- **AI/ML Engineers** building LLM applications, RAG systems, or AI agents
-- **Software Developers** adding AI capabilities to existing products
-- **Technical Leaders** making architectural decisions about AI infrastructure
-- **Researchers** exploring practical implementation of AI concepts
-
----
-
-## Knowledge Sources
-
-The system extracts structured knowledge from:
-
-| Source Type | Examples |
-|-------------|----------|
-| **Books** | AI engineering methodology books, LLM application guides |
-| **Research Papers** | RAG techniques, embedding strategies, evaluation methods |
-| **Case Studies** | Production deployments, failure analyses, optimization stories |
-
-Each source is processed to extract:
-- **Decisions** — Architectural choices with trade-offs and recommendations
-- **Patterns** — Reusable solutions with implementation code
-- **Warnings** — Anti-patterns and pitfalls to avoid
-- **Methodologies** — Step-by-step processes for complex tasks
+- **AI/ML Engineers** building LLM applications, RAG systems, or agents
+- **Software Developers** adding AI capabilities to products
+- **Technical Leaders** making architectural decisions
+- **Solo builders** who need a thinking partner for complex AI projects
 
 ---
 
 ## How It Works
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│  1. INGESTION PIPELINE (One-time)                                    │
-│                                                                      │
-│  Books/Papers/Cases → Chunking → LLM Extraction → Structured Data   │
-│                                                                      │
-│  Extracts: decisions, patterns, warnings, methodologies              │
-└──────────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  2. VECTOR STORAGE                                                   │
-│                                                                      │
-│  MongoDB (metadata) + Qdrant (384d embeddings)                       │
-│                                                                      │
-│  Enables semantic search across all extracted knowledge              │
-└──────────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  3. MCP SERVER (Real-time)                                           │
-│                                                                      │
-│  FastAPI + MCP Protocol → Claude Desktop / Claude Code               │
-│                                                                      │
-│  7 tools for search, decisions, patterns, warnings, methodologies    │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│  1. KNOWLEDGE EXTRACTION (One-time)                                      │
+│                                                                          │
+│  Books, Papers, Case Studies                                             │
+│        ↓                                                                 │
+│  Chunking → LLM Extraction → Structured Knowledge                        │
+│  (decisions, patterns, warnings, methodologies, agent definitions)       │
+└──────────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  2. VECTOR STORAGE                                                       │
+│                                                                          │
+│  MongoDB (metadata, sources) + Qdrant (384d embeddings)                  │
+│                                                                          │
+│  Semantic search across all structured knowledge                         │
+└──────────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  3. MCP SERVER (Real-time queries)                                       │
+│                                                                          │
+│  7 tools: search, decisions, patterns, warnings, methodologies, sources  │
+│  Tool descriptions guide Claude to multi-query, cross-reference, warn    │
+└──────────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  4. AGENTIC WORKFLOWS (Contextual guidance)                              │
+│                                                                          │
+│  Specialized agents → Structured steps → Contextual MCP queries          │
+│                                                                          │
+│  Each step loads prior context → Searches are domain-aware               │
+│  Questions enforce structure → Solution space shrinks                    │
+│  Warnings surface proactively → Mistakes avoided                         │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Key Design Choice:** Extractions are for *navigation*, Claude is for *synthesis*. The MCP tools return structured results; Claude synthesizes them into actionable advice.
+**Design Philosophy:**
+- Extractions are for *navigation*, Claude is for *synthesis*
+- Workflows provide *structure*, agents provide *expertise*
+- Context flows forward, each step builds on the last
 
 ---
 
