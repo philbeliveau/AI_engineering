@@ -31,6 +31,9 @@ dependencies = [
     # LLM Integration
     "anthropic>=0.40.0",
     "tenacity>=8.0.0",
+
+    # Web UI
+    "streamlit>=1.40.0",
 ]
 
 [project.optional-dependencies]
