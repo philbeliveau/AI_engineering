@@ -1,10 +1,27 @@
+---
+description: List all knowledge sources in the database
+---
+
 # List Knowledge Sources
 
-List all available knowledge sources in the database.
+List all available knowledge sources (books, papers, case studies) in the knowledge base with extraction statistics.
 
-Use the knowledge-pipeline MCP server's `list_sources` tool to show all books, papers, and case studies.
+## Examples
+
+- `/knowledge:list-sources`
+
+## Task
+
+Use the knowledge-pipeline MCP server's `list_sources` tool to display all ingested sources.
+
+## Output Format
 
 Present each source with:
-- Title and authors
-- Type (book, paper, case study)
-- Number of extractions by type
+- **Title** and author(s)
+- **Type** - Book, paper, or case study
+- **Extraction counts** by type:
+  - Decisions extracted
+  - Patterns extracted
+  - Warnings extracted
+  - Methodologies extracted (if applicable)
+- **Topics covered** - Key subject areas

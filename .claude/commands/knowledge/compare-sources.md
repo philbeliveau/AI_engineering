@@ -1,16 +1,34 @@
+---
+description: Compare how different sources address the same topic (Registered tier)
+argument-hint: [topic to compare]
+---
+
 # Compare Sources
 
-Compare how different knowledge sources address the same topic.
+Compare how different knowledge sources (books, papers, case studies) address the same topic, revealing areas of agreement and different perspectives.
 
-**Note:** This is a Registered tier endpoint - requires API key.
+## Access Note
 
-Use the knowledge-pipeline MCP server's `compare_sources` tool to compare perspectives on: $ARGUMENTS
+This is a **Registered tier** endpoint - requires API key configuration.
 
-First call `/knowledge:list-sources` to get available source IDs, then compare 2-4 sources on the topic.
+## Examples
+
+- `/knowledge:compare-sources chunking strategies for RAG`
+- `/knowledge:compare-sources LLM evaluation approaches`
+- `/knowledge:compare-sources vector database selection`
+
+## Task
+
+1. First call `list_sources` to identify available source IDs
+2. Use the knowledge-pipeline MCP server's `compare_sources` tool to compare 2-4 sources on: $ARGUMENTS
+
+## Output Format
 
 Present comparison with:
-- What each source says about the topic
-- Areas of agreement
-- Areas of disagreement or different emphasis
-- Synthesis of perspectives
-- Source citations
+- **Topic** - What's being compared
+- **Sources compared** - Which books/papers included
+- **Per-source summary** - What each source says
+- **Areas of agreement** - Common recommendations
+- **Areas of disagreement** - Different perspectives or emphasis
+- **Synthesis** - Balanced recommendation considering all viewpoints
+- **Citations** - Specific references for each perspective
