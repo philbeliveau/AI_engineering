@@ -25,8 +25,8 @@ from src.exceptions import ValidationError
 
 logger = structlog.get_logger()
 
-# Per project-context.md:228 - vectors MUST be exactly 384 dimensions
-VECTOR_DIMENSIONS = 384
+# nomic-embed-text-v1.5 produces 768-dimensional vectors
+VECTOR_DIMENSIONS = 768
 
 # Content type discriminator values for single-collection architecture
 CONTENT_TYPE_CHUNK = "chunk"
@@ -126,7 +126,7 @@ class QdrantStorageClient:
         Uses content_type filter to return only chunk vectors.
 
         Args:
-            query_vector: Query embedding vector (384 dimensions)
+            query_vector: Query embedding vector (768 dimensions)
             limit: Maximum number of results
             project_id: Override project filter (defaults to settings.project_id)
             source_id: Optional source_id filter
@@ -202,7 +202,7 @@ class QdrantStorageClient:
         Supports filtering by extraction_type, topics, and source metadata.
 
         Args:
-            query_vector: Query embedding vector (384 dimensions)
+            query_vector: Query embedding vector (768 dimensions)
             limit: Maximum number of results
             project_id: Override project filter (defaults to settings.project_id)
             extraction_type: Filter by type (decision, pattern, warning, etc.)
@@ -303,7 +303,7 @@ class QdrantStorageClient:
         Returns both chunks and extractions by default, or filtered by content_type.
 
         Args:
-            query_vector: Query embedding vector (384 dimensions)
+            query_vector: Query embedding vector (768 dimensions)
             limit: Maximum number of results
             project_id: Override project filter (defaults to settings.project_id)
             content_type: Filter by 'chunk' or 'extraction' (optional)
