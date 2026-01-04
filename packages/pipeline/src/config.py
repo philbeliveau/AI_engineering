@@ -8,6 +8,28 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Single Qdrant collection for all vectors (following Qdrant multitenancy best practices)
 KNOWLEDGE_VECTORS_COLLECTION = "knowledge_vectors"
 
+# =============================================================================
+# Embedding Model Configuration
+# =============================================================================
+# nomic-embed-text-v1.5: 8,192 token context, 768 dimensions
+# Replaces all-MiniLM-L6-v2 (512 tokens, 384d) for better extraction context
+
+EMBEDDING_CONFIG = {
+    "model_id": "nomic-ai/nomic-embed-text-v1.5",
+    "vector_size": 768,
+    "max_tokens": 8192,
+    "trust_remote_code": True,
+    "prefixes": {
+        "document": "search_document: ",
+        "query": "search_query: ",
+        "clustering": "clustering: ",
+        "classification": "classification: ",
+    },
+}
+
+# Vector size constant for Qdrant configuration
+VECTOR_SIZE = EMBEDDING_CONFIG["vector_size"]  # 768
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -21,8 +43,8 @@ class Settings(BaseSettings):
     qdrant_api_key: Optional[str] = None
     qdrant_grpc_port: int = 6334
 
-    # Embedding settings
-    embedding_model: str = "all-MiniLM-L6-v2"
+    # Embedding settings (nomic-embed-text-v1.5: 8K context, 768d vectors)
+    embedding_model: str = EMBEDDING_CONFIG["model_id"]
 
     # LLM settings
     anthropic_api_key: str = ""

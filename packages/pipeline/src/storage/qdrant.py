@@ -22,7 +22,7 @@ from qdrant_client.http.models import (
     VectorParams,
 )
 
-from src.config import KNOWLEDGE_VECTORS_COLLECTION, settings
+from src.config import KNOWLEDGE_VECTORS_COLLECTION, VECTOR_SIZE, settings
 from src.exceptions import (
     QdrantCollectionError,
     QdrantConnectionError,
@@ -31,8 +31,8 @@ from src.exceptions import (
 
 logger = structlog.get_logger()
 
-# Constants from architecture requirements
-VECTOR_SIZE = 384  # all-MiniLM-L6-v2 output dimension
+# Constants from config (nomic-embed-text-v1.5: 768 dimensions)
+# VECTOR_SIZE imported from src.config
 DISTANCE_METRIC = Distance.COSINE
 
 # Single collection for all vectors (following Qdrant multitenancy best practices)

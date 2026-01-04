@@ -29,12 +29,13 @@ from pydantic import BaseModel, Field
 from transformers import AutoTokenizer
 import structlog
 
+from src.config import EMBEDDING_CONFIG
 from src.exceptions import KnowledgeError
 
 logger = structlog.get_logger()
 
-# Embedding model ID - matches the model used for vector embeddings
-EMBED_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
+# Embedding model ID from centralized config (nomic-embed-text-v1.5)
+EMBED_MODEL_ID = EMBEDDING_CONFIG["model_id"]
 
 
 # ============================================================================
@@ -169,7 +170,11 @@ class DoclingChunker:
         self._validate_config()
 
         # Create tokenizer matching the embedding model for accurate token counts
-        self._hf_tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_ID)
+        # nomic-embed-text-v1.5 requires trust_remote_code=True
+        self._hf_tokenizer = AutoTokenizer.from_pretrained(
+            EMBED_MODEL_ID,
+            trust_remote_code=EMBEDDING_CONFIG.get("trust_remote_code", True),
+        )
         self._tokenizer = HuggingFaceTokenizer(
             tokenizer=self._hf_tokenizer,
             max_tokens=self.config.chunk_size,
