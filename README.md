@@ -144,6 +144,66 @@ Agents don't just answer — they **guide**. They know what to ask, when to warn
 
 ---
 
+## Intelligent Tool Behavior
+
+The MCP tools aren't passive endpoints — their descriptions **embed behavioral guidance** that shapes how Claude uses them:
+
+### Multi-Query & Synthesis
+
+```
+Tool description instructs:
+"For comprehensive answers, call this tool 2-3 times with varied queries:
+ 1. User's original phrasing
+ 2. Technical synonyms (e.g., 'RAG' → 'retrieval augmented generation')
+ 3. Related concepts (e.g., 'chunking' → 'document splitting')"
+
+Result: Claude automatically expands searches, cross-references, synthesizes.
+```
+
+### Query Refinement
+
+```
+Tool description instructs:
+"If results < 3 relevant, try synonyms or related concepts.
+ If user query is vague (< 3 specific terms), ask clarifying question first."
+
+Result: Claude rephrases, expands, or asks before giving incomplete answers.
+```
+
+### Proactive Warnings
+
+```
+Tool description instructs:
+"ALWAYS call get_warnings() before recommending any implementation.
+ Surface top 2-3 warnings. Frame as 'To avoid X, ensure you Y'."
+
+Result: Claude debates trade-offs, surfaces pitfalls, never gives blind recommendations.
+```
+
+### Source Diversity
+
+```
+Tool description instructs:
+"Results must span at least 2 different sources.
+ If single source dominates, reformulate query for diversity."
+
+Result: Claude synthesizes across books/papers, notes agreements and disagreements.
+```
+
+### Tool Chaining
+
+```
+Tool descriptions cross-reference:
+"After search, call get_decisions() if results mention trade-offs.
+ Call get_warnings() if implementing. Call get_patterns() for code."
+
+Result: Claude chains tools intelligently based on user intent.
+```
+
+This creates an **implicit orchestration layer** — Claude behaves like a research analyst, not a search box.
+
+---
+
 ## Tech Stack
 
 | Component | Technology |
@@ -182,6 +242,36 @@ Add to your `claude_desktop_config.json`:
 ```
 
 Then restart Claude Desktop/Claude Code.
+
+---
+
+## Slash Commands (Clone & Use)
+
+If you clone this repo, you get instant access to these slash commands in Claude Code:
+
+| Command | Description |
+|---------|-------------|
+| `/search-knowledge <query>` | Semantic search across all knowledge |
+| `/get-decisions <topic>` | Architectural decisions with trade-offs |
+| `/get-patterns <topic>` | Reusable implementation patterns |
+| `/get-warnings <topic>` | Anti-patterns and pitfalls to avoid |
+| `/list-sources` | List all knowledge sources |
+| `/ai-knowledge <question>` | General AI engineering assistant |
+
+### Usage
+
+```bash
+# Clone the repo
+git clone https://github.com/YOUR_USERNAME/AI_engineering.git
+cd AI_engineering
+
+# Use slash commands in Claude Code
+/get-decisions RAG vs fine-tuning
+/get-patterns semantic caching
+/search-knowledge prompt injection
+```
+
+---
 
 ## Available MCP Tools
 

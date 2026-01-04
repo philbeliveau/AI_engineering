@@ -1,6 +1,7 @@
 # BMAD and IDE
 _bmad
-.claude
+.claude/*
+!.claude/commands/
 .codex
 .cursor
 
