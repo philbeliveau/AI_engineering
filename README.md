@@ -1,8 +1,108 @@
 # Knowledge Pipeline
 
-AI Engineering knowledge extraction system that serves structured insights via MCP (Model Context Protocol) to Claude Code and Claude Desktop users.
+**An AI-powered knowledge system that gives developers instant access to best practices, patterns, and pitfalls from the AI engineering literature.**
 
-## Quick Start - Connect to the MCP Server
+---
+
+## Why This Exists
+
+Building AI applications is hard. The best practices are scattered across books, research papers, and case studies. Developers waste hours searching for answers to questions like:
+
+- *"Should I use RAG or fine-tuning for my use case?"*
+- *"What's the best chunking strategy for legal documents?"*
+- *"What are common production pitfalls with LLM APIs?"*
+
+**Knowledge Pipeline solves this** by extracting structured knowledge from authoritative sources and making it instantly accessible through Claude Code and Claude Desktop via MCP.
+
+---
+
+## What It Does
+
+| Capability | Description |
+|------------|-------------|
+| **Instant Answers** | Ask Claude about AI engineering and get answers grounded in expert sources |
+| **Structured Knowledge** | Decisions, patterns, warnings, and methodologies — not just raw text |
+| **Multi-Source Synthesis** | Combines insights from multiple books and papers for balanced perspective |
+| **Contextual Guidance** | Recommendations adapt to your specific domain, scale, and constraints |
+
+---
+
+## Who It's For
+
+- **AI/ML Engineers** building LLM applications, RAG systems, or AI agents
+- **Software Developers** adding AI capabilities to existing products
+- **Technical Leaders** making architectural decisions about AI infrastructure
+- **Researchers** exploring practical implementation of AI concepts
+
+---
+
+## Knowledge Sources
+
+The system extracts structured knowledge from:
+
+| Source Type | Examples |
+|-------------|----------|
+| **Books** | AI engineering methodology books, LLM application guides |
+| **Research Papers** | RAG techniques, embedding strategies, evaluation methods |
+| **Case Studies** | Production deployments, failure analyses, optimization stories |
+
+Each source is processed to extract:
+- **Decisions** — Architectural choices with trade-offs and recommendations
+- **Patterns** — Reusable solutions with implementation code
+- **Warnings** — Anti-patterns and pitfalls to avoid
+- **Methodologies** — Step-by-step processes for complex tasks
+
+---
+
+## How It Works
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  1. INGESTION PIPELINE (One-time)                                    │
+│                                                                      │
+│  Books/Papers/Cases → Chunking → LLM Extraction → Structured Data   │
+│                                                                      │
+│  Extracts: decisions, patterns, warnings, methodologies              │
+└──────────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  2. VECTOR STORAGE                                                   │
+│                                                                      │
+│  MongoDB (metadata) + Qdrant (384d embeddings)                       │
+│                                                                      │
+│  Enables semantic search across all extracted knowledge              │
+└──────────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  3. MCP SERVER (Real-time)                                           │
+│                                                                      │
+│  FastAPI + MCP Protocol → Claude Desktop / Claude Code               │
+│                                                                      │
+│  7 tools for search, decisions, patterns, warnings, methodologies    │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Design Choice:** Extractions are for *navigation*, Claude is for *synthesis*. The MCP tools return structured results; Claude synthesizes them into actionable advice.
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| **Runtime** | Python 3.11, uv package manager |
+| **API** | FastAPI + fastapi-mcp |
+| **Vector DB** | Qdrant Cloud (384d embeddings) |
+| **Document DB** | MongoDB Atlas |
+| **Embeddings** | all-MiniLM-L6-v2 (local, no API costs) |
+| **Extraction** | Claude API (one-time ingestion only) |
+| **Deployment** | Railway (server), Docker |
+
+---
+
+## Quick Start — Connect to the MCP Server
 
 Add the Knowledge Pipeline to your Claude configuration to get AI engineering knowledge directly in your conversations.
 
@@ -47,41 +147,6 @@ After connecting, try asking Claude:
 - "Show me patterns for semantic caching"
 - "What decisions should I consider for RAG vs fine-tuning?"
 - "What are common pitfalls when building AI agents?"
-
-## What's Inside
-
-The knowledge base contains structured extractions from AI engineering methodology books:
-
-- **Decisions** - When to choose X over Y, with trade-offs
-- **Patterns** - Reusable solutions with implementation guidance
-- **Warnings** - Anti-patterns and mistakes to avoid
-- **Methodologies** - Step-by-step processes for AI engineering tasks
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                 packages/pipeline (batch)                    │
-│   Adapters → Processors → Extractors → Storage (WRITE)      │
-└─────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┴───────────────┐
-              ▼                               ▼
-        ┌──────────┐                   ┌──────────┐
-        │ MongoDB  │                   │  Qdrant  │
-        │  Atlas   │                   │  Cloud   │
-        └──────────┘                   └──────────┘
-              │                               │
-              └───────────────┬───────────────┘
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                packages/mcp-server (server)                  │
-│     FastAPI + MCP → Semantic Search → Structured Results    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                    Claude Desktop / Code
-```
 
 ## Project Structure
 
