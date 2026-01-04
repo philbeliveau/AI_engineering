@@ -21,7 +21,8 @@ from src.storage.qdrant import QdrantStorageClient
 def get_mongodb_stats():
     """Get MongoDB collection statistics."""
     try:
-        client = MongoDBClient(settings)
+        client = MongoDBClient()
+        client.connect()  # Must connect before using
         db = client._client[settings.mongodb_database]
 
         # Get collection stats
@@ -54,11 +55,11 @@ def get_mongodb_stats():
 def get_qdrant_stats():
     """Get Qdrant collection statistics."""
     try:
-        client = QdrantStorageClient(settings)
+        client = QdrantStorageClient()  # Uses settings internally
 
         # Get collection info
         collection_name = "knowledge_vectors"
-        info = client._client.get_collection(collection_name)
+        info = client.client.get_collection(collection_name)
 
         return {
             "connected": True,
