@@ -31,14 +31,8 @@ WORKDIR /app
 # Copy dependency files first (cache optimization)
 COPY pyproject.toml uv.lock README.md ./
 
-# Create virtualenv and install production dependencies only
-# --frozen: Use exact versions from uv.lock
-# --no-dev: Exclude development dependencies
-# --no-cache: Don't cache packages (smaller layer)
-# --no-install-project: Skip installing the local project (we copy src separately)
-# Use CPU-only PyTorch to save ~1.8GB (no CUDA)
-RUN uv sync --frozen --no-dev --no-cache --no-install-project \
-    --extra-index-url https://download.pytorch.org/whl/cpu
+# Install dependencies (torch uses CPU-only index via pyproject.toml)
+RUN uv sync --frozen --no-dev --no-cache --no-install-project
 
 # -----------------------------------------------------------------------------
 # Stage 2: Runtime - Minimal production image
