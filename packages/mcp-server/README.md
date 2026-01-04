@@ -48,11 +48,27 @@ The server starts at http://localhost:8000
 
 ## API Endpoints
 
+### Infrastructure
+
 | Endpoint | Description |
 |----------|-------------|
 | `/health` | Health check - returns server status and service connectivity |
 | `/mcp` | MCP protocol endpoint for Claude Code clients |
 | `/docs` | Interactive API documentation (Swagger UI) |
+
+### MCP Tools (Knowledge Query)
+
+| Endpoint | Auth | Description |
+|----------|------|-------------|
+| `/search_knowledge` | Public | Semantic search across all knowledge content |
+| `/get_decisions` | Public | List decision extractions with optional topic filter |
+| `/get_patterns` | Public | List pattern extractions with optional topic filter |
+| `/get_warnings` | Public | List warning extractions with optional topic filter |
+| `/get_methodologies` | **Registered** | List methodology extractions (requires API key) |
+| `/list_sources` | Public | List all knowledge sources with extraction counts |
+| `/compare_sources` | **Registered** | Compare extractions across sources by topic |
+
+**Note:** Registered tier endpoints require an API key in the `X-API-Key` header.
 
 ## Health Check
 
@@ -133,9 +149,38 @@ All configuration is via environment variables. See `.env.example` for available
 | `MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
 | `MONGODB_DATABASE` | `knowledge_db` | MongoDB database name |
 | `QDRANT_URL` | `http://localhost:6333` | Qdrant server URL |
+| `QDRANT_API_KEY` | (none) | Qdrant Cloud API key |
 | `SERVER_HOST` | `0.0.0.0` | Server bind address |
 | `SERVER_PORT` | `8000` | Server port |
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
+| `API_KEYS_FILE` | (none) | Path to JSON file containing API keys |
+| `PROJECT_ID` | `default` | Project ID for multi-tenant isolation |
+
+### API Key Configuration
+
+For Registered tier access (e.g., `/get_methodologies`), configure API keys via JSON file:
+
+```json
+{
+  "keys": [
+    {
+      "key": "kp_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+      "tier": "REGISTERED",
+      "metadata": {"user": "test-user"}
+    }
+  ]
+}
+```
+
+Set the path in `.env`:
+```
+API_KEYS_FILE=/path/to/api-keys.json
+```
+
+Then use the key in requests:
+```bash
+curl -H "X-API-Key: kp_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6" http://localhost:8000/get_methodologies
+```
 
 ## Troubleshooting
 
@@ -164,6 +209,135 @@ Or use a different port:
 ```bash
 SERVER_PORT=8001 uv run uvicorn src.server:app --port 8001
 ```
+
+## Error Handling
+
+All API errors follow a standardized format (Story 4.6):
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request parameters",
+    "details": {"query.limit": "Input should be greater than or equal to 1"},
+    "retry_after": null
+  }
+}
+```
+
+### Error Codes
+
+| Code | HTTP Status | Description |
+|------|-------------|-------------|
+| `VALIDATION_ERROR` | 400 | Invalid request parameters |
+| `UNAUTHORIZED` | 401 | Missing or invalid API key |
+| `FORBIDDEN` | 403 | Insufficient access tier |
+| `NOT_FOUND` | 404 | Resource not found |
+| `RATE_LIMITED` | 429 | Rate limit exceeded (includes `retry_after` in seconds) |
+| `INTERNAL_ERROR` | 500 | Server error (includes `correlation_id` for debugging) |
+
+### Response Metadata
+
+All successful responses include latency tracking for NFR1 compliance (<500ms target):
+
+```json
+{
+  "results": [...],
+  "metadata": {
+    "query": "test query",
+    "sources_cited": ["Book 1"],
+    "result_count": 5,
+    "search_type": "semantic",
+    "latency_ms": 42
+  }
+}
+```
+
+## Docker
+
+### Build the Image
+
+```bash
+cd packages/mcp-server
+docker build -t knowledge-mcp .
+```
+
+### Run the Container
+
+**With local MongoDB/Qdrant (started via docker-compose):**
+
+```bash
+# Start infrastructure first
+docker-compose up -d
+
+# Run the MCP server container
+docker run -d \
+  --name mcp-server \
+  -p 8000:8000 \
+  -e MONGODB_URI=mongodb://host.docker.internal:27017/knowledge_db \
+  -e QDRANT_URL=http://host.docker.internal:6333 \
+  -e ENVIRONMENT=local \
+  --add-host=host.docker.internal:host-gateway \
+  knowledge-mcp
+```
+
+**With cloud databases (production):**
+
+```bash
+docker run -d \
+  --name mcp-server \
+  -p 8000:8000 \
+  -e MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/knowledge_db \
+  -e QDRANT_URL=https://xxx.cloud.qdrant.io:6333 \
+  -e QDRANT_API_KEY=your-qdrant-api-key \
+  -e ENVIRONMENT=production \
+  knowledge-mcp
+```
+
+### Using docker-compose for Local Development
+
+A convenience docker-compose file is included for local container testing:
+
+```bash
+# From packages/mcp-server directory
+docker-compose -f ../../docker-compose.yaml -f docker-compose.dev.yaml up -d --build
+```
+
+This builds the container and runs it alongside the infrastructure services.
+
+### Container Health Check
+
+The container includes a built-in health check:
+
+```bash
+# Check container health status
+docker inspect mcp-server --format "{{.State.Health.Status}}"
+
+# Manual health check
+curl http://localhost:8000/health
+```
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MONGODB_URI` | Yes | - | MongoDB connection string |
+| `QDRANT_URL` | Yes | - | Qdrant server URL |
+| `QDRANT_API_KEY` | No | - | Qdrant Cloud API key |
+| `PORT` | No | `8000` | Server port (Railway sets dynamically) |
+| `ENVIRONMENT` | No | `production` | Deployment environment |
+| `PROJECT_ID` | No | `default` | Multi-tenant project ID |
+| `LOG_LEVEL` | No | `INFO` | Logging level |
+| `API_KEYS_FILE` | No | - | Path to API keys JSON file |
+
+### Railway Deployment
+
+The Dockerfile is optimized for Railway deployment:
+
+1. **Dynamic Port:** Railway sets `PORT` env var - container respects it
+2. **Proxy Headers:** `--proxy-headers` flag trusts Railway's reverse proxy
+3. **Health Checks:** Railway uses `/health` for zero-downtime deploys
+4. **Multi-Stage Build:** Optimized image size (~660MB with ML dependencies)
 
 ## Architecture
 

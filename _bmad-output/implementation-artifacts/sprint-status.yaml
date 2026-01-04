@@ -80,15 +80,15 @@ development_status:
   4-cc-v2-single-collection-architecture: review  # COMPLETED 2026-01-03: Single collection architecture implemented
   4-3-extraction-query-tools-get-decisions-get-patterns-get-warnings: done  # Code review passed 2026-01-03: 62 tests total (21 added in review)
   4-4-methodology-query-tool-get-methodologies: done  # COMPLETED 2026-01-03: Registered tier access, 24 tests pass, 300 total
-  4-5-source-management-tools-list-sources-compare-sources: ready-for-dev
-  4-6-response-models-and-error-handling: ready-for-dev
+  4-5-source-management-tools-list-sources-compare-sources: done  # COMPLETED 2026-01-03: 34 tests, Public list_sources + Registered compare_sources
+  4-6-response-models-and-error-handling: review  # COMPLETED 2026-01-03: ErrorCode enum, global handlers, latency tracking, 389 tests pass
   epic-4-retrospective: optional
 
   # Epic 5: Production Deployment & Access Control
   epic-5: in-progress
   5-1-rate-limiting-middleware: ready-for-dev
   5-2-api-key-authentication-middleware: done  # Code review passed 2026-01-03
-  5-3-dockerfile-and-container-configuration: ready-for-dev
+  5-3-dockerfile-and-container-configuration: done  # Code review passed 2026-01-04: 2 fixes applied (context path, PORT alias)
   5-4-cloud-database-configuration: done  # All 10 tasks completed 2026-01-03, 235 tests pass
   5-5-railway-deployment-pipeline: ready-for-dev
   epic-5-retrospective: optional

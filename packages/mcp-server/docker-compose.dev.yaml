@@ -1,0 +1,61 @@
+# =============================================================================
+# Docker Compose for Local MCP Server Container Testing
+# =============================================================================
+# This file builds and runs the MCP server container alongside the
+# infrastructure services (MongoDB, Qdrant) defined in the root docker-compose.yaml
+#
+# Usage:
+#   # Start all services (from packages/mcp-server directory)
+#   docker-compose -f ../../docker-compose.yaml -f docker-compose.dev.yaml up -d
+#
+#   # Build and start only the mcp-server
+#   docker-compose -f ../../docker-compose.yaml -f docker-compose.dev.yaml up -d --build mcp-server
+#
+#   # View logs
+#   docker-compose -f ../../docker-compose.yaml -f docker-compose.dev.yaml logs -f mcp-server
+#
+#   # Stop all services
+#   docker-compose -f ../../docker-compose.yaml -f docker-compose.dev.yaml down
+# =============================================================================
+
+services:
+  mcp-server:
+    build:
+      # Context must be relative to project root since we merge with ../../docker-compose.yaml
+      # Docker Compose uses the first -f file's directory as the project directory
+      context: ./packages/mcp-server
+      dockerfile: Dockerfile
+    container_name: knowledge-mcp-server
+    ports:
+      - "8000:8000"
+    environment:
+      # Local development uses Docker internal networking
+      # host.docker.internal allows container to reach host services
+      # For Linux, use: docker run --add-host=host.docker.internal:host-gateway
+      MONGODB_URI: mongodb://host.docker.internal:27017/knowledge_db
+      QDRANT_URL: http://host.docker.internal:6333
+      ENVIRONMENT: local
+      PORT: "8000"
+      LOG_LEVEL: INFO
+      PROJECT_ID: default
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    # For hot reload during development, uncomment these volumes:
+    # volumes:
+    #   - ./src:/app/src:ro
+    extra_hosts:
+      # Required for host.docker.internal on Linux
+      - "host.docker.internal:host-gateway"
+
+# Extend services from root docker-compose.yaml
+# This pulls in mongodb and qdrant service definitions

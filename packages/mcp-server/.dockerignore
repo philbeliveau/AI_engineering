@@ -1,0 +1,72 @@
+# =============================================================================
+# Docker Build Context Exclusions
+# =============================================================================
+# These files are excluded from the Docker build context to:
+# - Reduce build time (smaller context transfer)
+# - Protect secrets (never include .env files in images)
+# - Exclude development-only files (tests, docs, IDE config)
+# =============================================================================
+
+# Python virtual environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.Python
+*.egg-info/
+*.egg
+.eggs/
+
+# Environment files (SECURITY: Never include secrets in images)
+.env
+.env.*
+!.env.example
+
+# Test files (not needed in production)
+tests/
+pytest_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.hypothesis/
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# IDE and editor config
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation (not needed in runtime)
+*.md
+!README.md
+docs/
+
+# Build artifacts
+build/
+dist/
+*.whl
+
+# Cache directories
+.ruff_cache/
+.mypy_cache/
+.cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker-related (avoid recursive includes)
+Dockerfile
+docker-compose*.yaml
+docker-compose*.yml
+
+# Logs
+logs/
+*.log

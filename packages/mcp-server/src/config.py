@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = structlog.get_logger()
@@ -70,7 +70,11 @@ class Settings(BaseSettings):
 
     # Server Configuration
     server_host: str = "0.0.0.0"
-    server_port: int = 8000
+    # Accept both PORT (Railway) and SERVER_PORT for backward compatibility
+    server_port: int = Field(
+        default=8000,
+        validation_alias=AliasChoices("PORT", "SERVER_PORT"),
+    )
 
     # Logging
     log_level: str = "INFO"
