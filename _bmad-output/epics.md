@@ -390,6 +390,10 @@ So that all extractors follow a consistent pattern and extraction outputs are va
 **And** type-specific Pydantic models exist for Decision, Pattern, Warning, Methodology, Checklist, Persona, Workflow
 **And** all extraction models include `source_id`, `chunk_id`, `topics[]`, and `schema_version`
 **And** the pattern follows NFR6 (Extensibility for Extractors)
+**And** LLMClient utility class exists at `src/extractors/llm_client.py`
+**And** LLMClient provides `extract(prompt, content)` method for batch LLM extraction
+**And** LLMClient uses `ANTHROPIC_API_KEY` from settings
+**And** LLMClient includes retry logic with exponential backoff
 
 ---
 
@@ -408,6 +412,8 @@ So that end users can query for AI engineering choice points with options and co
 **And** relevant topics are auto-tagged
 **And** the extraction prompt is stored in `extractors/prompts/decision.md`
 
+**Implementation Note:** Use LLMClient from `src/extractors/llm_client.py` for extraction. Pass prompt from `prompts/decision.md` to LLMClient. Parse JSON response using Pydantic model validation.
+
 ---
 
 ### Story 3.3: Pattern Extractor
@@ -425,6 +431,8 @@ So that end users can query for implementation patterns with code examples.
 **And** relevant topics are auto-tagged
 **And** the extraction prompt is stored in `extractors/prompts/pattern.md`
 
+**Implementation Note:** Use LLMClient from `src/extractors/llm_client.py` for extraction. Pass prompt from `prompts/pattern.md` to LLMClient. Parse JSON response using Pydantic model validation.
+
 ---
 
 ### Story 3.4: Warning Extractor
@@ -441,6 +449,8 @@ So that end users can query for failure modes and things to avoid.
 **And** the extraction includes source attribution
 **And** relevant topics are auto-tagged
 **And** the extraction prompt is stored in `extractors/prompts/warning.md`
+
+**Implementation Note:** Use LLMClient from `src/extractors/llm_client.py` for extraction. Pass prompt from `prompts/warning.md` to LLMClient. Parse JSON response using Pydantic model validation.
 
 ---
 
@@ -461,6 +471,8 @@ So that I can use these to build BMAD workflows and agent prompts.
 - Workflow: name, trigger, steps[], decision_points
 **And** all extractions include source attribution and topic tags
 **And** extraction prompts are stored in respective prompt files
+
+**Implementation Note:** Use LLMClient from `src/extractors/llm_client.py` for extraction. Pass prompts from `prompts/{type}.md` to LLMClient. Parse JSON responses using Pydantic model validation.
 
 ---
 

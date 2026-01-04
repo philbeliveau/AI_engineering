@@ -1,10 +1,10 @@
 ---
 project_name: 'AI_engineering'
 user_name: 'Philippebeliveau'
-date: '2025-12-30'
+date: '2026-01-03'
 sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules']
 status: 'complete'
-rule_count: 85
+rule_count: 92
 optimized_for_llm: true
 ---
 
@@ -171,6 +171,7 @@ All endpoints MUST return wrapped responses:
 - Tests in separate `tests/` directory (not alongside source)
 - Mirror `src/` structure: `src/adapters/` → `tests/test_adapters/`
 - Test files prefixed: `test_pdf_adapter.py`
+- Integration tests suffixed: `test_*_integration.py`
 - Shared fixtures in `conftest.py` at tests root
 
 #### Async Testing
@@ -179,10 +180,34 @@ All endpoints MUST return wrapped responses:
 - Async fixtures: `@pytest_asyncio.fixture`
 
 #### Test Patterns
-- Unit tests: Mock external dependencies (MongoDB, Qdrant)
-- Integration tests: Use Docker Compose services
-- Never test against production databases
+- Unit tests: Mock external dependencies for fast CI runs
+- Integration tests: MUST run against real cloud databases (MongoDB Atlas, Qdrant Cloud)
+- Credentials stored in `packages/mcp-server/.env` (gitignored)
 - Each test function tests ONE behavior
+
+#### Integration Tests (MANDATORY for Code Review)
+**Cloud databases are deployed. Code reviewers MUST run integration tests before approving PRs.**
+
+```bash
+# Run integration tests against real cloud services
+cd packages/mcp-server
+uv run pytest -m integration
+
+# Run all tests (unit + integration)
+uv run pytest
+```
+
+- Integration tests marked with `@pytest.mark.integration`
+- Tests verify actual cloud connectivity, not mocked responses
+- Mocked tests only prove code logic works with fake data
+- Integration tests prove the code works with real infrastructure
+
+#### What Integration Tests Verify
+- Real MongoDB Atlas connections and queries
+- Real Qdrant Cloud vector operations
+- Actual response structures from cloud services
+- Connection pooling and timeout behavior
+- SSL/TLS and authentication flows
 
 #### Fixture Patterns
 ```python

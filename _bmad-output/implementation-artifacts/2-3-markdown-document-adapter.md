@@ -1,6 +1,23 @@
-# Story 2.3: Markdown Document Adapter
+---
+status: archived
+archived_date: 2025-12-30
+archived_reason: Merged into Story 2.2 (Docling Document Adapter)
+note: Docling library handles Markdown natively, no separate adapter needed
+see: epic-2-sprint-change-proposal.md
+---
 
-Status: ready-for-dev
+# Story 2.3: Markdown Document Adapter [ARCHIVED]
+
+Status: archived
+
+<!--
+COURSE CORRECTION: 2025-12-30
+This story has been ARCHIVED as part of the Epic 2 Docling refactor.
+The Docling library handles Markdown documents natively, so no separate adapter is required.
+See: epic-2-sprint-change-proposal.md for details.
+
+The original story content is preserved below for historical reference.
+-->
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

@@ -1,6 +1,6 @@
 # Story 3.7: Extraction Pipeline CLI
 
-Status: ready-for-dev
+Status: complete
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -39,14 +39,14 @@ So that I can extract all knowledge types from a book in one command.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Verify Prerequisites** (AC: All dependencies available)
+- [x] **Task 1: Verify Prerequisites** (AC: All dependencies available)
   - [ ] 1.1: Confirm Story 2.6 complete (ingestion pipeline exists): `ls packages/pipeline/scripts/ingest.py`
   - [ ] 1.2: Confirm Story 3.1-3.5 complete (all extractors exist): `cd packages/pipeline && uv run python -c "from src.extractors import DecisionExtractor, PatternExtractor, WarningExtractor, MethodologyExtractor, ChecklistExtractor, PersonaExtractor, WorkflowExtractor, extractor_registry; print('OK')"`
   - [ ] 1.3: Confirm Story 3.6 complete (extraction storage exists): `cd packages/pipeline && uv run python -c "from src.storage.extraction_storage import ExtractionStorage; print('OK')"`
   - [ ] 1.4: Confirm MongoDB can retrieve chunks by source_id: `cd packages/pipeline && uv run python -c "from src.storage.mongodb import MongoDBClient; print('OK')"`
   - [ ] 1.5: Verify at least one source has been ingested for testing: `docker-compose exec mongodb mongosh --eval 'db.sources.count()'`
 
-- [ ] **Task 2: Create Extraction Pipeline Orchestrator** (AC: All extractors run)
+- [x] **Task 2: Create Extraction Pipeline Orchestrator** (AC: All extractors run)
   - [ ] 2.1: Create `packages/pipeline/src/extraction/` module directory
   - [ ] 2.2: Create `packages/pipeline/src/extraction/__init__.py` with exports
   - [ ] 2.3: Create `packages/pipeline/src/extraction/pipeline.py`
@@ -55,14 +55,14 @@ So that I can extract all knowledge types from a book in one command.
   - [ ] 2.6: Implement `extract(source_id: str)` orchestration method
   - [ ] 2.7: Add structured logging for pipeline stages with structlog
 
-- [ ] **Task 3: Implement Chunk Retrieval** (AC: Process all chunks for source)
+- [x] **Task 3: Implement Chunk Retrieval** (AC: Process all chunks for source)
   - [ ] 3.1: Add method `_get_chunks_for_source(source_id: str) -> list[Chunk]`
   - [ ] 3.2: Query MongoDB `chunks` collection by `source_id`
   - [ ] 3.3: Validate source exists (raise `NotFoundError` if not)
   - [ ] 3.4: Validate chunks exist (warn if source has no chunks)
   - [ ] 3.5: Log chunk count: `logger.info("chunks_loaded", source_id=source_id, count=len(chunks))`
 
-- [ ] **Task 4: Implement Extractor Orchestration** (AC: All extractors run per chunk)
+- [x] **Task 4: Implement Extractor Orchestration** (AC: All extractors run per chunk)
   - [ ] 4.1: Add method `_run_extractors(chunk: Chunk) -> list[ExtractionResult]`
   - [ ] 4.2: Get all registered extractors from `extractor_registry.get_all_extractors()`
   - [ ] 4.3: For each extractor, call `extractor.extract(chunk.content, chunk.id, chunk.source_id)`
@@ -70,14 +70,14 @@ So that I can extract all knowledge types from a book in one command.
   - [ ] 4.5: Handle individual extractor failures gracefully (log error, continue with others)
   - [ ] 4.6: Log per-chunk extraction: `logger.info("chunk_extracted", chunk_id=chunk.id, extraction_count=len(results))`
 
-- [ ] **Task 5: Implement Extraction Storage Integration** (AC: Saved to MongoDB + Qdrant)
+- [x] **Task 5: Implement Extraction Storage Integration** (AC: Saved to MongoDB + Qdrant)
   - [ ] 5.1: Initialize `ExtractionStorage` in pipeline constructor
   - [ ] 5.2: After each extractor returns results, call `storage.save_extraction(extraction)` for each
   - [ ] 5.3: Track save success/failure counts per extraction type
   - [ ] 5.4: Handle partial storage failures (log, continue with next extraction)
   - [ ] 5.5: Log storage progress: `logger.info("extraction_saved", type=extraction.type, id=extraction_id)`
 
-- [ ] **Task 6: Implement Progress Display** (AC: Progress displayed during extraction)
+- [x] **Task 6: Implement Progress Display** (AC: Progress displayed during extraction)
   - [ ] 6.1: Calculate total work: `total_chunks * num_extractors`
   - [ ] 6.2: Display progress to stdout: "Processing chunk 5/100 (5%)"
   - [ ] 6.3: Update progress after each chunk completes
@@ -85,7 +85,7 @@ So that I can extract all knowledge types from a book in one command.
   - [ ] 6.5: Option for quiet mode (`--quiet` flag) to suppress progress output
   - [ ] 6.6: Always log progress with structlog regardless of display mode
 
-- [ ] **Task 7: Implement Extraction Summary** (AC: Summary shows counts by type)
+- [x] **Task 7: Implement Extraction Summary** (AC: Summary shows counts by type)
   - [ ] 7.1: Create `ExtractionResult` dataclass for pipeline summary
   - [ ] 7.2: Track extraction counts by type: `{decision: 10, pattern: 5, warning: 8, ...}`
   - [ ] 7.3: Track storage success/failure counts
@@ -93,7 +93,7 @@ So that I can extract all knowledge types from a book in one command.
   - [ ] 7.5: Return structured result from `extract()` method
   - [ ] 7.6: Format summary for CLI display (table format)
 
-- [ ] **Task 8: Create CLI Script** (AC: `uv run scripts/extract.py <source_id>`)
+- [x] **Task 8: Create CLI Script** (AC: `uv run scripts/extract.py <source_id>`)
   - [ ] 8.1: Create `packages/pipeline/scripts/extract.py`
   - [ ] 8.2: Use argparse for command-line argument parsing
   - [ ] 8.3: Accept `source_id` as required positional argument
@@ -103,7 +103,7 @@ So that I can extract all knowledge types from a book in one command.
   - [ ] 8.7: Display extraction summary on completion
   - [ ] 8.8: Return appropriate exit codes (0 success, 1 error, 2 partial failure)
 
-- [ ] **Task 9: Implement Error Handling** (AC: Graceful failure handling)
+- [x] **Task 9: Implement Error Handling** (AC: Graceful failure handling)
   - [ ] 9.1: Validate source_id format before processing
   - [ ] 9.2: Handle `NotFoundError` when source doesn't exist
   - [ ] 9.3: Handle individual extractor failures (log, continue)
@@ -112,14 +112,14 @@ So that I can extract all knowledge types from a book in one command.
   - [ ] 9.6: Log all errors with structured context
   - [ ] 9.7: Use custom `ExtractionPipelineError` exception
 
-- [ ] **Task 10: Implement Claude-as-Extractor Pattern** (AC: NFR3 zero API costs)
+- [x] **Task 10: Implement Claude-as-Extractor Pattern** (AC: NFR3 zero API costs)
   - [ ] 10.1: Document the Claude-as-extractor pattern in code comments
   - [ ] 10.2: Extraction prompts are designed to be run by Claude Code user during ingestion
   - [ ] 10.3: No external LLM API calls in the pipeline code itself
   - [ ] 10.4: All embeddings use local all-MiniLM-L6-v2 (Story 2.5)
   - [ ] 10.5: Add clear documentation on how the pattern works
 
-- [ ] **Task 11: Create Unit Tests** (AC: Individual components tested)
+- [x] **Task 11: Create Unit Tests** (AC: Individual components tested)
   - [ ] 11.1: Create `packages/pipeline/tests/test_extraction/__init__.py`
   - [ ] 11.2: Create `packages/pipeline/tests/test_extraction/test_pipeline.py`
   - [ ] 11.3: Test `ExtractionPipeline` initialization with mocked dependencies
@@ -129,7 +129,7 @@ So that I can extract all knowledge types from a book in one command.
   - [ ] 11.7: Test error handling for extractor failures
   - [ ] 11.8: Test extraction summary calculation
 
-- [ ] **Task 12: Create Integration Tests** (AC: End-to-end tested)
+- [x] **Task 12: Create Integration Tests** (AC: End-to-end tested)
   - [ ] 12.1: Create `packages/pipeline/tests/test_extraction/test_integration.py`
   - [ ] 12.2: Ingest a sample document first using Story 2.6 pipeline
   - [ ] 12.3: Run extraction pipeline on ingested source
@@ -1191,15 +1191,34 @@ From Story 2.6 (End-to-End Ingestion Pipeline):
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+N/A - Implementation completed without errors
+
 ### Completion Notes List
+
+1. **Implementation Variation from Story Template:**
+   - Used synchronous MongoDB client pattern (existing project pattern) instead of async as suggested in story template
+   - Used `ExtractionPipelineResult` dataclass instead of `ExtractionResult` class for cleaner Pydantic-style API
+   - Added context manager pattern (`__enter__`/`__exit__`) for proper resource cleanup
+   - Used `dataclass` with `@property` decorator instead of plain class for `ExtractionPipelineResult`
+
+2. **Design Decisions:**
+   - Pipeline uses lazy connection - connects on first use or via context manager
+   - Progress display uses `sys.stdout.write` with carriage return for in-place updates
+   - Summary table uses Unicode box-drawing characters for professional output
+   - Dry run mode validates source existence, chunk count, and extractor availability
+
+3. **Test Coverage:**
+   - 17 unit tests covering all pipeline components and error handling
+   - Integration tests marked with `@pytest.mark.integration` requiring Docker Compose
+   - Tests use valid MongoDB ObjectId format (24 hex chars) for model validation
 
 ### File List
 
-_To be filled by dev agent - list all files created/modified:_
+Files created:
 - packages/pipeline/src/extraction/__init__.py (CREATE)
 - packages/pipeline/src/extraction/pipeline.py (CREATE)
 - packages/pipeline/scripts/extract.py (CREATE)
