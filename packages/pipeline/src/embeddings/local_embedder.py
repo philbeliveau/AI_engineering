@@ -1,17 +1,21 @@
 """Local embedding generation using sentence-transformers.
 
 This module provides zero-API-cost embedding generation using the
-all-MiniLM-L6-v2 model for semantic search in Qdrant.
+nomic-embed-text-v1.5 model for semantic search in Qdrant.
+
+Uses instruction prefixes for optimal retrieval performance:
+- search_document: for documents being indexed
+- search_query: for search queries
 
 Example:
     from src.embeddings import get_embedder
 
     embedder = get_embedder()
     vector = embedder.embed_text("Hello world")
-    # Returns 384-dimensional vector
+    # Returns 768-dimensional vector (nomic-embed-text-v1.5)
 
     vectors = embedder.embed_batch(["Hello", "World"])
-    # Returns list of 384-dimensional vectors
+    # Returns list of 768-dimensional vectors
 """
 
 from typing import Optional
@@ -21,20 +25,24 @@ from pydantic import BaseModel, Field
 from sentence_transformers import SentenceTransformer
 import structlog
 
+from src.config import EMBEDDING_CONFIG
 from src.exceptions import KnowledgeError
 
 logger = structlog.get_logger()
 
 
 class EmbeddingConfig(BaseModel):
-    """Configuration for local embedding generation."""
+    """Configuration for local embedding generation.
+
+    Defaults are set from centralized EMBEDDING_CONFIG for nomic-embed-text-v1.5.
+    """
 
     model_name: str = Field(
-        default="all-MiniLM-L6-v2",
+        default=EMBEDDING_CONFIG["model_id"],
         description="Sentence-transformers model name"
     )
     embedding_dimension: int = Field(
-        default=384,
+        default=EMBEDDING_CONFIG["vector_size"],
         description="Expected embedding vector dimension"
     )
     batch_size: int = Field(
@@ -50,8 +58,20 @@ class EmbeddingConfig(BaseModel):
         description="Normalize vectors for cosine similarity"
     )
     max_tokens: int = Field(
-        default=256,
+        default=EMBEDDING_CONFIG["max_tokens"],
         description="Model's max token limit (for truncation warnings)"
+    )
+    trust_remote_code: bool = Field(
+        default=EMBEDDING_CONFIG["trust_remote_code"],
+        description="Allow remote code execution for model loading"
+    )
+    document_prefix: str = Field(
+        default=EMBEDDING_CONFIG["prefixes"]["document"],
+        description="Instruction prefix for document embeddings"
+    )
+    query_prefix: str = Field(
+        default=EMBEDDING_CONFIG["prefixes"]["query"],
+        description="Instruction prefix for query embeddings"
     )
 
 
@@ -86,8 +106,12 @@ class EmbeddingGenerationError(EmbeddingError):
 class LocalEmbedder:
     """Local embedding generator using sentence-transformers.
 
-    Uses all-MiniLM-L6-v2 model to generate 384-dimensional embeddings
+    Uses nomic-embed-text-v1.5 model to generate 768-dimensional embeddings
     for semantic search. Model is loaded lazily on first use.
+
+    Supports instruction prefixes for optimal retrieval:
+    - embed_text() applies document prefix for indexing
+    - embed_query() applies query prefix for search
 
     Attributes:
         config: Embedding configuration settings.
@@ -95,7 +119,7 @@ class LocalEmbedder:
     Example:
         embedder = LocalEmbedder()
         vector = embedder.embed_text("Sample text")
-        assert len(vector) == 384
+        assert len(vector) == 768  # nomic-embed-text-v1.5
     """
 
     def __init__(self, config: Optional[EmbeddingConfig] = None):
@@ -132,7 +156,10 @@ class LocalEmbedder:
                     "loading_embedding_model",
                     model_name=self.config.model_name
                 )
-                self._model = SentenceTransformer(self.config.model_name)
+                self._model = SentenceTransformer(
+                    self.config.model_name,
+                    trust_remote_code=self.config.trust_remote_code,
+                )
 
                 # Verify dimension matches expected
                 actual_dim = self._model.get_sentence_embedding_dimension()
@@ -164,13 +191,15 @@ class LocalEmbedder:
         return self._load_model()
 
     def embed_text(self, text: str) -> list[float]:
-        """Generate embedding for a single text.
+        """Generate embedding for a single text (document).
+
+        Applies the document instruction prefix for optimal retrieval.
 
         Args:
             text: Text to embed.
 
         Returns:
-            384-dimensional embedding vector.
+            768-dimensional embedding vector (nomic-embed-text-v1.5).
 
         Raises:
             EmbeddingGenerationError: If embedding fails.
@@ -192,8 +221,10 @@ class LocalEmbedder:
             )
 
         try:
+            # Apply document prefix for indexing
+            prefixed_text = self.config.document_prefix + text
             embedding = self.model.encode(
-                text,
+                prefixed_text,
                 normalize_embeddings=self.config.normalize_embeddings,
                 show_progress_bar=False
             )
@@ -204,14 +235,51 @@ class LocalEmbedder:
         except Exception as e:
             raise EmbeddingGenerationError(str(e), len(text))
 
+    def embed_query(self, query: str) -> list[float]:
+        """Generate embedding for a search query.
+
+        Applies the query instruction prefix for optimal retrieval.
+
+        Args:
+            query: Query text to embed.
+
+        Returns:
+            768-dimensional embedding vector (nomic-embed-text-v1.5).
+
+        Raises:
+            EmbeddingGenerationError: If embedding fails.
+        """
+        if not query or not query.strip():
+            raise EmbeddingGenerationError(
+                "Cannot embed empty query",
+                text_length=len(query) if query else 0
+            )
+
+        try:
+            # Apply query prefix for search
+            prefixed_query = self.config.query_prefix + query
+            embedding = self.model.encode(
+                prefixed_query,
+                normalize_embeddings=self.config.normalize_embeddings,
+                show_progress_bar=False
+            )
+            return embedding.tolist()
+
+        except ModelLoadError:
+            raise
+        except Exception as e:
+            raise EmbeddingGenerationError(str(e), len(query))
+
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        """Generate embeddings for multiple texts.
+        """Generate embeddings for multiple texts (documents).
+
+        Applies the document instruction prefix for optimal retrieval.
 
         Args:
             texts: List of texts to embed. All texts must be non-empty.
 
         Returns:
-            List of 384-dimensional embedding vectors, one per input text.
+            List of 768-dimensional embedding vectors, one per input text.
 
         Raises:
             EmbeddingGenerationError: If embedding fails or any text is empty.
@@ -233,8 +301,11 @@ class LocalEmbedder:
                 batch_size=len(texts)
             )
 
+            # Apply document prefix to all texts
+            prefixed_texts = [self.config.document_prefix + t for t in texts]
+
             embeddings = self.model.encode(
-                texts,
+                prefixed_texts,
                 batch_size=self.config.batch_size,
                 normalize_embeddings=self.config.normalize_embeddings,
                 show_progress_bar=self.config.show_progress
@@ -259,7 +330,7 @@ class LocalEmbedder:
         """Get the embedding dimension.
 
         Returns:
-            Embedding dimension (384 for all-MiniLM-L6-v2).
+            Embedding dimension (768 for nomic-embed-text-v1.5).
         """
         return self.config.embedding_dimension
 

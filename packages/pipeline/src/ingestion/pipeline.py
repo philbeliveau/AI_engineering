@@ -50,6 +50,7 @@ from src.processors.chunker import (
     ChunkerError,
     MissingDoclingDocumentError,
 )
+from src.config import VECTOR_SIZE
 from src.storage.mongodb import MongoDBClient
 from src.storage.qdrant import QdrantStorageClient, CHUNKS_COLLECTION, _string_to_uuid
 
@@ -405,10 +406,10 @@ class IngestionPipeline:
             )
 
             # Validate embedding dimensions
-            if embeddings and len(embeddings[0]) != 384:
+            if embeddings and len(embeddings[0]) != VECTOR_SIZE:
                 raise EmbeddingError(
                     source_id=source_id or "dry-run",
-                    reason=f"Expected 384d embeddings, got {len(embeddings[0])}d",
+                    reason=f"Expected {VECTOR_SIZE}d embeddings, got {len(embeddings[0])}d",
                     chunk_count=len(chunks),
                 )
 
@@ -670,10 +671,10 @@ class IngestionPipeline:
             )
 
             # Validate embedding dimensions
-            if embeddings and len(embeddings[0]) != 384:
+            if embeddings and len(embeddings[0]) != VECTOR_SIZE:
                 raise EmbeddingError(
                     source_id=source_id or "dry-run",
-                    reason=f"Expected 384d embeddings, got {len(embeddings[0])}d",
+                    reason=f"Expected {VECTOR_SIZE}d embeddings, got {len(embeddings[0])}d",
                     chunk_count=len(chunks),
                 )
 
@@ -808,7 +809,7 @@ class IngestionPipeline:
             source_id: Source ID for error reporting.
 
         Returns:
-            List of embedding vectors (384 dimensions each).
+            List of embedding vectors (768 dimensions each).
 
         Raises:
             EmbeddingError: If embedding generation fails.

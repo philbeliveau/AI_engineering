@@ -76,7 +76,7 @@ class QdrantStorageClient:
     - Semantic search with optional filtering
     - Vector deletion by ID or source
 
-    All vectors must be exactly 384 dimensions (all-MiniLM-L6-v2 output).
+    All vectors must be exactly 768 dimensions (nomic-embed-text-v1.5 output).
     Uses Cosine distance metric for similarity search.
 
     Attributes:
@@ -127,7 +127,7 @@ class QdrantStorageClient:
     def ensure_collection(self, collection_name: str, create_indexes: bool = True) -> None:
         """Create collection if it doesn't exist.
 
-        Creates a collection with 384-dimensional vectors and Cosine distance metric.
+        Creates a collection with 768-dimensional vectors and Cosine distance metric.
         If the collection already exists, this method does nothing.
 
         For the unified 'knowledge_vectors' collection, comprehensive payload indexes
@@ -262,14 +262,14 @@ class QdrantStorageClient:
             )
 
     def _validate_vector_size(self, vector: list[float], context: str = "vector") -> None:
-        """Validate that vector has exactly 384 dimensions.
+        """Validate that vector has exactly VECTOR_SIZE dimensions.
 
         Args:
             vector: The embedding vector to validate.
             context: Context string for error messages.
 
         Raises:
-            QdrantVectorError: If vector size is not 384.
+            QdrantVectorError: If vector size is not 768.
         """
         if len(vector) != VECTOR_SIZE:
             raise QdrantVectorError(
@@ -289,12 +289,12 @@ class QdrantStorageClient:
 
         Args:
             chunk_id: Unique identifier for the chunk (MongoDB ObjectId format).
-            vector: 384-dimensional embedding vector.
+            vector: 768-dimensional embedding vector.
             payload: Metadata payload (must include source_id).
             project_id: Project identifier for multitenancy (defaults to settings.project_id).
 
         Raises:
-            QdrantVectorError: If vector size is not 384.
+            QdrantVectorError: If vector size is not 768.
             QdrantCollectionError: If upsert operation fails.
         """
         self._validate_vector_size(vector, "Chunk vector")
@@ -320,7 +320,7 @@ class QdrantStorageClient:
 
         Args:
             extraction_id: Unique identifier for the extraction (MongoDB ObjectId format).
-            vector: 384-dimensional embedding vector.
+            vector: 768-dimensional embedding vector.
             payload: Metadata payload containing:
                 - source_id: Reference to source document
                 - chunk_id: Reference to source chunk
@@ -335,7 +335,7 @@ class QdrantStorageClient:
             project_id: Project identifier for multitenancy (defaults to settings.project_id).
 
         Raises:
-            QdrantVectorError: If vector size is not 384.
+            QdrantVectorError: If vector size is not 768.
             QdrantCollectionError: If upsert operation fails.
         """
         self._validate_vector_size(vector, "Extraction vector")
@@ -372,7 +372,7 @@ class QdrantStorageClient:
         Args:
             collection: Target collection name.
             point_id: Unique identifier for the point (will be converted to UUID).
-            vector: 384-dimensional embedding vector.
+            vector: 768-dimensional embedding vector.
             payload: Metadata payload.
 
         Raises:
@@ -464,7 +464,7 @@ class QdrantStorageClient:
 
         Args:
             collection: Target collection name.
-            query_vector: 384-dimensional query embedding.
+            query_vector: 768-dimensional query embedding.
             limit: Maximum number of results to return (default 10).
 
         Returns:
@@ -517,7 +517,7 @@ class QdrantStorageClient:
 
         Args:
             collection: Target collection name.
-            query_vector: 384-dimensional query embedding.
+            query_vector: 768-dimensional query embedding.
             filter_dict: Filter conditions (e.g., {"type": "decision", "source_id": "abc123"}).
             limit: Maximum number of results to return (default 10).
 
@@ -604,7 +604,7 @@ class QdrantStorageClient:
         Always filters by project_id for proper multitenancy.
 
         Args:
-            query_vector: 384-dimensional query embedding.
+            query_vector: 768-dimensional query embedding.
             limit: Maximum number of results to return (default 10).
             project_id: Project identifier (defaults to settings.project_id).
             content_type: Filter by content type ('chunk' or 'extraction').
@@ -658,7 +658,7 @@ class QdrantStorageClient:
         Convenience method that filters by content_type='chunk'.
 
         Args:
-            query_vector: 384-dimensional query embedding.
+            query_vector: 768-dimensional query embedding.
             limit: Maximum number of results to return (default 10).
             project_id: Project identifier (defaults to settings.project_id).
             source_id: Filter by source document.
@@ -688,7 +688,7 @@ class QdrantStorageClient:
         Convenience method that filters by content_type='extraction'.
 
         Args:
-            query_vector: 384-dimensional query embedding.
+            query_vector: 768-dimensional query embedding.
             limit: Maximum number of results to return (default 10).
             project_id: Project identifier (defaults to settings.project_id).
             extraction_type: Filter by extraction type (decision, pattern, etc.).

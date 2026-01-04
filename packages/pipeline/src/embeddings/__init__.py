@@ -3,12 +3,14 @@
 This module provides zero-API-cost embedding generation using
 sentence-transformers for semantic search in Qdrant.
 
+Uses nomic-embed-text-v1.5 (768 dimensions, 8K context window).
+
 Example:
     from src.embeddings import get_embedder
 
     embedder = get_embedder()
     vector = embedder.embed_text("Sample text")
-    assert len(vector) == 384
+    assert len(vector) == 768  # nomic-embed-text-v1.5
 
     vectors = embedder.embed_batch(["Hello", "World"])
 """

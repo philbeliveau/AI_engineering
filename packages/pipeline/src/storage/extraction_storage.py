@@ -81,7 +81,7 @@ class ExtractionStorage:
         This method orchestrates the complete storage workflow:
         1. Validates extraction has required fields
         2. Generates summary for embedding
-        3. Generates 384d embedding from summary
+        3. Generates 768d embedding from summary
         4. Saves full extraction to MongoDB
         5. Saves embedding + payload to Qdrant
 
@@ -129,7 +129,7 @@ class ExtractionStorage:
                 },
             )
 
-        # Step 3: Generate embedding (384 dimensions)
+        # Step 3: Generate embedding (768 dimensions)
         try:
             embedding = self.embedder.embed_text(summary)
             logger.debug(
