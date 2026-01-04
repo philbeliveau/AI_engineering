@@ -2,16 +2,21 @@
 """CLI script for ingesting documents into the knowledge pipeline.
 
 Usage:
-    uv run scripts/ingest.py <file>
-    uv run scripts/ingest.py <file> --chunk-size 512
-    uv run scripts/ingest.py <file> --dry-run
-    uv run scripts/ingest.py <file> --verbose
+    uv run scripts/ingest.py <file_or_url>
+    uv run scripts/ingest.py <file_or_url> --chunk-size 512
+    uv run scripts/ingest.py <file_or_url> --dry-run
+    uv run scripts/ingest.py <file_or_url> --verbose
 
 Examples:
-    # Basic ingestion
+    # Basic ingestion (files)
     uv run scripts/ingest.py data/raw/llm-handbook.pdf
     uv run scripts/ingest.py docs/architecture.md --verbose
     uv run scripts/ingest.py book.pdf --chunk-size 256 --dry-run
+
+    # URL ingestion (web pages, PDFs, etc.)
+    uv run scripts/ingest.py https://example.com/article
+    uv run scripts/ingest.py https://arxiv.org/pdf/2408.09869 --tags "rag,chunking"
+    uv run scripts/ingest.py https://developer.nvidia.com/blog/post-name/
 
     # With source metadata (v1.1 schema)
     uv run scripts/ingest.py book.pdf --category foundational --year 2024
@@ -143,9 +148,9 @@ def main() -> int:
     )
 
     parser.add_argument(
-        "file",
-        type=Path,
-        help="Path to document file (PDF, Markdown, DOCX, HTML, or PPTX)",
+        "source",
+        type=str,
+        help="Path to document file or URL (PDF, Markdown, DOCX, HTML, PPTX, or web URL)",
     )
 
     parser.add_argument(
@@ -203,14 +208,21 @@ def main() -> int:
     # Configure logging
     configure_logging(args.verbose)
 
-    # Validate file exists
-    if not args.file.exists():
-        print(f"Error: File not found: {args.file}", file=sys.stderr)
-        return 1
+    # Detect if source is a URL or file path
+    is_url = args.source.startswith(("http://", "https://"))
 
-    if not args.file.is_file():
-        print(f"Error: Not a file: {args.file}", file=sys.stderr)
-        return 1
+    if is_url:
+        source_display = args.source
+    else:
+        # Treat as file path
+        file_path = Path(args.source)
+        if not file_path.exists():
+            print(f"Error: File not found: {file_path}", file=sys.stderr)
+            return 1
+        if not file_path.is_file():
+            print(f"Error: Not a file: {file_path}", file=sys.stderr)
+            return 1
+        source_display = file_path.name
 
     # Parse tags from comma-separated string
     tags_list = []
@@ -218,7 +230,9 @@ def main() -> int:
         tags_list = [t.strip() for t in args.tags.split(",") if t.strip()]
 
     # Display startup info
-    print(f"Ingesting: {args.file.name}")
+    print(f"Ingesting: {source_display}")
+    if is_url:
+        print("Source: URL")
     print(f"Chunk size: {args.chunk_size} tokens")
     if args.project:
         print(f"Project: {args.project}")
@@ -247,7 +261,10 @@ def main() -> int:
     try:
         # Run pipeline
         with IngestionPipeline(config) as pipeline:
-            result = pipeline.ingest(args.file)
+            if is_url:
+                result = pipeline.ingest_url(args.source)
+            else:
+                result = pipeline.ingest(file_path)
 
         # Display summary
         print(format_summary(result))

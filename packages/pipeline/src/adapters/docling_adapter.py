@@ -1,11 +1,12 @@
 """Unified document adapter using IBM Docling for multi-format support.
 
 This module provides a single adapter that handles PDF, Markdown, DOCX,
-HTML, and PPTX files using the Docling library.
+HTML, and PPTX files using the Docling library. Also supports URLs.
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
+from urllib.parse import urlparse
 
 import structlog
 from docling.document_converter import DocumentConverter
@@ -110,6 +111,112 @@ class DoclingAdapter(SourceAdapter):
         except Exception as e:
             logger.error("docling_extraction_failed", path=str(file_path), error=str(e))
             raise FileParseError(file_path, f"Docling extraction failed: {e}")
+
+    def extract_from_url(self, url: str) -> AdapterResult:
+        """Extract text and structure from a URL using Docling.
+
+        Docling natively supports fetching and parsing documents from URLs,
+        including PDFs, HTML pages, and other supported formats.
+
+        Args:
+            url: URL to the document (e.g., https://example.com/doc.pdf).
+
+        Returns:
+            AdapterResult with extracted text, metadata, and sections.
+
+        Raises:
+            FileParseError: If document fetching or parsing fails.
+        """
+        try:
+            logger.info("docling_url_fetch_started", url=url)
+
+            # Docling handles URL fetching natively
+            conv_result = self._converter.convert(url)
+            doc: DoclingDocument = conv_result.document
+
+            # Export to markdown for full text
+            full_text = doc.export_to_markdown()
+
+            # Extract sections from document structure
+            sections = self._extract_sections(doc)
+
+            # Build metadata for URL source
+            parsed_url = urlparse(url)
+            path_parts = parsed_url.path.split("/")
+            filename = path_parts[-1] if path_parts[-1] else "webpage"
+
+            # Detect type from URL path or default to html
+            ext = Path(filename).suffix.lower() if "." in filename else ""
+            type_map = {
+                ".pdf": "pdf",
+                ".md": "markdown",
+                ".docx": "docx",
+                ".html": "html",
+                ".htm": "html",
+                ".pptx": "presentation",
+            }
+
+            metadata = {
+                "title": self._extract_title_from_url(url, doc),
+                "authors": [],
+                "path": url,
+                "type": type_map.get(ext, "html"),
+                "file_extension": ext or ".html",
+                "source_url": url,
+                "_docling_document": doc,
+            }
+
+            # Try to extract authors
+            extracted_authors = self._extract_authors(doc)
+            if extracted_authors:
+                metadata["authors"] = extracted_authors
+
+            result = AdapterResult(
+                text=full_text,
+                metadata=metadata,
+                sections=sections,
+            )
+
+            logger.info(
+                "docling_url_extracted",
+                url=url,
+                sections=len(sections),
+                chars=len(full_text),
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error("docling_url_extraction_failed", url=url, error=str(e))
+            raise FileParseError(Path(url), f"URL extraction failed: {e}")
+
+    def _extract_title_from_url(self, url: str, doc: DoclingDocument) -> str:
+        """Extract title from URL or document.
+
+        Args:
+            url: Source URL.
+            doc: Parsed DoclingDocument.
+
+        Returns:
+            Best available title string.
+        """
+        # Try to get title from document
+        try:
+            if hasattr(doc, "title") and doc.title:
+                return str(doc.title)
+            if hasattr(doc, "metadata") and doc.metadata:
+                if hasattr(doc.metadata, "title") and doc.metadata.title:
+                    return str(doc.metadata.title)
+        except Exception:
+            pass
+
+        # Fall back to URL path
+        parsed = urlparse(url)
+        path_parts = [p for p in parsed.path.split("/") if p]
+        if path_parts:
+            return path_parts[-1].replace("-", " ").replace("_", " ").title()
+
+        return parsed.netloc
 
     def get_metadata(self, file_path: Path) -> dict:
         """Extract metadata from a document.

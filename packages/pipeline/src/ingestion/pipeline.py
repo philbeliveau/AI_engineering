@@ -548,6 +548,207 @@ class IngestionPipeline:
                 },
             ) from e
 
+    def ingest_url(self, url: str) -> IngestionResult:
+        """Run complete ingestion pipeline for a URL.
+
+        Fetches and processes a document from a URL using Docling.
+
+        Args:
+            url: URL to the document (PDF, HTML, etc.).
+
+        Returns:
+            IngestionResult with summary statistics.
+
+        Raises:
+            IngestionError: If any pipeline stage fails.
+        """
+        from urllib.parse import urlparse
+        from src.adapters.docling_adapter import DoclingAdapter
+
+        start_time = time.time()
+        source_id: Optional[str] = None
+        processing_time = 0.0
+        embedding_time = 0.0
+        storage_time = 0.0
+
+        logger.info("url_ingestion_started", url=url)
+
+        try:
+            # ================================================================
+            # Stage 1: Create source with pending status
+            # ================================================================
+            if not self.config.dry_run:
+                from src.config import settings
+                resolved_project_id = self.config.project_id or settings.project_id
+
+                # Parse URL for title
+                parsed_url = urlparse(url)
+                path_parts = [p for p in parsed_url.path.split("/") if p]
+                title = path_parts[-1] if path_parts else parsed_url.netloc
+
+                source = Source(
+                    id="0" * 24,
+                    title=title,
+                    type="paper",  # URLs are typically articles/papers
+                    path=url,
+                    ingested_at=datetime.now(),
+                    status=IngestionStatus.PENDING.value,
+                    metadata={"source_url": url},
+                    project_id=resolved_project_id,
+                    category=self.config.category or "reference",
+                    tags=self.config.tags,
+                    year=self.config.year,
+                )
+                source_id = self.mongodb.create_source(source)
+                logger.info(
+                    "source_created",
+                    source_id=source_id,
+                    project_id=resolved_project_id,
+                    status="pending",
+                )
+
+                self.mongodb.update_source(
+                    source_id, {"status": IngestionStatus.PROCESSING.value}
+                )
+
+            # ================================================================
+            # Stage 2: Extract text and metadata from URL
+            # ================================================================
+            logger.info("stage_started", stage="extract_url")
+            extract_start = time.time()
+
+            adapter = DoclingAdapter()
+            adapter_result = adapter.extract_from_url(url)
+            url_metadata = adapter_result.metadata
+
+            # Update source with extracted metadata
+            if not self.config.dry_run and source_id:
+                # Remove non-serializable objects from metadata before MongoDB storage
+                storable_metadata = {
+                    k: v for k, v in url_metadata.items()
+                    if k != "_docling_document"
+                }
+                self.mongodb.update_source(
+                    source_id,
+                    {
+                        "title": url_metadata.get("title", url),
+                        "authors": url_metadata.get("authors", []),
+                        "metadata": storable_metadata,
+                    },
+                )
+
+            # ================================================================
+            # Stage 3: Chunk text
+            # ================================================================
+            logger.info("stage_started", stage="chunk", text_length=len(adapter_result.text))
+
+            chunks = self._chunk_document(
+                adapter_result,
+                source_id or "dry-run",
+            )
+            processing_time = time.time() - extract_start
+
+            logger.info(
+                "chunking_complete",
+                chunk_count=len(chunks),
+                total_tokens=sum(c.token_count for c in chunks),
+            )
+
+            # ================================================================
+            # Stage 4: Generate embeddings
+            # ================================================================
+            logger.info("stage_started", stage="embed", chunk_count=len(chunks))
+            embed_start = time.time()
+
+            embeddings = self._generate_embeddings(chunks, source_id or "dry-run")
+            embedding_time = time.time() - embed_start
+
+            logger.info(
+                "embedding_complete",
+                embedding_count=len(embeddings),
+                duration=f"{embedding_time:.2f}s",
+            )
+
+            # Validate embedding dimensions
+            if embeddings and len(embeddings[0]) != 384:
+                raise EmbeddingError(
+                    source_id=source_id or "dry-run",
+                    reason=f"Expected 384d embeddings, got {len(embeddings[0])}d",
+                    chunk_count=len(chunks),
+                )
+
+            # ================================================================
+            # Stage 5: Store everything
+            # ================================================================
+            if not self.config.dry_run and source_id:
+                logger.info("stage_started", stage="store")
+                storage_start = time.time()
+
+                self._store_chunks_and_vectors(
+                    chunks=chunks,
+                    embeddings=embeddings,
+                    source_id=source_id,
+                )
+                storage_time = time.time() - storage_start
+
+                # Mark source as complete
+                self.mongodb.update_source(
+                    source_id, {"status": IngestionStatus.COMPLETE.value}
+                )
+
+                logger.info(
+                    "storage_complete",
+                    source_id=source_id,
+                    storage_time=f"{storage_time:.2f}s",
+                )
+
+            # ================================================================
+            # Build result
+            # ================================================================
+            duration = time.time() - start_time
+
+            logger.info(
+                "url_ingestion_complete",
+                source_id=source_id or "dry-run",
+                chunk_count=len(chunks),
+                duration=f"{duration:.2f}s",
+            )
+
+            return IngestionResult(
+                source_id=source_id or "dry-run",
+                title=url_metadata.get("title", url),
+                file_type=url_metadata.get("file_extension", ".html"),
+                chunk_count=len(chunks),
+                total_tokens=sum(c.token_count for c in chunks),
+                processing_time=processing_time,
+                embedding_time=embedding_time,
+                storage_time=storage_time,
+                duration=duration,
+            )
+
+        except Exception as e:
+            # Mark source as failed if it was created
+            if source_id and not self.config.dry_run:
+                self._mark_failed(source_id, str(e))
+
+            logger.error(
+                "url_ingestion_failed",
+                source_id=source_id,
+                url=url,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+
+            raise IngestionError(
+                code="URL_INGESTION_FAILED",
+                message=f"URL ingestion failed: {str(e)}",
+                details={
+                    "source_id": source_id,
+                    "url": url,
+                    "error_type": type(e).__name__,
+                },
+            ) from e
+
     def _select_adapter(self, file_path: Path):
         """Select appropriate adapter for file type.
 
