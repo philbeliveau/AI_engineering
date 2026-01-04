@@ -1,6 +1,6 @@
 # Story 5.5: Railway Deployment Pipeline
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -57,74 +57,74 @@ So that the service is publicly accessible and updates automatically.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Create Railway Project** (AC: #1, #3)
-  - [ ] Sign up/login to Railway at railway.app
-  - [ ] Create new project named `knowledge-mcp`
-  - [ ] Connect GitHub repository to Railway project
-  - [ ] Select the `packages/mcp-server` directory as the root (important for monorepo)
-  - [ ] Verify Railway detects the Dockerfile from Story 5.3
-  - [ ] Enable auto-deploy on push to `main` branch
+- [x] **Task 1: Create Railway Project** (AC: #1, #3)
+  - [x] Sign up/login to Railway at railway.app
+  - [x] Create new project named `knowledge-mcp`
+  - [x] Connect GitHub repository to Railway project
+  - [x] Select the `packages/mcp-server` directory as the root (important for monorepo)
+  - [x] Verify Railway detects the Dockerfile from Story 5.3
+  - [x] Enable auto-deploy on push to `main` branch
 
-- [ ] **Task 2: Configure railway.json for Deployment Settings** (AC: #1, #5)
-  - [ ] Create `packages/mcp-server/railway.json` for config-as-code
-  - [ ] Set build configuration to use Dockerfile
-  - [ ] Configure healthcheck path: `/health`
-  - [ ] Set healthcheck timeout: 30s
-  - [ ] Set startup timeout: 60s (allow embedding model load)
-  - [ ] Configure restart policy: `on-failure` with max 3 retries
-  - [ ] Add watch patterns for relevant source files
+- [x] **Task 2: Configure railway.json for Deployment Settings** (AC: #1, #5)
+  - [x] Create `packages/mcp-server/railway.json` for config-as-code
+  - [x] Set build configuration to use Dockerfile
+  - [x] Configure healthcheck path: `/health`
+  - [x] Set healthcheck timeout: 120s (increased from 30s for cold start)
+  - [x] Set startup timeout: 60s (allow embedding model load)
+  - [x] Configure restart policy: `on-failure` with max 3 retries
+  - [x] Add watch patterns for relevant source files
 
-- [ ] **Task 3: Configure Environment Variables in Railway** (AC: #3)
-  - [ ] Add `MONGODB_URI` from MongoDB Atlas (from Story 5.4)
-  - [ ] Add `QDRANT_URL` from Qdrant Cloud (from Story 5.4)
-  - [ ] Add `QDRANT_API_KEY` from Qdrant Cloud dashboard
-  - [ ] Set `ENVIRONMENT=production` for production validation
-  - [ ] Set `PORT` to Railway-provided dynamic port (Railway sets this automatically)
-  - [ ] Verify environment variables are marked as sensitive (hidden in logs)
+- [x] **Task 3: Configure Environment Variables in Railway** (AC: #3)
+  - [x] Add `MONGODB_URI` from MongoDB Atlas (from Story 5.4)
+  - [x] Add `QDRANT_URL` from Qdrant Cloud (from Story 5.4)
+  - [x] Add `QDRANT_API_KEY` from Qdrant Cloud dashboard
+  - [x] Set `ENVIRONMENT=production` for production validation
+  - [x] Set `PORT` to Railway-provided dynamic port (Railway sets this automatically)
+  - [x] Verify environment variables are marked as sensitive (hidden in logs)
 
-- [ ] **Task 4: Configure Custom Domain (Optional)** (AC: #2)
-  - [ ] Railway provides default `*.up.railway.app` domain
-  - [ ] Optionally configure custom domain if available
-  - [ ] Document the public MCP endpoint URL in README
-  - [ ] Verify SSL/TLS is automatically configured by Railway
+- [x] **Task 4: Configure Custom Domain (Optional)** (AC: #2)
+  - [x] Railway provides default `*.up.railway.app` domain
+  - [x] Using default domain: `https://knowledge-mcp-production.up.railway.app`
+  - [x] Document the public MCP endpoint URL in README
+  - [x] Verify SSL/TLS is automatically configured by Railway
 
-- [ ] **Task 5: Trigger Initial Deployment** (AC: #1, #2)
-  - [ ] Push latest changes to `main` branch
-  - [ ] Monitor Railway build logs for any errors
-  - [ ] Verify container starts successfully
-  - [ ] Check health endpoint is responding: `GET https://<app>.up.railway.app/health`
-  - [ ] Verify MCP endpoint is accessible: `https://<app>.up.railway.app/mcp`
+- [x] **Task 5: Trigger Initial Deployment** (AC: #1, #2)
+  - [x] Push latest changes to `main` branch
+  - [x] Monitor Railway build logs for any errors
+  - [x] Verify container starts successfully
+  - [x] Check health endpoint is responding: `GET https://knowledge-mcp-production.up.railway.app/health`
+  - [x] Verify MCP endpoint is accessible: `https://knowledge-mcp-production.up.railway.app/mcp`
 
-- [ ] **Task 6: Verify Database Connections in Production** (AC: #5)
-  - [ ] Check Railway logs for successful MongoDB Atlas connection
-  - [ ] Check Railway logs for successful Qdrant Cloud connection
-  - [ ] Run health check that verifies both connections
-  - [ ] Test a simple query to verify data flow
+- [x] **Task 6: Verify Database Connections in Production** (AC: #5)
+  - [x] Check Railway logs for successful MongoDB Atlas connection
+  - [x] Check Railway logs for successful Qdrant Cloud connection
+  - [x] Run health check that verifies both connections
+  - [x] Test a simple query to verify data flow
 
-- [ ] **Task 7: Configure Logging and Monitoring** (AC: #4)
-  - [ ] Verify Railway captures stdout/stderr logs
-  - [ ] Check logs are accessible via Railway dashboard
-  - [ ] Verify structlog output is readable in Railway log viewer
-  - [ ] Document log access procedure in deployment docs
+- [x] **Task 7: Configure Logging and Monitoring** (AC: #4)
+  - [x] Verify Railway captures stdout/stderr logs
+  - [x] Check logs are accessible via Railway dashboard
+  - [x] Verify structlog output is readable in Railway log viewer
+  - [x] Document log access procedure in deployment docs
 
-- [ ] **Task 8: Performance Validation** (AC: #5)
-  - [ ] Run latency test against production endpoint
-  - [ ] Measure `search_knowledge` response time (target: <500ms)
-  - [ ] Measure cold start time (first request after deploy)
-  - [ ] Document performance baseline for future comparison
+- [x] **Task 8: Performance Validation** (AC: #5)
+  - [x] Run latency test against production endpoint
+  - [x] Measure `search_knowledge` response time: **17ms** (target: <500ms) ✅
+  - [x] Measure cold start time: ~915ms (first request after deploy)
+  - [x] Document performance baseline for future comparison
 
-- [ ] **Task 9: Create Deployment Documentation** (AC: all)
-  - [ ] Update `packages/mcp-server/README.md` with Railway deployment section
-  - [ ] Document environment variables required
-  - [ ] Document Railway project setup steps
-  - [ ] Document troubleshooting common deployment issues
-  - [ ] Add deployment architecture diagram to docs
+- [x] **Task 9: Create Deployment Documentation** (AC: all)
+  - [x] Update `packages/mcp-server/README.md` with Railway deployment section
+  - [x] Document environment variables required
+  - [x] Document Railway project setup steps
+  - [x] Document troubleshooting common deployment issues
+  - [x] Add deployment architecture diagram to docs
 
-- [ ] **Task 10: Create User Connection Documentation** (AC: #2)
-  - [ ] Document how users add MCP server to Claude Code config
-  - [ ] Create example `claude_desktop_config.json` snippet
-  - [ ] Document available MCP tools and their tiers
-  - [ ] Add to project README for community users
+- [x] **Task 10: Create User Connection Documentation** (AC: #2)
+  - [x] Document how users add MCP server to Claude Code config
+  - [x] Create example `claude_desktop_config.json` snippet
+  - [x] Document available MCP tools and their tiers
+  - [x] Add to project README for community users
 
 ## Dev Notes
 
@@ -461,11 +461,32 @@ bc247ce first commit
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+- Initial deployment failed: healthcheck timeout (30s too short for cold start)
+- Fixed by increasing healthcheckTimeout to 120s in railway.json
+- Root directory issue resolved: must be set to `packages/mcp-server` in Railway settings
+
 ### Completion Notes List
 
+- ✅ Railway project `knowledge-mcp` created and configured
+- ✅ Created `railway.json` with Dockerfile build config, health checks, restart policy
+- ✅ Environment variables configured: MONGODB_URI, QDRANT_URL, QDRANT_API_KEY, ENVIRONMENT, MONGODB_DATABASE
+- ✅ Deployment successful at: `https://knowledge-mcp-production.up.railway.app`
+- ✅ Health check passing: MongoDB healthy, Qdrant healthy
+- ✅ Performance validated: warm latency **17ms** (target: <500ms)
+- ✅ Cold start latency: ~915ms (acceptable for serverless-like deployment)
+- ✅ README updated with comprehensive Railway deployment and MCP client connection docs
+
 ### File List
+
+- `packages/mcp-server/railway.json` - NEW - Railway config-as-code
+- `packages/mcp-server/README.md` - MODIFIED - Added Railway deployment section, MCP client connection docs
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` - MODIFIED - Story status updated
+
+### Change Log
+
+- 2026-01-04: Story implementation complete - Railway deployment pipeline operational
 
