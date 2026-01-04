@@ -34,12 +34,14 @@ COPY pyproject.toml uv.lock README.md ./
 # Install dependencies (torch uses CPU-only index via pyproject.toml)
 RUN uv sync --frozen --no-dev --no-cache --no-install-project
 
-# Fix Docling OpenCV conflict (per Context7 docs - preferred solution)
-# opencv-python requires libGL which isn't in slim images
-# opencv-python-headless works without system GL dependencies
-RUN . .venv/bin/activate && \
-    pip uninstall -y opencv-python opencv-python-headless 2>/dev/null || true && \
-    pip install --no-cache-dir opencv-python-headless
+# Fix Docling OpenCV conflict for headless Docker environments
+# opencv-python requires libGL.so.1 which isn't in slim images
+# opencv-python-headless provides identical API without system GL dependencies
+# Use explicit venv pip path to ensure correct environment
+RUN .venv/bin/pip uninstall -y opencv-python opencv-python-headless 2>/dev/null || true && \
+    .venv/bin/pip install --force-reinstall --no-cache-dir opencv-python-headless && \
+    echo "=== OpenCV Installation Verification ===" && \
+    .venv/bin/pip list | grep -i opencv
 
 # -----------------------------------------------------------------------------
 # Stage 2: Runtime - Minimal production image
