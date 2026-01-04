@@ -91,14 +91,76 @@ Response:
 
 ## MCP Client Connection
 
-### Using Claude Desktop
+### Connecting to Deployed Server (Production)
 
-Add to your Claude Desktop configuration:
+Add the Knowledge Pipeline MCP server to your Claude Desktop or Claude Code configuration.
+
+**Location of config file:**
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux:** `~/.config/Claude/claude_desktop_config.json`
+
+#### Public Access (No API Key)
+
+Access public tier tools (search, decisions, patterns, warnings, list_sources):
 
 ```json
 {
   "mcpServers": {
-    "knowledge": {
+    "knowledge-pipeline": {
+      "type": "sse",
+      "url": "https://knowledge-mcp.up.railway.app/mcp"
+    }
+  }
+}
+```
+
+#### Registered Access (With API Key)
+
+Access all tools including registered tier (methodologies, compare_sources):
+
+```json
+{
+  "mcpServers": {
+    "knowledge-pipeline": {
+      "type": "sse",
+      "url": "https://knowledge-mcp.up.railway.app/mcp",
+      "headers": {
+        "X-API-Key": "kp_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+### Available MCP Tools
+
+| Tool | Tier | Description |
+|------|------|-------------|
+| `search_knowledge` | Public | Semantic search across all knowledge content |
+| `get_decisions` | Public | List architectural decisions with topic filters |
+| `get_patterns` | Public | List design patterns with topic filters |
+| `get_warnings` | Public | List anti-patterns and pitfalls with topic filters |
+| `list_sources` | Public | List all knowledge sources with extraction counts |
+| `get_methodologies` | **Registered** | List process methodologies (requires API key) |
+| `compare_sources` | **Registered** | Compare extractions across sources (requires API key) |
+
+### Access Tiers
+
+| Tier | Rate Limit | API Key Required | Tools Available |
+|------|------------|------------------|-----------------|
+| Public | 100 req/hr | No | search, decisions, patterns, warnings, list_sources |
+| Registered | 1000 req/hr | Yes | All public + methodologies, compare_sources |
+| Premium | Unlimited | Yes | All tools, priority support |
+
+### Connecting to Local Server (Development)
+
+For local development with the server running at `localhost:8000`:
+
+```json
+{
+  "mcpServers": {
+    "knowledge-local": {
       "command": "npx",
       "args": [
         "mcp-remote",
@@ -109,9 +171,14 @@ Add to your Claude Desktop configuration:
 }
 ```
 
-### Using Claude Code
+### Verifying Connection
 
-The server exposes MCP tools that can be queried directly via the `/mcp` endpoint.
+After adding the MCP server to your config:
+
+1. Restart Claude Desktop/Claude Code
+2. The server should appear in the MCP servers list
+3. Try asking Claude: "What knowledge sources are available?"
+4. Claude should use the `list_sources` tool to answer
 
 ## Development
 
@@ -330,14 +397,126 @@ curl http://localhost:8000/health
 | `LOG_LEVEL` | No | `INFO` | Logging level |
 | `API_KEYS_FILE` | No | - | Path to API keys JSON file |
 
-### Railway Deployment
+## Railway Deployment
 
-The Dockerfile is optimized for Railway deployment:
+The MCP server is designed for deployment to [Railway](https://railway.app), a platform-as-a-service that simplifies containerized app deployment.
 
-1. **Dynamic Port:** Railway sets `PORT` env var - container respects it
-2. **Proxy Headers:** `--proxy-headers` flag trusts Railway's reverse proxy
-3. **Health Checks:** Railway uses `/health` for zero-downtime deploys
-4. **Multi-Stage Build:** Optimized image size (~660MB with ML dependencies)
+### Prerequisites
+
+Before deploying to Railway, ensure:
+
+1. **Cloud Databases Configured** (Story 5.4):
+   - MongoDB Atlas cluster created with connection string
+   - Qdrant Cloud cluster created with URL and API key
+
+2. **Dockerfile Ready** (Story 5.3):
+   - `packages/mcp-server/Dockerfile` exists and builds successfully
+
+### Quick Start
+
+1. **Create Railway Project:**
+   - Sign up at [railway.app](https://railway.app)
+   - Create new project → "Deploy from GitHub repo"
+   - Connect your repository
+   - Set **Root Directory** to `/packages/mcp-server` (critical for monorepo)
+
+2. **Configure Environment Variables:**
+
+   | Variable | Required | Description |
+   |----------|----------|-------------|
+   | `MONGODB_URI` | Yes | MongoDB Atlas connection string |
+   | `MONGODB_DATABASE` | Yes | Database name (e.g., `knowledge_db`) |
+   | `QDRANT_URL` | Yes | Qdrant Cloud URL |
+   | `QDRANT_API_KEY` | Yes | Qdrant Cloud API key |
+   | `ENVIRONMENT` | No | Set to `production` |
+   | `PORT` | No | Railway sets automatically |
+   | `PROJECT_ID` | No | Multi-tenant project ID |
+   | `LOG_LEVEL` | No | `INFO` (default) |
+
+3. **Deploy:**
+   - Railway auto-deploys on push to `main` branch
+   - Or trigger manual deploy from Railway dashboard
+
+### Configuration as Code
+
+The `railway.json` file provides declarative configuration:
+
+```json
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile",
+    "watchPatterns": ["src/**", "pyproject.toml", "Dockerfile"]
+  },
+  "deploy": {
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}
+```
+
+### Verifying Deployment
+
+After deployment, verify the service is healthy:
+
+```bash
+# Health check
+curl https://<your-app>.up.railway.app/health
+
+# Expected response:
+{
+  "status": "healthy",
+  "timestamp": "2026-01-04T12:00:00Z",
+  "version": "0.1.0",
+  "services": {
+    "mongodb": "healthy",
+    "qdrant": "healthy"
+  }
+}
+```
+
+### Troubleshooting
+
+**Build fails with "Dockerfile not found"**
+- Ensure Root Directory is set to `/packages/mcp-server` in Railway settings
+
+**Health check fails**
+- Check Railway logs for MongoDB/Qdrant connection errors
+- Verify environment variables are set correctly
+- Ensure cloud database services allow Railway IP ranges
+
+**Port binding error**
+- Don't hardcode port - Railway sets `PORT` dynamically
+- The Dockerfile uses `${PORT}` environment variable
+
+**Cold start timeout**
+- First request after deploy may be slow (embedding model initialization)
+- Subsequent requests should be <500ms
+
+### Monitoring
+
+- **Logs:** Railway dashboard → Deployments → View Logs
+- **Metrics:** Railway provides basic CPU/memory metrics
+- **Health:** `/health` endpoint for uptime monitoring
+
+### Cost Estimate
+
+| Component | Tier | Monthly Cost |
+|-----------|------|--------------|
+| Railway MCP Server | Hobby | ~$5 |
+| MongoDB Atlas | M0 Free | $0 |
+| Qdrant Cloud | Free | $0 |
+| **Total** | | **~$5/month** |
+
+### Rollback
+
+If deployment fails:
+1. Railway dashboard → Deployments tab
+2. Find previous successful deployment
+3. Click "Redeploy" to restore
 
 ## Architecture
 
