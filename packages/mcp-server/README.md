@@ -109,7 +109,7 @@ Access public tier tools (search, decisions, patterns, warnings, list_sources):
   "mcpServers": {
     "knowledge-pipeline": {
       "type": "sse",
-      "url": "https://knowledge-mcp.up.railway.app/mcp"
+      "url": "https://knowledge-mcp-production.up.railway.app/mcp"
     }
   }
 }
@@ -124,7 +124,7 @@ Access all tools including registered tier (methodologies, compare_sources):
   "mcpServers": {
     "knowledge-pipeline": {
       "type": "sse",
-      "url": "https://knowledge-mcp.up.railway.app/mcp",
+      "url": "https://knowledge-mcp-production.up.railway.app/mcp",
       "headers": {
         "X-API-Key": "kp_your_api_key_here"
       }
@@ -447,11 +447,12 @@ The `railway.json` file provides declarative configuration:
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile",
-    "watchPatterns": ["src/**", "pyproject.toml", "Dockerfile"]
+    "watchPatterns": ["src/**", "pyproject.toml", "uv.lock", "Dockerfile"]
   },
   "deploy": {
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 30,
+    "healthcheckTimeout": 120,
+    "startupTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }

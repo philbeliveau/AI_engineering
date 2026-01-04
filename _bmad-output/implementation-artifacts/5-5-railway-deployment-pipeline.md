@@ -1,6 +1,6 @@
 # Story 5.5: Railway Deployment Pipeline
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -79,6 +79,7 @@ So that the service is publicly accessible and updates automatically.
   - [x] Add `QDRANT_URL` from Qdrant Cloud (from Story 5.4)
   - [x] Add `QDRANT_API_KEY` from Qdrant Cloud dashboard
   - [x] Set `ENVIRONMENT=production` for production validation
+  - [x] Set `PROJECT_ID=knowledge-pipeline` for data namespace isolation (CRITICAL)
   - [x] Set `PORT` to Railway-provided dynamic port (Railway sets this automatically)
   - [x] Verify environment variables are marked as sensitive (hidden in logs)
 
@@ -151,14 +152,15 @@ Per Railway's Config-as-Code documentation, create `railway.json` for declarativ
     "watchPatterns": [
       "src/**",
       "pyproject.toml",
+      "uv.lock",
       "Dockerfile"
     ]
   },
   "deploy": {
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 30,
-    "startCommand": null,
+    "healthcheckTimeout": 120,
     "startupTimeout": 60,
+    "startCommand": null,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
@@ -187,6 +189,7 @@ Per Railway's Config-as-Code documentation, create `railway.json` for declarativ
 | `QDRANT_URL` | Qdrant Cloud URL | Vector database | No |
 | `QDRANT_API_KEY` | Qdrant Cloud dashboard | Qdrant auth | Yes |
 | `ENVIRONMENT` | Set to `production` | Config validation | No |
+| `PROJECT_ID` | Set to `knowledge-pipeline` | Data namespace isolation | No |
 | `PORT` | Railway-provided | Dynamic port binding | No (auto) |
 
 **Note:** Railway automatically sets `PORT`. The Dockerfile and server.py must respect this:
@@ -472,8 +475,8 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### Completion Notes List
 
 - ✅ Railway project `knowledge-mcp` created and configured
-- ✅ Created `railway.json` with Dockerfile build config, health checks, restart policy
-- ✅ Environment variables configured: MONGODB_URI, QDRANT_URL, QDRANT_API_KEY, ENVIRONMENT, MONGODB_DATABASE
+- ✅ Created `railway.json` with Dockerfile build config, health checks, restart policy, startupTimeout
+- ✅ Environment variables configured: MONGODB_URI, QDRANT_URL, QDRANT_API_KEY, ENVIRONMENT, MONGODB_DATABASE, PROJECT_ID
 - ✅ Deployment successful at: `https://knowledge-mcp-production.up.railway.app`
 - ✅ Health check passing: MongoDB healthy, Qdrant healthy
 - ✅ Performance validated: warm latency **17ms** (target: <500ms)
@@ -489,4 +492,17 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### Change Log
 
 - 2026-01-04: Story implementation complete - Railway deployment pipeline operational
+- 2026-01-04: Code review fixes applied:
+  - Added missing `PROJECT_ID=knowledge-pipeline` to Railway env vars (CRITICAL - data was invisible)
+  - Added missing `MONGODB_DATABASE=knowledge_db` to Railway env vars (CRITICAL)
+  - Added `startupTimeout: 60` to railway.json (was claimed but missing)
+  - Fixed README URLs from `knowledge-mcp.up.railway.app` to `knowledge-mcp-production.up.railway.app`
+  - Updated README railway.json example to match actual config (healthcheckTimeout: 120, startupTimeout, uv.lock)
+  - Updated story Dev Notes to match actual implementation
+- 2026-01-04: Code review PASSED - Deployment verified:
+  - Health check: ✅ healthy (MongoDB + Qdrant)
+  - get_decisions: ✅ 4 results, 16ms
+  - get_patterns: ✅ 7 results, 16ms
+  - get_warnings: ✅ 0 results (no warnings in data), 7ms
+  - NOTE: list_sources endpoint has internal error - separate bug, not blocking deployment
 
