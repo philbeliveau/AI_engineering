@@ -1,6 +1,6 @@
 # Story 3.CC: Hierarchical Extraction Architecture + Embedding Model Upgrade
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
@@ -543,4 +543,129 @@ if __name__ == "__main__":
 - 2026-01-04: Added re-embedding script template
 
 ### File List
+
+---
+
+## Implementation Handoff
+
+**Branch:** `feature/3-cc-hierarchical-extraction`
+**Last Updated:** 2026-01-04
+
+### Completed Tasks ✅
+
+| Task | Description | Commits |
+|------|-------------|---------|
+| **Task 0** | Update Embedding Configuration | `b4e4d9d` |
+| **Task 0.5** | Create Re-embedding Script | `e4ca9cb` |
+| **Task 0.7** | Update MCP Server Embedding | `2583abd` |
+
+### What Was Done
+
+1. **Centralized embedding config** added to `packages/pipeline/src/config.py`:
+   ```python
+   EMBEDDING_CONFIG = {
+       "model_id": "nomic-ai/nomic-embed-text-v1.5",
+       "vector_size": 768,
+       "max_tokens": 8192,
+       "trust_remote_code": True,
+       "prefixes": {...}
+   }
+   VECTOR_SIZE = 768
+   ```
+
+2. **Created `NomicEmbedder`** wrapper in `packages/pipeline/src/processors/embedder.py`
+
+3. **Updated `LocalEmbedder`** in `packages/pipeline/src/embeddings/local_embedder.py`:
+   - Added instruction prefix support (`search_document:`, `search_query:`)
+   - Added `embed_query()` method for search queries
+   - Updated `embed_text()` and `embed_batch()` to apply document prefix
+
+4. **Created `scripts/reembed.py`** - migration script to re-embed all chunks from 384d to 768d
+
+5. **Updated MCP Server** (`packages/mcp-server/`):
+   - Replaced `fastembed` with `sentence-transformers`
+   - Updated `embedding_service.py` to use nomic model with query prefix
+   - Updated `VECTOR_DIMENSIONS = 768` in qdrant.py
+
+6. **Updated all 384d references to 768d** across both packages
+
+### Remaining Tasks (8 tasks)
+
+All remaining tasks implement the **Hierarchical Extraction Architecture**:
+
+| Task | Status | Key Deliverable |
+|------|--------|-----------------|
+| **Task 1** | Pending | `src/extractors/extraction_levels.py` - ExtractionLevel enum |
+| **Task 2** | Pending | `src/extractors/hierarchy_builder.py` - DocumentHierarchy class |
+| **Task 3** | Pending | `src/extractors/chunk_combiner.py` - ChunkCombiner utility |
+| **Task 4** | Pending | Update `ExtractionBase` model with context fields |
+| **Task 5** | Pending | Update `BaseExtractor` interface with context support |
+| **Task 6** | Pending | `src/extractors/hierarchical_extractor.py` - Orchestrator |
+| **Task 7** | Pending | Update extraction pipeline to use HierarchicalExtractor |
+| **Task 8** | Pending | Update extraction storage for new fields |
+| **Task 9** | Pending | Backward compatibility verification |
+| **Task 10** | Pending | Full test suite + documentation |
+
+### Key Context for Next Developer
+
+**Files to understand first:**
+```
+packages/pipeline/src/
+├── config.py                    # EMBEDDING_CONFIG, VECTOR_SIZE (already updated)
+├── processors/embedder.py       # NomicEmbedder (new, complete)
+├── models/chunk.py              # Chunk model - has position.chapter/section metadata
+├── extractors/base.py           # BaseExtractor, ExtractionBase - needs updates
+└── storage/extraction_storage.py # Needs context field updates
+```
+
+**Chunks already have position metadata** from DoclingChunker:
+```python
+position = {
+    "chapter": "Chapter 5: RAG Architecture",
+    "section": "5.2 Retrieval Strategies",
+    "page": 127,
+    "chunk_index": 0,
+}
+```
+Use this to build the document hierarchy in Task 2.
+
+**Token counting available** via:
+```python
+from src.processors.embedder import NomicEmbedder
+embedder = NomicEmbedder()
+token_count = embedder.count_tokens("some text")  # Uses nomic tokenizer
+```
+
+**Key constraints:**
+- nomic model has 8K token limit - respect this in chunk combining
+- Use `uv run` for all commands
+- Use `structlog` for logging (never print)
+- Extractors use sync LLM calls - keep new methods sync
+
+### Getting Started
+
+```bash
+git checkout feature/3-cc-hierarchical-extraction
+git pull
+cd packages/pipeline
+uv sync
+uv run pytest tests/ -v  # Verify baseline
+
+# Start with Task 1: Create extraction_levels.py
+```
+
+### Architecture Reference
+
+```
+ExtractionLevel.CHAPTER (8K tokens) → methodology, workflow extractors
+ExtractionLevel.SECTION (4K tokens) → decision, pattern, checklist, persona
+ExtractionLevel.CHUNK (512 tokens)  → warning extractor
+```
+
+The `HierarchicalExtractor` orchestrator will:
+1. Build document hierarchy from chunks (group by chapter/section)
+2. For each extraction type, get appropriate context level
+3. Combine chunks respecting token budget
+4. Call extractor with combined context
+5. Store extraction with `context_chunk_ids` for traceability
 
