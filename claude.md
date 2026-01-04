@@ -6,11 +6,45 @@ Building an AI engineering knowledge system that extracts structured knowledge f
 
 **Core Philosophy:** Extractions are for NAVIGATION, Claude is for SYNTHESIS.
 
+## Cost Model Clarification
+
+**One-time extraction (Epic 2 & 3):** Uses `LLMClient` with Anthropic API to extract structured knowledge from raw chunks. This incurs API costs during database population.
+
+**MCP server queries (Epic 4+):** Zero LLM API costs. The server performs vector search and returns pre-extracted data. No API calls are made.
+
+**Workflow building (post-MVP):** Builder uses Claude Code + MCP tools to query the pre-built database. Claude Code synthesizes results locally - no additional extraction costs.
+
+```
+ONE-TIME EXTRACTION ($$$ API costs)
+PDF/MD → Chunks → LLMClient → Claude API → Extractions → DB + Qdrant
+                                                              │
+                                                              ▼
+RUNTIME QUERIES (Zero API costs)
+Builder → Claude Code → MCP Tools → Vector Search → Pre-extracted Data → Synthesis
+```
+
+## Production MCP Server
+
+**Live:** https://knowledge-mcp-production.up.railway.app
+
+Add to your Claude config (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "knowledge-pipeline": {
+      "type": "sse",
+      "url": "https://knowledge-mcp-production.up.railway.app/mcp"
+    }
+  }
+}
+```
+
 ## Current Status
 
-**Phase:** Implementation Ready
-**Current Work:** Epic 1 - Foundation Setup
-**Next Story:** 1.1 - Initialize Monorepo Structure (ready-for-dev)
+**Phase:** Epic 5 - Production Deployment
+**Deployed:** MCP Server live on Railway
+**Completed:** Epics 1-4, Stories 5.2-5.5
 
 ## Key Artifacts
 
@@ -77,15 +111,15 @@ packages/
         └── middleware/# Rate limiting, auth
 ```
 
-## Current Priority
+## Available MCP Tools
 
-**Story 1.1: Initialize Monorepo Structure**
-- Restructure directories to `packages/` layout
-- Create pyproject.toml for both packages
-- Set up docker-compose (MongoDB + Qdrant)
-- Initialize uv with all dependencies
-
-See: `_bmad-output/implementation-artifacts/1-1-initialize-monorepo-structure.md`
+| Tool | Description |
+|------|-------------|
+| `search_knowledge` | Semantic search across all AI engineering knowledge |
+| `get_decisions` | Architectural decisions with trade-offs |
+| `get_patterns` | Reusable implementation patterns |
+| `get_warnings` | Anti-patterns and pitfalls to avoid |
+| `list_sources` | List all knowledge sources |
 
 ---
 
