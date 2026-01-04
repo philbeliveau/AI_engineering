@@ -7,10 +7,10 @@ Help build a BMAD workflow by querying the knowledge base for relevant methodolo
 1. First, understand what workflow the user wants to build: $ARGUMENTS
 
 2. Query the knowledge base for relevant content:
-   - Use `/get-methodologies` for step-by-step processes
-   - Use `/get-patterns` for implementation patterns
-   - Use `/get-decisions` for decision points to include
-   - Use `/get-warnings` for pitfalls to avoid
+   - Use `/knowledge:get-methodologies` for step-by-step processes
+   - Use `/knowledge:get-patterns` for implementation patterns
+   - Use `/knowledge:get-decisions` for decision points to include
+   - Use `/knowledge:get-warnings` for pitfalls to avoid
 
 3. Synthesize findings into a BMAD workflow structure:
    - Define the workflow trigger and purpose
