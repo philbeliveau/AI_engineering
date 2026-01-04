@@ -57,6 +57,9 @@ def get_qdrant_stats():
     try:
         client = QdrantStorageClient()  # Uses settings internally
 
+        # Ensure collection exists (creates if not)
+        client.ensure_knowledge_collection()
+
         # Get collection info
         collection_name = "knowledge_vectors"
         info = client.client.get_collection(collection_name)
