@@ -6,6 +6,7 @@ Follows project-context.md:54-57 (async endpoints) and architecture.md response 
 Part of Story 4.3: Extraction Query Tools.
 """
 
+import time
 from typing import Any
 
 import structlog
@@ -80,17 +81,46 @@ def _map_decision_payload(extraction_id: str, payload: dict[str, Any]) -> Decisi
     operation_id="get_decisions",
     response_model=DecisionsResponse,
     tags=["extractions"],
+    summary="Query AI engineering decision points with options and trade-offs",
+    description="""Query structured decision extractions covering key AI engineering choices.
+
+## WHEN TO USE
+- User asks "should I use X or Y?"
+- User needs to make an architectural choice
+- User asks about trade-offs or comparisons
+- After search_knowledge() reveals decision-related content
+
+## WHEN NOT TO USE
+- User wants implementation code → use get_patterns() instead
+- User asks "how do I do X?" → use search_knowledge() first
+- User wants to avoid mistakes → use get_warnings()
+
+## DECISION TYPES COVERED
+- Architecture: RAG vs fine-tuning, vector DB selection
+- Technology: embedding models, chunking strategies
+- Design: latency vs quality, cost vs accuracy
+
+## SYNTHESIS GUIDANCE
+- Present options fairly, don't recommend unless user context is clear
+- Highlight considerations relevant to user's specific situation
+- If spec is loaded, filter options by domain/scale/constraints
+- Cross-reference with get_warnings() for pitfalls of each option
+
+## COMBINE WITH
+- get_warnings(topic=same_topic) → pitfalls for each option
+- get_patterns(topic=same_topic) → implementation for chosen approach
+- compare_sources() → how different authors view the decision""",
 )
 async def get_decisions(
     topic: str | None = Query(
         default=None,
-        description="Filter by topic tag (e.g., 'rag', 'embeddings', 'llm-ops')",
+        description="Topic filter: 'rag', 'embeddings', 'chunking', 'llm-ops', 'fine-tuning', 'prompt-engineering'. Include domain from loaded spec if available.",
     ),
     limit: int = Query(
         default=100,
         ge=1,
         le=500,
-        description="Maximum results to return",
+        description="Max results. Start with 20 for focused topics, 100 for broad exploration.",
     ),
 ) -> DecisionsResponse:
     """Query decision extractions with optional topic filter.
@@ -110,11 +140,13 @@ async def get_decisions(
     Returns:
         DecisionsResponse with results and metadata
     """
+    start_time = time.time()
     logger.info("get_decisions_start", topic=topic, limit=limit)
 
     qdrant = get_qdrant_client()
     if not qdrant:
         logger.warning("get_decisions_no_client")
+        latency_ms = int((time.time() - start_time) * 1000)
         return DecisionsResponse(
             results=[],
             metadata=ExtractionMetadata(
@@ -122,6 +154,7 @@ async def get_decisions(
                 sources_cited=[],
                 result_count=0,
                 search_type="filtered",
+                latency_ms=latency_ms,
             ),
         )
 
@@ -158,11 +191,14 @@ async def get_decisions(
         if decision.source_title and decision.source_title != "Unknown":
             sources_cited.add(decision.source_title)
 
+    latency_ms = int((time.time() - start_time) * 1000)
+
     logger.info(
         "get_decisions_complete",
         topic=topic,
         result_count=len(results),
         sources_count=len(sources_cited),
+        latency_ms=latency_ms,
     )
 
     return DecisionsResponse(
@@ -172,5 +208,6 @@ async def get_decisions(
             sources_cited=sorted(sources_cited),
             result_count=len(results),
             search_type="filtered",
+            latency_ms=latency_ms,
         ),
     )

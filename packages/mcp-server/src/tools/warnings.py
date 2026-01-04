@@ -6,6 +6,7 @@ Follows project-context.md:54-57 (async endpoints) and architecture.md response 
 Part of Story 4.3: Extraction Query Tools.
 """
 
+import time
 from typing import Any
 
 import structlog
@@ -81,17 +82,50 @@ def _map_warning_payload(extraction_id: str, payload: dict[str, Any]) -> Warning
     operation_id="get_warnings",
     response_model=WarningsResponse,
     tags=["extractions"],
+    summary="Query AI engineering warnings, pitfalls, and anti-patterns to avoid",
+    description="""Query warnings and anti-patterns extracted from AI engineering sources.
+
+## WHEN TO USE - PROACTIVELY CALL THIS TOOL
+- ALWAYS before implementing any significant feature
+- When user is about to make a technology choice
+- When user describes a problem that might have known pitfalls
+- After get_patterns() to validate the approach
+
+## WARNING STRUCTURE
+Each warning includes:
+- Symptoms: How to recognize the problem
+- Consequences: What goes wrong if ignored
+- Prevention: How to avoid it
+
+## PROACTIVE WARNING STRATEGY
+When user asks "how do I implement X?":
+1. First call get_patterns(topic="X")
+2. THEN call get_warnings(topic="X")
+3. Present solution WITH caveats
+
+## SYNTHESIS GUIDANCE
+- Lead with the solution, follow with warnings
+- Don't overwhelm with every possible pitfall
+- Prioritize warnings relevant to user's context/spec
+- Frame warnings constructively: "To avoid X, do Y"
+
+## CRITICAL TOPICS TO ALWAYS CHECK WARNINGS
+- 'embeddings' → dimension/model mismatches
+- 'chunking' → context loss, boundary issues
+- 'rag' → hallucination, retrieval quality
+- 'fine-tuning' → overfitting, data leakage
+- 'production' → scaling, latency, cost""",
 )
 async def get_warnings(
     topic: str | None = Query(
         default=None,
-        description="Filter by topic tag (e.g., 'rag', 'embeddings', 'llm-ops')",
+        description="Topic filter. IMPORTANT: Always query warnings for any topic you're about to help implement. Include domain from loaded spec.",
     ),
     limit: int = Query(
         default=100,
         ge=1,
         le=500,
-        description="Maximum results to return",
+        description="Max results. Use 10-20 to get key pitfalls without overload.",
     ),
 ) -> WarningsResponse:
     """Query warning extractions with optional topic filter.
@@ -112,11 +146,13 @@ async def get_warnings(
     Returns:
         WarningsResponse with results and metadata
     """
+    start_time = time.time()
     logger.info("get_warnings_start", topic=topic, limit=limit)
 
     qdrant = get_qdrant_client()
     if not qdrant:
         logger.warning("get_warnings_no_client")
+        latency_ms = int((time.time() - start_time) * 1000)
         return WarningsResponse(
             results=[],
             metadata=ExtractionMetadata(
@@ -124,6 +160,7 @@ async def get_warnings(
                 sources_cited=[],
                 result_count=0,
                 search_type="filtered",
+                latency_ms=latency_ms,
             ),
         )
 
@@ -160,11 +197,14 @@ async def get_warnings(
         if warning.source_title and warning.source_title != "Unknown":
             sources_cited.add(warning.source_title)
 
+    latency_ms = int((time.time() - start_time) * 1000)
+
     logger.info(
         "get_warnings_complete",
         topic=topic,
         result_count=len(results),
         sources_count=len(sources_cited),
+        latency_ms=latency_ms,
     )
 
     return WarningsResponse(
@@ -174,5 +214,6 @@ async def get_warnings(
             sources_cited=sorted(sources_cited),
             result_count=len(results),
             search_type="filtered",
+            latency_ms=latency_ms,
         ),
     )

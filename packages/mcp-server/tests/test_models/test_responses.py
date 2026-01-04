@@ -85,7 +85,7 @@ class TestApiResponse:
             query="test",
             sources_cited=["source1"],
             result_count=1,
-            search_type="exact",
+            search_type="semantic",  # Must be one of the Literal types
         )
         response = ApiResponse(results=["item"], metadata=meta)
         assert response.metadata.query == "test"

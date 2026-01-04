@@ -338,7 +338,10 @@ class TestWarningsHTTPIntegration:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/get_warnings", params={"limit": 0})
 
-            assert response.status_code == 422  # Validation error
+            # Story 4.6: Validation errors now return 400 (VALIDATION_ERROR) per architecture.md
+            assert response.status_code == 400
+            data = response.json()
+            assert data["error"]["code"] == "VALIDATION_ERROR"
 
     @pytest.mark.asyncio
     async def test_get_warnings_limit_validation_too_high(self):
@@ -351,7 +354,10 @@ class TestWarningsHTTPIntegration:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/get_warnings", params={"limit": 501})
 
-            assert response.status_code == 422  # Validation error
+            # Story 4.6: Validation errors now return 400 (VALIDATION_ERROR) per architecture.md
+            assert response.status_code == 400
+            data = response.json()
+            assert data["error"]["code"] == "VALIDATION_ERROR"
 
 
 class TestWarningsErrorHandling:

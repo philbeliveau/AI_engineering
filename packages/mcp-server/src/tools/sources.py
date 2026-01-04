@@ -117,11 +117,36 @@ def _extract_summary_from_payload(payload: dict[str, Any]) -> str:
     operation_id="list_sources",
     response_model=SourceListResponse,
     tags=["sources"],
+    summary="List all knowledge sources available in the database",
+    description="""List all books, papers, and case studies in the knowledge base.
+
+## WHEN TO USE
+- User asks "what sources do you have on X?"
+- User wants to know what's in the knowledge base
+- Before compare_sources() to get valid source IDs
+- When user asks about credibility or references
+
+## WHEN NOT TO USE
+- User wants to search content → use search_knowledge()
+- User has a specific question → use specialized tools first
+
+## USE FOR TRANSPARENCY
+When synthesizing answers, you can reference:
+- Which sources informed your answer
+- How many sources cover a topic
+- Authority/type of sources (books vs papers vs case studies)
+
+## COMBINE WITH
+- compare_sources() → after getting source IDs to compare perspectives
+- search_knowledge() → to find content within specific sources""",
 )
 async def list_sources(
     request: Request,
     limit: int = Query(
-        100, ge=1, le=500, description="Maximum number of sources to return"
+        100,
+        ge=1,
+        le=500,
+        description="Max sources to return. Use default for full inventory.",
     ),
 ) -> SourceListResponse:
     """List all available knowledge sources.
@@ -150,6 +175,7 @@ async def list_sources(
 
     if not mongodb:
         logger.error("mongodb_client_not_available")
+        latency_ms = int((time.time() - start_time) * 1000)
         return SourceListResponse(
             results=[],
             metadata=SourceListMetadata(
@@ -157,6 +183,7 @@ async def list_sources(
                 sources_cited=[],
                 result_count=0,
                 search_type="list",
+                latency_ms=latency_ms,
             ),
         )
 
@@ -196,12 +223,12 @@ async def list_sources(
             )
         )
 
-    latency_ms = (time.time() - start_time) * 1000
+    latency_ms = int((time.time() - start_time) * 1000)
 
     logger.info(
         "list_sources_complete",
         result_count=len(results),
-        latency_ms=round(latency_ms, 2),
+        latency_ms=latency_ms,
     )
 
     return SourceListResponse(
@@ -211,6 +238,7 @@ async def list_sources(
             sources_cited=[],
             result_count=len(results),
             search_type="list",
+            latency_ms=latency_ms,
         ),
     )
 
@@ -220,20 +248,48 @@ async def list_sources(
     operation_id="compare_sources",
     response_model=CompareSourcesResponse,
     tags=["sources"],
+    summary="Compare how different sources address the same topic",
+    description="""Compare extractions across multiple sources for side-by-side analysis.
+
+## WHEN TO USE
+- User asks "what do different experts say about X?"
+- User wants multiple perspectives on a topic
+- After search_knowledge() shows results from multiple sources
+- When there's known disagreement in the field
+
+## WORKFLOW
+1. Call list_sources() to get available source IDs
+2. Call compare_sources() with 2-4 source IDs + topic
+3. Synthesize: agreements, disagreements, unique insights
+
+## SYNTHESIS GUIDANCE
+- Highlight consensus across sources (strong signal)
+- Note disagreements and explain different contexts
+- Don't favor any single source unless clearly more authoritative
+- Present as "Source A emphasizes X, while Source B focuses on Y"
+- If spec is loaded, weight perspectives by relevance to domain/constraints
+
+## COMBINE WITH
+- list_sources() → get valid source IDs first
+- get_decisions() → when comparing decision-making approaches
+- search_knowledge() → to dive deeper into specific source content""",
 )
 async def compare_sources(
     request: Request,
     topic: str = Query(
         ...,
-        description="Topic to compare across sources (e.g., 'rag', 'embeddings', 'chunking')",
+        description="Topic to compare: 'rag', 'embeddings', 'chunking', 'fine-tuning'. Use domain terms from loaded spec.",
     ),
     source_ids: list[str] = Query(
         ...,
         min_length=2,
-        description="Source IDs to compare (minimum 2 required for comparison)",
+        description="Source IDs to compare (get from list_sources). Use 2-4 sources for balanced comparison.",
     ),
     limit_per_source: int = Query(
-        10, ge=1, le=50, description="Maximum extractions per source"
+        10,
+        ge=1,
+        le=50,
+        description="Extractions per source. Use 5-10 for focused comparison.",
     ),
     auth_context: AuthContext = Depends(require_tier(UserTier.REGISTERED)),
 ) -> CompareSourcesResponse:
@@ -272,6 +328,7 @@ async def compare_sources(
 
     if not mongodb or not qdrant:
         logger.error("storage_clients_not_available")
+        latency_ms = int((time.time() - start_time) * 1000)
         return CompareSourcesResponse(
             results=[],
             metadata=ComparisonMetadata(
@@ -279,6 +336,7 @@ async def compare_sources(
                 sources_cited=[],
                 result_count=0,
                 search_type="comparison",
+                latency_ms=latency_ms,
             ),
         )
 
@@ -292,8 +350,8 @@ async def compare_sources(
                 source_id=source_id,
             )
             raise NotFoundError(
-                message=f"Source not found: {source_id}",
-                details={"source_id": source_id},
+                resource="source",
+                resource_id=source_id,
             )
         source_cache[source_id] = source
 
@@ -336,14 +394,14 @@ async def compare_sources(
             )
         )
 
-    latency_ms = (time.time() - start_time) * 1000
+    latency_ms = int((time.time() - start_time) * 1000)
 
     logger.info(
         "compare_sources_complete",
         topic=topic,
         sources_compared=len(results),
         total_extractions=sum(len(r.extractions) for r in results),
-        latency_ms=round(latency_ms, 2),
+        latency_ms=latency_ms,
     )
 
     return CompareSourcesResponse(
@@ -353,5 +411,6 @@ async def compare_sources(
             sources_cited=sources_cited,
             result_count=len(results),
             search_type="comparison",
+            latency_ms=latency_ms,
         ),
     )

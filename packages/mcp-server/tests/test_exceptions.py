@@ -50,15 +50,36 @@ class TestNotFoundError:
         """Test that NotFoundError inherits from KnowledgeError."""
         from src.exceptions import KnowledgeError, NotFoundError
 
-        error = NotFoundError(message="Resource not found")
+        error = NotFoundError(resource="source", resource_id="test-123")
         assert isinstance(error, KnowledgeError)
 
     def test_not_found_error_has_not_found_code(self):
         """Test that NotFoundError has NOT_FOUND code."""
         from src.exceptions import NotFoundError
 
-        error = NotFoundError(message="Resource not found")
+        error = NotFoundError(resource="source", resource_id="test-123")
         assert error.code == "NOT_FOUND"
+
+    def test_not_found_error_has_status_code(self):
+        """Test that NotFoundError has status_code 404."""
+        from src.exceptions import NotFoundError
+
+        error = NotFoundError(resource="source", resource_id="test-123")
+        assert error.status_code == 404
+
+    def test_not_found_error_has_details(self):
+        """Test that NotFoundError has correct details."""
+        from src.exceptions import NotFoundError
+
+        error = NotFoundError(resource="source", resource_id="test-123")
+        assert error.details == {"resource": "source", "id": "test-123"}
+
+    def test_not_found_error_has_auto_generated_message(self):
+        """Test that NotFoundError auto-generates message."""
+        from src.exceptions import NotFoundError
+
+        error = NotFoundError(resource="source", resource_id="test-123")
+        assert error.message == "source with id 'test-123' not found"
 
 
 class TestValidationError:
@@ -104,12 +125,40 @@ class TestRateLimitError:
         """Test that RateLimitError inherits from KnowledgeError."""
         from src.exceptions import KnowledgeError, RateLimitError
 
-        error = RateLimitError(message="Rate limit exceeded")
+        error = RateLimitError(retry_after=60, limit=100, window="hour")
         assert isinstance(error, KnowledgeError)
 
     def test_rate_limit_error_has_rate_limited_code(self):
         """Test that RateLimitError has RATE_LIMITED code."""
         from src.exceptions import RateLimitError
 
-        error = RateLimitError(message="Rate limit exceeded")
+        error = RateLimitError(retry_after=60, limit=100, window="hour")
         assert error.code == "RATE_LIMITED"
+
+    def test_rate_limit_error_has_status_code(self):
+        """Test that RateLimitError has status_code 429."""
+        from src.exceptions import RateLimitError
+
+        error = RateLimitError(retry_after=60, limit=100, window="hour")
+        assert error.status_code == 429
+
+    def test_rate_limit_error_has_retry_after(self):
+        """Test that RateLimitError has retry_after attribute."""
+        from src.exceptions import RateLimitError
+
+        error = RateLimitError(retry_after=60, limit=100, window="hour")
+        assert error.retry_after == 60
+
+    def test_rate_limit_error_has_details(self):
+        """Test that RateLimitError has correct details."""
+        from src.exceptions import RateLimitError
+
+        error = RateLimitError(retry_after=60, limit=100, window="hour")
+        assert error.details == {"limit": 100, "window": "hour", "retry_after": 60}
+
+    def test_rate_limit_error_has_auto_generated_message(self):
+        """Test that RateLimitError auto-generates message."""
+        from src.exceptions import RateLimitError
+
+        error = RateLimitError(retry_after=60, limit=100, window="hour")
+        assert "60 seconds" in error.message

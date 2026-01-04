@@ -6,6 +6,7 @@ Follows project-context.md:54-57 (async endpoints) and architecture.md response 
 Part of Story 4.3: Extraction Query Tools.
 """
 
+import time
 from typing import Any
 
 import structlog
@@ -82,17 +83,49 @@ def _map_pattern_payload(extraction_id: str, payload: dict[str, Any]) -> Pattern
     operation_id="get_patterns",
     response_model=PatternsResponse,
     tags=["extractions"],
+    summary="Query reusable AI engineering patterns with code examples",
+    description="""Query implementation patterns extracted from AI engineering sources.
+
+## WHEN TO USE
+- User asks "how do I implement X?"
+- User wants code examples or templates
+- User is ready to build (decision already made)
+- After get_decisions() when user has chosen an approach
+
+## WHEN NOT TO USE
+- User is still deciding between approaches → use get_decisions()
+- User asks about risks or pitfalls → use get_warnings()
+- User has a vague question → use search_knowledge() first
+
+## PATTERN STRUCTURE
+Each pattern includes:
+- Problem: What situation this solves
+- Solution: How to implement it
+- Code example: Working code snippet (when available)
+- Trade-offs: What you gain/lose with this approach
+
+## MULTI-PATTERN STRATEGY
+For complex implementations, retrieve patterns for:
+1. Main concept (e.g., "semantic chunking")
+2. Supporting concerns (e.g., "chunk overlap", "metadata extraction")
+3. Error handling (e.g., "chunking edge cases")
+
+## SYNTHESIS GUIDANCE
+- Adapt code examples to user's stack (Python/JS/etc.)
+- Combine multiple patterns for complete solution
+- If spec is loaded, prioritize patterns matching domain/scale
+- ALWAYS pair with get_warnings() before implementation""",
 )
 async def get_patterns(
     topic: str | None = Query(
         default=None,
-        description="Filter by topic tag (e.g., 'rag', 'embeddings', 'llm-ops')",
+        description="Topic filter: 'rag', 'embeddings', 'chunking', 'prompt-engineering', 'evaluation'. Include domain from loaded spec if available.",
     ),
     limit: int = Query(
         default=100,
         ge=1,
         le=500,
-        description="Maximum results to return",
+        description="Max results. Use 10-20 for specific implementations.",
     ),
 ) -> PatternsResponse:
     """Query pattern extractions with optional topic filter.
@@ -113,11 +146,13 @@ async def get_patterns(
     Returns:
         PatternsResponse with results and metadata
     """
+    start_time = time.time()
     logger.info("get_patterns_start", topic=topic, limit=limit)
 
     qdrant = get_qdrant_client()
     if not qdrant:
         logger.warning("get_patterns_no_client")
+        latency_ms = int((time.time() - start_time) * 1000)
         return PatternsResponse(
             results=[],
             metadata=ExtractionMetadata(
@@ -125,6 +160,7 @@ async def get_patterns(
                 sources_cited=[],
                 result_count=0,
                 search_type="filtered",
+                latency_ms=latency_ms,
             ),
         )
 
@@ -161,11 +197,14 @@ async def get_patterns(
         if pattern.source_title and pattern.source_title != "Unknown":
             sources_cited.add(pattern.source_title)
 
+    latency_ms = int((time.time() - start_time) * 1000)
+
     logger.info(
         "get_patterns_complete",
         topic=topic,
         result_count=len(results),
         sources_count=len(sources_cited),
+        latency_ms=latency_ms,
     )
 
     return PatternsResponse(
@@ -175,5 +214,6 @@ async def get_patterns(
             sources_cited=sorted(sources_cited),
             result_count=len(results),
             search_type="filtered",
+            latency_ms=latency_ms,
         ),
     )

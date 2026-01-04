@@ -142,10 +142,49 @@ async def _enrich_result(
     operation_id="search_knowledge",
     response_model=SearchKnowledgeResponse,
     tags=["search"],
+    summary="Semantic search across all AI engineering knowledge",
+    description="""Search across AI engineering knowledge from multiple sources (books, papers, case studies).
+
+## WHEN TO USE
+- User asks a general question about AI/ML engineering
+- You need to find relevant context before answering
+- Starting point for most knowledge queries
+
+## MULTI-QUERY STRATEGY
+For comprehensive answers, call this tool 2-3 times with varied queries:
+1. User's original phrasing
+2. Technical synonyms (e.g., "RAG" → "retrieval augmented generation")
+3. Related concepts (e.g., "chunking" → "document splitting", "text segmentation")
+
+## QUERY OPTIMIZATION
+- Be specific: "embedding dimension trade-offs" not just "embeddings"
+- Include domain context: "RAG chunking" not just "chunking"
+- Use technical terms: "vector similarity" not "finding similar things"
+- If spec/context is loaded, ALWAYS include domain terms in query
+
+## COMBINE WITH OTHER TOOLS
+- After search, call get_decisions() if results mention trade-offs or choices
+- Call get_warnings() if implementing something to avoid pitfalls
+- Call get_patterns() if looking for implementation examples
+
+## RESULT INTERPRETATION
+- Results from multiple sources = synthesize across perspectives
+- Low scores (< 0.5) = consider rephrasing query
+- Single source dominates = search with different angle for diversity
+- If < 3 relevant results, try synonyms or related concepts""",
 )
 async def search_knowledge(
-    query: str = Query(..., min_length=1, description="Natural language search query"),
-    limit: int = Query(10, ge=1, le=100, description="Maximum results to return"),
+    query: str = Query(
+        ...,
+        min_length=1,
+        description="Semantic search query. Be specific and use technical terms. Include domain context if spec is loaded. For broad topics, make multiple calls with different phrasings.",
+    ),
+    limit: int = Query(
+        10,
+        ge=1,
+        le=100,
+        description="Results to return. Use 10-15 for exploration, 5 for focused queries.",
+    ),
 ) -> SearchKnowledgeResponse:
     """Search across all knowledge content semantically.
 
@@ -233,13 +272,13 @@ async def search_knowledge(
                 )
             )
 
-    latency_ms = (time.time() - start_time) * 1000
+    latency_ms = int((time.time() - start_time) * 1000)
 
     logger.info(
         "search_knowledge_complete",
         query=query,
         result_count=len(results),
-        latency_ms=round(latency_ms, 2),
+        latency_ms=latency_ms,
     )
 
     return SearchKnowledgeResponse(
@@ -249,5 +288,6 @@ async def search_knowledge(
             sources_cited=sorted(sources_cited),
             result_count=len(results),
             search_type="semantic",
+            latency_ms=latency_ms,
         ),
     )
