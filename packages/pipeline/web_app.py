@@ -64,8 +64,8 @@ def get_qdrant_stats():
         # Ensure collection exists (creates if not)
         client.ensure_knowledge_collection()
 
-        # Get collection info
-        collection_name = "knowledge_vectors"
+        # Get collection info using project-specific name (matches storage client)
+        collection_name = settings.chunks_collection
         info = client.client.get_collection(collection_name)
 
         return {
