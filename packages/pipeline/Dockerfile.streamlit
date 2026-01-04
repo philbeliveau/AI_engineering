@@ -37,11 +37,11 @@ RUN uv sync --frozen --no-dev --no-cache --no-install-project
 # Fix Docling OpenCV conflict for headless Docker environments
 # opencv-python requires libGL.so.1 which isn't in slim images
 # opencv-python-headless provides identical API without system GL dependencies
-# Use explicit venv pip path to ensure correct environment
-RUN .venv/bin/pip uninstall -y opencv-python opencv-python-headless 2>/dev/null || true && \
-    .venv/bin/pip install --force-reinstall --no-cache-dir opencv-python-headless && \
+# Use uv pip (uv manages packages, not pip directly)
+RUN uv pip uninstall opencv-python 2>/dev/null || true && \
+    uv pip install --no-cache opencv-python-headless && \
     echo "=== OpenCV Installation Verification ===" && \
-    .venv/bin/pip list | grep -i opencv
+    uv pip list | grep -i opencv
 
 # -----------------------------------------------------------------------------
 # Stage 2: Runtime - Minimal production image
