@@ -5,7 +5,6 @@ Tests APIKey, UserTier, AuthContext models per story 5.2 AC #1, #2.
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
 from src.exceptions import AuthError, ForbiddenError
 from src.models.auth import APIKey, AuthContext, UserTier

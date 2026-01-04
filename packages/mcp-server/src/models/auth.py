@@ -8,12 +8,12 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+from pydantic import BaseModel, Field
+
 
 def _utc_now() -> datetime:
     """Get current UTC time in a Python 3.12+ compatible way."""
     return datetime.now(timezone.utc)
-
-from pydantic import BaseModel, Field
 
 
 class UserTier(str, Enum):

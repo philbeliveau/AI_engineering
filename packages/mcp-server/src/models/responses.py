@@ -2,11 +2,16 @@
 
 Follows architecture.md:464-476 (Success response format) and
 architecture.md:478-485 (Error response format).
+
+Story 4.6: Consolidated response models with latency tracking for NFR1 compliance.
 """
 
-from typing import Any, Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field
+
+# Re-export error models from errors.py for backwards compatibility
+from src.models.errors import ErrorCode, ErrorDetail, ErrorResponse  # noqa: E402, F401
 
 T = TypeVar("T")
 
@@ -18,13 +23,15 @@ class ResponseMetadata(BaseModel):
         query: Original query string
         sources_cited: List of source attributions
         result_count: Number of results returned
-        search_type: Type of search performed (semantic, filtered, exact)
+        search_type: Type of search performed (semantic, filtered, exact, list, comparison)
+        latency_ms: Response time in milliseconds for NFR1 tracking (<500ms target)
     """
 
     query: str
     sources_cited: list[str]
     result_count: int
-    search_type: str
+    search_type: Literal["semantic", "filtered", "list", "comparison"]
+    latency_ms: int | None = Field(default=None, description="Response latency in milliseconds")
 
 
 class ApiResponse(BaseModel, Generic[T]):
@@ -39,32 +46,6 @@ class ApiResponse(BaseModel, Generic[T]):
 
     results: list[T]
     metadata: ResponseMetadata
-
-
-class ErrorDetail(BaseModel):
-    """Details about an error.
-
-    Attributes:
-        code: Error code (VALIDATION_ERROR, NOT_FOUND, RATE_LIMITED, INTERNAL_ERROR)
-        message: Human-readable error message
-        details: Additional error context
-    """
-
-    code: str
-    message: str
-    details: dict[str, Any]
-
-
-class ErrorResponse(BaseModel):
-    """Error response wrapper.
-
-    All error responses are wrapped in this format.
-
-    Attributes:
-        error: Error details
-    """
-
-    error: ErrorDetail
 
 
 # Search-specific models (Story 4.2)
@@ -136,6 +117,7 @@ class SearchMetadata(BaseModel):
         sources_cited: List of source titles that appear in results
         result_count: Total number of results returned
         search_type: Type of search ("semantic")
+        latency_ms: Response time in milliseconds for NFR1 tracking
     """
 
     query: str = Field(..., description="Original search query")
@@ -143,7 +125,8 @@ class SearchMetadata(BaseModel):
         default_factory=list, description="List of source titles in results"
     )
     result_count: int = Field(..., description="Total number of results returned")
-    search_type: str = Field(default="semantic", description='Type of search ("semantic")')
+    search_type: Literal["semantic"] = Field(default="semantic", description='Type of search')
+    latency_ms: int | None = Field(default=None, description="Response latency in milliseconds")
 
 
 class SearchKnowledgeResponse(BaseModel):
@@ -173,6 +156,7 @@ class ExtractionMetadata(BaseModel):
         sources_cited: List of source titles in results
         result_count: Total number of results returned
         search_type: Type of search ("filtered")
+        latency_ms: Response time in milliseconds for NFR1 tracking
     """
 
     query: str = Field(..., description="Topic filter applied or 'all'")
@@ -180,7 +164,8 @@ class ExtractionMetadata(BaseModel):
         default_factory=list, description="List of source titles in results"
     )
     result_count: int = Field(..., description="Total number of results returned")
-    search_type: str = Field(default="filtered", description='Type of search ("filtered")')
+    search_type: Literal["filtered"] = Field(default="filtered", description='Type of search')
+    latency_ms: int | None = Field(default=None, description="Response latency in milliseconds")
 
 
 class DecisionResult(BaseModel):
@@ -373,3 +358,145 @@ class MethodologyResponse(BaseModel):
         default_factory=list, description="List of methodology results"
     )
     metadata: ExtractionMetadata = Field(..., description="Response metadata")
+
+
+# Source Management Response Models (Story 4.5)
+
+
+class SourceResult(BaseModel):
+    """Individual source result.
+
+    Represents a knowledge source (book, paper, case study) in the knowledge base.
+
+    Attributes:
+        id: Unique identifier of the source
+        title: Human-readable source title
+        authors: List of author names
+        type: Source type (book, paper, case_study)
+        path: Original file path
+        ingested_at: ISO 8601 datetime when ingested
+        status: Ingestion status (pending, processing, complete, failed)
+        extraction_counts: Count of extractions by type
+    """
+
+    id: str = Field(..., description="Unique identifier of the source")
+    title: str = Field(..., description="Human-readable source title")
+    authors: list[str] = Field(default_factory=list, description="List of author names")
+    type: str = Field(..., description="Source type (book, paper, case_study)")
+    path: str = Field(..., description="Original file path")
+    ingested_at: str = Field(..., description="ISO 8601 datetime when ingested")
+    status: str = Field(..., description="Ingestion status")
+    extraction_counts: dict[str, int] = Field(
+        default_factory=dict,
+        description="Count of extractions by type (e.g., {decision: 15, pattern: 8})",
+    )
+
+
+class SourceListMetadata(BaseModel):
+    """Metadata for source list responses.
+
+    Attributes:
+        query: Query description (always "all" for list_sources)
+        sources_cited: Empty for source listing
+        result_count: Total number of sources returned
+        search_type: Type of search ("list")
+        latency_ms: Response time in milliseconds for NFR1 tracking
+    """
+
+    query: str = Field(default="all", description="Query description")
+    sources_cited: list[str] = Field(default_factory=list, description="Empty for source listing")
+    result_count: int = Field(..., description="Total number of sources returned")
+    search_type: Literal["list"] = Field(default="list", description='Type of search')
+    latency_ms: int | None = Field(default=None, description="Response latency in milliseconds")
+
+
+class SourceListResponse(BaseModel):
+    """Response model for list_sources endpoint.
+
+    Follows the mandatory response format from architecture.md.
+    Public tier access (no authentication required).
+
+    Attributes:
+        results: List of source results
+        metadata: Response metadata
+    """
+
+    results: list[SourceResult] = Field(
+        default_factory=list, description="List of source results"
+    )
+    metadata: SourceListMetadata = Field(..., description="Response metadata")
+
+
+class ExtractionSummary(BaseModel):
+    """Summary of an extraction for comparison.
+
+    Provides a condensed view of an extraction for cross-source comparison.
+
+    Attributes:
+        id: Unique identifier of the extraction
+        type: Extraction type (decision, pattern, warning, methodology)
+        title: Title or name from extraction
+        summary: Brief summary of the extraction content
+        topics: Topic tags for categorization
+    """
+
+    id: str = Field(..., description="Unique identifier of the extraction")
+    type: str = Field(..., description="Extraction type")
+    title: str = Field(..., description="Title or name from extraction")
+    summary: str = Field(..., description="Brief summary of the extraction content")
+    topics: list[str] = Field(default_factory=list, description="Topic tags")
+
+
+class ComparisonResult(BaseModel):
+    """Extractions from a single source for comparison.
+
+    Groups extractions by source for side-by-side comparison.
+
+    Attributes:
+        source_id: Unique identifier of the source
+        source_title: Human-readable source name
+        extractions: List of extraction summaries from this source
+    """
+
+    source_id: str = Field(..., description="Unique identifier of the source")
+    source_title: str = Field(..., description="Human-readable source name")
+    extractions: list[ExtractionSummary] = Field(
+        default_factory=list, description="Extraction summaries from this source"
+    )
+
+
+class ComparisonMetadata(BaseModel):
+    """Metadata for comparison responses.
+
+    Attributes:
+        query: Topic used for comparison
+        sources_cited: List of source titles included in comparison
+        result_count: Total number of sources compared
+        search_type: Type of search ("comparison")
+        latency_ms: Response time in milliseconds for NFR1 tracking
+    """
+
+    query: str = Field(..., description="Topic used for comparison")
+    sources_cited: list[str] = Field(
+        default_factory=list, description="List of source titles in comparison"
+    )
+    result_count: int = Field(..., description="Total number of sources compared")
+    search_type: Literal["comparison"] = Field(default="comparison", description='Type of search')
+    latency_ms: int | None = Field(default=None, description="Response latency in milliseconds")
+
+
+class CompareSourcesResponse(BaseModel):
+    """Response model for compare_sources endpoint.
+
+    Follows the mandatory response format from architecture.md.
+    Requires Registered tier access (API key authentication).
+
+    Attributes:
+        results: List of comparison results grouped by source
+        metadata: Response metadata
+    """
+
+    results: list[ComparisonResult] = Field(
+        default_factory=list, description="Comparison results grouped by source"
+    )
+    metadata: ComparisonMetadata = Field(..., description="Response metadata")

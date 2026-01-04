@@ -3,7 +3,7 @@
 Tests connection factory functions for MongoDB Atlas and Qdrant Cloud.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -58,7 +58,7 @@ class TestMongoDBConnectionFactory:
             mongodb_uri="mongodb://localhost:27017",
             connection_timeout_ms=5000,
         )
-        client = create_mongodb_client(test_settings)
+        create_mongodb_client(test_settings)
 
         # Should be called with basic options for local
         mock_client_class.assert_called_once()
@@ -79,7 +79,7 @@ class TestMongoDBConnectionFactory:
             connection_timeout_ms=5000,
             max_pool_size=10,
         )
-        client = create_mongodb_client(test_settings)
+        create_mongodb_client(test_settings)
 
         mock_client_class.assert_called_once()
         call_args = mock_client_class.call_args
@@ -101,7 +101,7 @@ class TestMongoDBConnectionFactory:
             connection_timeout_ms=8000,
             max_pool_size=20,
         )
-        client = create_mongodb_client(test_settings)
+        create_mongodb_client(test_settings)
 
         call_kwargs = mock_client_class.call_args[1]
         assert call_kwargs["serverSelectionTimeoutMS"] == 8000
@@ -120,7 +120,7 @@ class TestQdrantConnectionFactory:
             qdrant_url="http://localhost:6333",
             qdrant_api_key=None,
         )
-        client = create_qdrant_client(test_settings)
+        create_qdrant_client(test_settings)
 
         mock_client_class.assert_called_once()
         call_kwargs = mock_client_class.call_args[1]
@@ -140,7 +140,7 @@ class TestQdrantConnectionFactory:
             qdrant_url=cloud_url,
             qdrant_api_key=api_key,
         )
-        client = create_qdrant_client(test_settings)
+        create_qdrant_client(test_settings)
 
         mock_client_class.assert_called_once()
         call_kwargs = mock_client_class.call_args[1]
@@ -157,7 +157,7 @@ class TestQdrantConnectionFactory:
         test_settings = Settings(
             qdrant_url="http://testhost:6333",
         )
-        client = create_qdrant_client(test_settings)
+        create_qdrant_client(test_settings)
 
         call_kwargs = mock_client_class.call_args[1]
         assert call_kwargs["url"] == "http://testhost:6333"

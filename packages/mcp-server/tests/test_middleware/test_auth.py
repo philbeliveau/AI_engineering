@@ -13,9 +13,7 @@ from src.exceptions import ForbiddenError
 from src.middleware.auth import (
     APIKeyValidator,
     AuthMiddleware,
-    get_auth_context,
     require_tier,
-    set_validator,
 )
 from src.models.auth import APIKey, AuthContext, UserTier
 
@@ -312,10 +310,9 @@ class TestExceptionHandlers:
     @pytest.fixture
     def app_with_handlers(self) -> FastAPI:
         """Create app with exception handlers like production server."""
-        from fastapi import Request as FastAPIRequest
         from fastapi.responses import JSONResponse
 
-        from src.exceptions import AuthError, ForbiddenError
+        from src.exceptions import AuthError
 
         app = FastAPI()
 

@@ -19,7 +19,14 @@ from fastapi_mcp import FastApiMCP
 
 from src import __version__
 from src.config import settings
-from src.exceptions import AuthError, ForbiddenError, KnowledgeError
+from fastapi.exceptions import RequestValidationError
+
+from src.exceptions import KnowledgeError
+from src.middleware.error_handlers import (
+    generic_exception_handler,
+    knowledge_error_handler,
+    validation_exception_handler,
+)
 from src.middleware.auth import AuthMiddleware, get_validator
 from src.models.auth import APIKey, UserTier
 from src.storage import validate_environment
@@ -31,6 +38,7 @@ from src.tools.decisions import router as decisions_router, set_qdrant_client as
 from src.tools.patterns import router as patterns_router, set_qdrant_client as set_patterns_client
 from src.tools.warnings import router as warnings_router, set_qdrant_client as set_warnings_client
 from src.tools.methodologies import router as methodologies_router, set_clients as set_methodologies_clients
+from src.tools.sources import router as sources_router, set_clients as set_sources_clients
 
 logger = structlog.get_logger()
 
@@ -151,6 +159,9 @@ async def lifespan(app: FastAPI):
     # Set clients for methodologies tool (Story 4.4)
     set_methodologies_clients(qdrant=qdrant_client, mongodb=mongodb_client)
 
+    # Set clients for sources tools (Story 4.5)
+    set_sources_clients(qdrant=qdrant_client, mongodb=mongodb_client)
+
     logger.info(
         "server_started",
         environment=settings.environment,
@@ -195,80 +206,15 @@ app.include_router(decisions_router, tags=["extractions"])
 app.include_router(patterns_router, tags=["extractions"])
 app.include_router(warnings_router, tags=["extractions"])
 app.include_router(methodologies_router, tags=["extractions"])
+app.include_router(sources_router, tags=["sources"])
 
 
-# Exception handlers for authentication/authorization errors
+# Register global exception handlers (Story 4.6)
 # Follows architecture.md error response format
-@app.exception_handler(AuthError)
-async def auth_error_handler(request, exc: AuthError) -> JSONResponse:
-    """Handle AuthError exceptions with 401 response."""
-    logger.warning(
-        "auth_error",
-        code=exc.code,
-        message=exc.message,
-        path=request.url.path,
-    )
-    return JSONResponse(
-        status_code=401,
-        content={
-            "error": {
-                "code": exc.code,
-                "message": exc.message,
-                "details": exc.details,
-            }
-        },
-    )
-
-
-@app.exception_handler(ForbiddenError)
-async def forbidden_error_handler(request, exc: ForbiddenError) -> JSONResponse:
-    """Handle ForbiddenError exceptions with 403 response."""
-    logger.warning(
-        "forbidden_error",
-        code=exc.code,
-        message=exc.message,
-        path=request.url.path,
-        details=exc.details,
-    )
-    return JSONResponse(
-        status_code=403,
-        content={
-            "error": {
-                "code": exc.code,
-                "message": exc.message,
-                "details": exc.details,
-            }
-        },
-    )
-
-
-@app.exception_handler(KnowledgeError)
-async def knowledge_error_handler(request, exc: KnowledgeError) -> JSONResponse:
-    """Handle generic KnowledgeError exceptions with appropriate response."""
-    status_code = 500
-    if exc.code == "NOT_FOUND":
-        status_code = 404
-    elif exc.code == "VALIDATION_ERROR":
-        status_code = 400
-    elif exc.code == "RATE_LIMITED":
-        status_code = 429
-
-    logger.error(
-        "knowledge_error",
-        code=exc.code,
-        message=exc.message,
-        path=request.url.path,
-    )
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "error": {
-                "code": exc.code,
-                "message": exc.message,
-                "details": exc.details,
-            }
-        },
-    )
+# Order matters: specific handlers first, then generic
+app.add_exception_handler(KnowledgeError, knowledge_error_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
 
 # Define health endpoint BEFORE MCP mount so it can be explicitly excluded
 # Health is infrastructure, not a knowledge query tool

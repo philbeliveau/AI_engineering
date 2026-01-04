@@ -283,7 +283,7 @@ class TestListExtractions:
         """Test that list_extractions filters by project_id."""
         from unittest.mock import MagicMock
 
-        from qdrant_client.models import FieldCondition, Filter, MatchValue
+        from qdrant_client.models import FieldCondition, Filter
 
         from src.config import Settings
         from src.storage.qdrant import QdrantStorageClient

@@ -84,12 +84,12 @@ def validate_environment(
     # Validate URI formats
     if not _validate_mongodb_uri_format(mongodb_uri):
         result.add_error(
-            f"MongoDB URI has invalid format. Must start with 'mongodb://' or 'mongodb+srv://'"
+            "MongoDB URI has invalid format. Must start with 'mongodb://' or 'mongodb+srv://'"
         )
 
     if not _validate_qdrant_url_format(qdrant_url):
         result.add_error(
-            f"Qdrant URL has invalid format. Must start with 'http://' or 'https://'"
+            "Qdrant URL has invalid format. Must start with 'http://' or 'https://'"
         )
 
     # If format validation failed, skip further checks
