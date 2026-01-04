@@ -78,6 +78,7 @@ COPY --from=builder /app/.venv /app/.venv
 COPY src/ /app/src/
 COPY scripts/ /app/scripts/
 COPY web_app.py /app/
+COPY .streamlit/ /app/.streamlit/
 COPY pyproject.toml uv.lock README.md /app/
 
 # Add virtualenv to PATH

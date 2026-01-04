@@ -1,0 +1,6 @@
+[server]
+# Maximum file upload size in MB
+maxUploadSize = 500
+
+# Max message size for websocket (needed for large files)
+maxMessageSize = 500
