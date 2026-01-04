@@ -36,7 +36,9 @@ COPY pyproject.toml uv.lock README.md ./
 # --no-dev: Exclude development dependencies
 # --no-cache: Don't cache packages (smaller layer)
 # --no-install-project: Skip installing the local project (we copy src separately)
-RUN uv sync --frozen --no-dev --no-cache --no-install-project
+# Use CPU-only PyTorch to save ~1.8GB (no CUDA)
+RUN uv sync --frozen --no-dev --no-cache --no-install-project \
+    --extra-index-url https://download.pytorch.org/whl/cpu
 
 # -----------------------------------------------------------------------------
 # Stage 2: Runtime - Minimal production image
