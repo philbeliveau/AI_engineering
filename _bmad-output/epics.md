@@ -724,3 +724,24 @@ So that the service is publicly accessible and updates automatically.
 **And** logs are accessible for debugging
 **And** the deployment achieves NFR1 (<500ms search latency)
 **And** estimated cost is ~$5/month for starter tier
+
+---
+
+### Story 5.6: Streamlit Web Ingestion Interface
+
+As a **builder**,
+I want a web-based drag-and-drop interface for ingesting documents into the knowledge pipeline,
+so that I can easily upload files and monitor database status without using CLI commands.
+
+**Acceptance Criteria:**
+
+**Given** the Streamlit app is running
+**When** I navigate to the web interface
+**Then** I see a drag-and-drop file upload area, metadata input fields, and database status sidebar
+**And** MongoDB status shows connection state, sources count, chunks count, extractions count
+**And** Qdrant status shows connection state, vector count, dimension (384d)
+**And** I can upload PDF, MD, DOCX, HTML, or PPTX files
+**And** I can optionally provide category, tags, and year metadata
+**And** ingestion runs via subprocess call to existing CLI
+**And** real-time output and success/error feedback is displayed
+**And** recent sources table shows last 5 ingested documents

@@ -243,6 +243,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - **Task 5:** `run_ingestion()` calls `uv run scripts/ingest.py` via subprocess. Temp file handling with cleanup in finally block. Stdout/stderr display. Balloons on success.
 - **Task 6:** 716/718 tests pass (2 pre-existing failures unrelated to this story). Added Web Interface section to data-ingestion-guide.md with run instructions and UI layout diagram.
 - **Code Review Fix 1:** Fixed Docling/OpenCV `libGL.so.1` error using Context7 docs preferred solution - replaced `opencv-python` with `opencv-python-headless` in builder stage (no system deps needed).
+- **Code Review Fix 4:** libGL error persisted on Railway - fixed by using explicit `.venv/bin/pip` path instead of sourced venv + added `--force-reinstall` flag + verification output in Dockerfile.
 - **Code Review Fix 2:** Fixed MongoDB connection leak in `get_mongodb_stats()` - added `finally` block to close connection after use.
 - **Code Review Fix 3:** Replaced hardcoded collection names with `settings.sources_collection`, `settings.chunks_collection`, `settings.extractions_collection` per project-context.md rules.
 
@@ -254,10 +255,11 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | 2026-01-04 | Implemented Tasks 1-6 | Complete Streamlit web interface for document ingestion |
 | 2026-01-04 | Added Task 7: Railway deployment | Deploy Streamlit to Railway (service: streamlite in knowledge-mcp project) |
 | 2026-01-04 | Code review fixes | Fixed Dockerfile libGL error, MongoDB connection leak, hardcoded collection names |
+| 2026-01-04 | Fix 4: libGL persist | Used explicit .venv/bin/pip path + --force-reinstall for opencv-python-headless |
 
 ### File List
 
 - `packages/pipeline/pyproject.toml` - Added streamlit>=1.40.0 dependency
 - `packages/pipeline/web_app.py` - Fixed imports, caching, connection management, collection naming
-- `packages/pipeline/Dockerfile.streamlit` - Added libgl1-mesa-glx and libglib2.0-0 system dependencies
+- `packages/pipeline/Dockerfile.streamlit` - Fixed opencv-python-headless install with explicit venv pip path + force-reinstall
 - `_bmad-output/data-ingestion-guide.md` - Added Web Interface (Streamlit) section with run instructions
