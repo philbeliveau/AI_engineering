@@ -1,0 +1,27 @@
+# =============================================================================
+# Railway Configuration for Streamlit Web Ingestion Interface
+# =============================================================================
+# This file configures the Streamlit service deployment on Railway.
+# Place in packages/pipeline/ (root directory for this service)
+#
+# Railway Project: knowledge-mcp
+# Service Name: streamlit
+# =============================================================================
+
+[build]
+# Use custom Dockerfile for Streamlit
+dockerfilePath = "Dockerfile.streamlit"
+
+[deploy]
+# Health check endpoint for Railway
+healthcheckPath = "/_stcore/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# Note: Environment variables must be set in Railway dashboard:
+#   - MONGODB_URI (from MongoDB Atlas)
+#   - QDRANT_URL (from Qdrant Cloud)
+#   - QDRANT_API_KEY (from Qdrant Cloud)
+#   - PROJECT_ID (ai_engineering)
+#   - ANTHROPIC_API_KEY (for extraction during ingestion)
