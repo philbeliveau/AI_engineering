@@ -91,4 +91,5 @@ development_status:
   5-3-dockerfile-and-container-configuration: done  # Code review passed 2026-01-04: 2 fixes applied (context path, PORT alias)
   5-4-cloud-database-configuration: done  # All 10 tasks completed 2026-01-03, 235 tests pass
   5-5-railway-deployment-pipeline: done  # Code review passed 2026-01-04: Deployed + verified data returns
+  5-6-streamlit-web-ingestion-interface: in-progress  # 2026-01-04: Code review fixes applied (libGL, connection leak, collection names). Task 7 (Railway deploy) pending.
   epic-5-retrospective: optional

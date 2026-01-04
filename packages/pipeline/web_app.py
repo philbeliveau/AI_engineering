@@ -20,19 +20,20 @@ from src.storage.qdrant import QdrantStorageClient
 @st.cache_data(ttl=60)  # Cache for 60 seconds, manual refresh clears it
 def get_mongodb_stats():
     """Get MongoDB collection statistics."""
+    client = None
     try:
         client = MongoDBClient()
         client.connect()  # Must connect before using
         db = client._client[settings.mongodb_database]
 
-        # Get collection stats
-        sources_count = db[f"{settings.project_id}_sources"].count_documents({})
-        chunks_count = db[f"{settings.project_id}_chunks"].count_documents({})
-        extractions_count = db[f"{settings.project_id}_extractions"].count_documents({})
+        # Get collection stats using settings properties (not hardcoded names)
+        sources_count = db[settings.sources_collection].count_documents({})
+        chunks_count = db[settings.chunks_collection].count_documents({})
+        extractions_count = db[settings.extractions_collection].count_documents({})
 
         # Get recent sources
         recent_sources = list(
-            db[f"{settings.project_id}_sources"]
+            db[settings.sources_collection]
             .find({}, {"title": 1, "status": 1, "ingested_at": 1, "type": 1})
             .sort("ingested_at", -1)
             .limit(5)
@@ -49,6 +50,9 @@ def get_mongodb_stats():
         }
     except Exception as e:
         return {"connected": False, "error": str(e)}
+    finally:
+        if client:
+            client.close()
 
 
 @st.cache_data(ttl=60)  # Cache for 60 seconds, manual refresh clears it
