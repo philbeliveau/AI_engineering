@@ -42,7 +42,7 @@ def get_mongodb_stats():
             db[settings.sources_collection]
             .find({}, {"title": 1, "status": 1, "ingested_at": 1, "type": 1})
             .sort("ingested_at", -1)
-            .limit(5)
+            .limit(10)
         )
 
         return {
@@ -56,6 +56,27 @@ def get_mongodb_stats():
         }
     except Exception as e:
         return {"connected": False, "error": str(e)}
+    finally:
+        if client:
+            client.close()
+
+
+def rename_source(source_id: str, new_title: str) -> bool:
+    """Rename a source in MongoDB."""
+    from bson import ObjectId
+    client = None
+    try:
+        client = MongoDBClient()
+        client.connect()
+        db = client._client[settings.mongodb_database]
+        result = db[settings.sources_collection].update_one(
+            {"_id": ObjectId(source_id)},
+            {"$set": {"title": new_title}}
+        )
+        return result.modified_count > 0
+    except Exception as e:
+        st.error(f"Failed to rename: {e}")
+        return False
     finally:
         if client:
             client.close()
@@ -231,15 +252,44 @@ st.subheader("Recent Sources")
 
 mongo_stats = get_mongodb_stats()
 if mongo_stats["connected"] and mongo_stats.get("recent_sources"):
+    import pandas as pd
+
+    # Build dataframe with source IDs for editing
     sources_data = []
+    source_ids = []
     for src in mongo_stats["recent_sources"]:
+        source_ids.append(str(src.get("_id", "")))
         sources_data.append({
             "Title": src.get("title", "Untitled"),
             "Type": src.get("type", "-"),
             "Status": src.get("status", "-"),
             "Ingested": str(src.get("ingested_at", "-"))[:19],
         })
-    st.table(sources_data)
+
+    df = pd.DataFrame(sources_data)
+
+    # Editable table - only Title column is editable
+    edited_df = st.data_editor(
+        df,
+        column_config={
+            "Title": st.column_config.TextColumn("Title", help="Click to edit"),
+            "Type": st.column_config.TextColumn("Type", disabled=True),
+            "Status": st.column_config.TextColumn("Status", disabled=True),
+            "Ingested": st.column_config.TextColumn("Ingested", disabled=True),
+        },
+        hide_index=True,
+        use_container_width=True,
+        key="sources_editor",
+    )
+
+    # Check for changes and save
+    if not df["Title"].equals(edited_df["Title"]):
+        for idx, (old_title, new_title) in enumerate(zip(df["Title"], edited_df["Title"])):
+            if old_title != new_title and new_title.strip():
+                if rename_source(source_ids[idx], new_title.strip()):
+                    st.success(f"Renamed to: {new_title.strip()}")
+                    st.cache_data.clear()
+                    st.rerun()
 else:
     st.caption("No sources ingested yet.")
 
