@@ -3,6 +3,7 @@
 
 Usage:
     uv run scripts/extract.py <source_id>
+    uv run scripts/extract.py <source_id> --hierarchical
     uv run scripts/extract.py <source_id> --extractors decision,pattern
     uv run scripts/extract.py <source_id> --dry-run
     uv run scripts/extract.py <source_id> --verbose
@@ -10,8 +11,17 @@ Usage:
 
 Examples:
     uv run scripts/extract.py 507f1f77bcf86cd799439011
+    uv run scripts/extract.py abc123 --hierarchical --verbose
     uv run scripts/extract.py abc123 --extractors decision,warning --verbose
     uv run scripts/extract.py abc123 --dry-run
+
+Extraction Modes:
+    --hierarchical   Use hierarchical extraction (recommended for books/papers)
+                     Combines chunks by chapter/section before extraction:
+                     - CHAPTER level (8K tokens): methodology, workflow
+                     - SECTION level (4K tokens): decision, pattern, checklist, persona
+                     - CHUNK level (512 tokens): warning
+    (default)        Flat extraction - process each chunk independently
 
 Claude-as-Extractor Pattern:
     This script implements NFR3 (zero external API costs) by using Claude Code
@@ -138,6 +148,12 @@ def main() -> int:
         help="Suppress progress output",
     )
 
+    parser.add_argument(
+        "--hierarchical",
+        action="store_true",
+        help="Use hierarchical extraction (combines chunks by chapter/section)",
+    )
+
     args = parser.parse_args()
 
     # Configure logging
@@ -165,17 +181,25 @@ def main() -> int:
                     print(f"❌ Validation error: {e.message}", file=sys.stderr)
                     return 1
 
-            # Run extraction
-            result = pipeline.extract(
-                source_id=args.source_id,
-                extractor_types=args.extractors,
-                quiet=args.quiet,
-            )
+            # Run extraction (hierarchical or flat)
+            if args.hierarchical:
+                result = pipeline.extract_hierarchical(
+                    source_id=args.source_id,
+                    extractor_types=args.extractors,
+                    quiet=args.quiet,
+                )
+            else:
+                result = pipeline.extract(
+                    source_id=args.source_id,
+                    extractor_types=args.extractors,
+                    quiet=args.quiet,
+                )
 
             # Display summary
             if not args.quiet:
                 print()
-                print("✅ Extraction Complete!")
+                mode = "Hierarchical" if args.hierarchical else "Flat"
+                print(f"✅ {mode} Extraction Complete!")
                 print()
                 print(result.format_summary())
                 print()

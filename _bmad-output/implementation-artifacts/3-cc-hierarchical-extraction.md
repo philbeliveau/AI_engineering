@@ -643,9 +643,9 @@ if __name__ == "__main__":
 
 6. **Updated all 384d references to 768d** across both packages
 
-### Remaining Tasks (6 tasks)
+### Completed Tasks - Hierarchical Extraction (Tasks 5-10)
 
-All remaining tasks complete the **Hierarchical Extraction Architecture**:
+All hierarchical extraction architecture tasks are **complete**:
 
 | Task | Status | Key Deliverable |
 |------|--------|-----------------|
@@ -702,7 +702,7 @@ token_count = embedder.count_tokens("some text")  # Uses nomic tokenizer
 - Use `structlog` for logging (never print)
 - Extractors use sync LLM calls - keep new methods sync
 
-### Getting Started
+### Verification Commands
 
 ```bash
 git checkout feature/3-cc-hierarchical-extraction
@@ -710,11 +710,11 @@ git pull
 cd packages/pipeline
 uv sync
 
-# Verify all tests pass (417 extractor tests should pass)
+# Verify all tests pass (442 extractor tests should pass)
 uv run pytest tests/test_extractors/ -v
 
-# Start with Task 5: Update BaseExtractor interface
-# Key file: packages/pipeline/src/extractors/base.py
+# Run hierarchical extraction on a source
+uv run scripts/extract.py --source-id <source_id> --hierarchical
 ```
 
 ### Architecture Reference
