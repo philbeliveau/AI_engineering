@@ -193,57 +193,57 @@ Switching embedding models requires:
 
 ### Part A: Embedding Model Upgrade
 
-- [ ] **Task 0: Update Embedding Configuration** (AC: #7, #8, #9)
-  - [ ] 0.1: Update `EMBED_MODEL_ID` constant in `src/processors/chunker.py` to `nomic-ai/nomic-embed-text-v1.5`
-  - [ ] 0.2: Update `EMBED_MODEL_ID` in `src/config.py` (if exists) or create centralized config
-  - [ ] 0.3: Update Qdrant vector_size from 384 to 768 in storage configuration
-  - [ ] 0.4: Add `trust_remote_code=True` to SentenceTransformer initialization
-  - [ ] 0.5: Implement instruction prefix handling (`search_document:` / `search_query:`)
-  - [ ] 0.6: Update `count_tokens()` to use nomic tokenizer
-  - [ ] 0.7: Write unit tests for new embedding model
+- [x] **Task 0: Update Embedding Configuration** (AC: #7, #8, #9) ✅ Complete
+  - [x] 0.1: Update `EMBED_MODEL_ID` constant in `src/processors/chunker.py` to `nomic-ai/nomic-embed-text-v1.5`
+  - [x] 0.2: Update `EMBED_MODEL_ID` in `src/config.py` (if exists) or create centralized config
+  - [x] 0.3: Update Qdrant vector_size from 384 to 768 in storage configuration
+  - [x] 0.4: Add `trust_remote_code=True` to SentenceTransformer initialization
+  - [x] 0.5: Implement instruction prefix handling (`search_document:` / `search_query:`)
+  - [x] 0.6: Update `count_tokens()` to use nomic tokenizer
+  - [x] 0.7: Write unit tests for new embedding model (18 tests)
 
-- [ ] **Task 0.5: Create Re-embedding Script** (AC: #10)
-  - [ ] 0.5.1: Create `scripts/reembed.py` to re-embed all chunks with new model
-  - [ ] 0.5.2: Delete old Qdrant collection and create new with 768d vectors
-  - [ ] 0.5.3: Iterate through MongoDB chunks and generate new embeddings
-  - [ ] 0.5.4: Upsert new vectors to Qdrant with existing chunk IDs
-  - [ ] 0.5.5: Add progress bar and logging
-  - [ ] 0.5.6: Test script with small batch first
+- [x] **Task 0.5: Create Re-embedding Script** (AC: #10) ✅ Complete
+  - [x] 0.5.1: Create `scripts/reembed.py` to re-embed all chunks with new model
+  - [x] 0.5.2: Delete old Qdrant collection and create new with 768d vectors
+  - [x] 0.5.3: Iterate through MongoDB chunks and generate new embeddings
+  - [x] 0.5.4: Upsert new vectors to Qdrant with existing chunk IDs
+  - [x] 0.5.5: Add progress bar and logging
+  - [x] 0.5.6: Test script with small batch first
 
-- [ ] **Task 0.7: Update MCP Server Embedding** (AC: #8)
-  - [ ] 0.7.1: Update `packages/mcp-server/src/config.py` with new model ID
-  - [ ] 0.7.2: Ensure query embedding uses `search_query:` prefix
-  - [ ] 0.7.3: Update Qdrant client to expect 768d vectors
-  - [ ] 0.7.4: Test semantic search with new embeddings
+- [x] **Task 0.7: Update MCP Server Embedding** (AC: #8) ✅ Complete
+  - [x] 0.7.1: Update `packages/mcp-server/src/config.py` with new model ID
+  - [x] 0.7.2: Ensure query embedding uses `search_query:` prefix
+  - [x] 0.7.3: Update Qdrant client to expect 768d vectors
+  - [x] 0.7.4: Test semantic search with new embeddings
 
 ### Part B: Hierarchical Extraction
 
-- [ ] **Task 1: Create Extraction Level Configuration** (AC: #1, #2, #3)
-  - [ ] 1.1: Create `src/extractors/config.py` with `ExtractionLevel` enum (CHAPTER, SECTION, CHUNK)
-  - [ ] 1.2: Create `ExtractionLevelConfig` Pydantic model (level, extraction_types, max_tokens, combination_strategy)
-  - [ ] 1.3: Define `EXTRACTION_LEVEL_CONFIG` mapping each level to its extractors and token budgets
-  - [ ] 1.4: Write unit tests for configuration models
+- [x] **Task 1: Create Extraction Level Configuration** (AC: #1, #2, #3)
+  - [x] 1.1: Create `src/extractors/extraction_levels.py` with `ExtractionLevel` enum (CHAPTER, SECTION, CHUNK)
+  - [x] 1.2: Create `ExtractionLevelConfig` Pydantic model (level, extraction_types, max_tokens, combination_strategy)
+  - [x] 1.3: Define `EXTRACTION_LEVEL_CONFIG` mapping each level to its extractors and token budgets
+  - [x] 1.4: Write unit tests for configuration models (31 tests)
 
-- [ ] **Task 2: Create Document Hierarchy Builder** (AC: #1, #2)
-  - [ ] 2.1: Create `src/extractors/hierarchy.py` with `DocumentHierarchy`, `ChapterNode`, `SectionNode` dataclasses
-  - [ ] 2.2: Implement `build_hierarchy(chunks, source_id)` function that groups chunks by chapter/section using position metadata
-  - [ ] 2.3: Implement `_generate_id()` for stable chapter/section IDs
-  - [ ] 2.4: Write unit tests for hierarchy building (including edge cases: missing position metadata, unknown chapters)
+- [x] **Task 2: Create Document Hierarchy Builder** (AC: #1, #2)
+  - [x] 2.1: Create `src/extractors/hierarchy.py` with `DocumentHierarchy`, `ChapterNode`, `SectionNode` dataclasses
+  - [x] 2.2: Implement `build_hierarchy(chunks, source_id)` function that groups chunks by chapter/section using position metadata
+  - [x] 2.3: Implement `_generate_id()` for stable chapter/section IDs
+  - [x] 2.4: Write unit tests for hierarchy building (25 tests, including edge cases)
 
-- [ ] **Task 3: Create Chunk Combiner Utility** (AC: #1, #2)
-  - [ ] 3.1: Implement `_combine_chunks(chunks, max_tokens, strategy)` method in hierarchy module
-  - [ ] 3.2: Implement "truncate" strategy (cut at token limit)
-  - [ ] 3.3: Implement "summary_if_exceeded" strategy (placeholder for future summarization)
-  - [ ] 3.4: Sort chunks by chunk_index for proper ordering
-  - [ ] 3.5: Write unit tests for chunk combination
+- [x] **Task 3: Create Chunk Combiner Utility** (AC: #1, #2)
+  - [x] 3.1: Implement `combine_chunks(chunks, max_tokens, strategy)` function in hierarchy module
+  - [x] 3.2: Implement "truncate" strategy (cut at token limit)
+  - [x] 3.3: Implement "summary_if_exceeded" strategy (placeholder, falls back to truncate)
+  - [x] 3.4: Sort chunks by chunk_index for proper ordering
+  - [x] 3.5: Write unit tests for chunk combination (13 tests)
 
-- [ ] **Task 4: Update ExtractionBase Model** (AC: #4, #5)
-  - [ ] 4.1: Add `context_level: ExtractionLevel = ExtractionLevel.CHUNK` field to `ExtractionBase`
-  - [ ] 4.2: Add `context_id: str = ""` field (chapter_id, section_id, or chunk_id)
-  - [ ] 4.3: Add `chunk_ids: list[str] = Field(default_factory=list)` field
-  - [ ] 4.4: Update `schema_version` to `"1.1.0"` for new extractions
-  - [ ] 4.5: Ensure backward compatibility (old extractions default to CHUNK level)
-  - [ ] 4.6: Write unit tests for model validation
+- [x] **Task 4: Update ExtractionBase Model** (AC: #4, #5)
+  - [x] 4.1: Add `context_level: ExtractionLevel = ExtractionLevel.CHUNK` field to `ExtractionBase`
+  - [x] 4.2: Add `context_id: str = ""` field (chapter_id, section_id, or chunk_id)
+  - [x] 4.3: Add `chunk_ids: list[str] = Field(default_factory=list)` field
+  - [x] 4.4: Update `schema_version` to `"1.1.0"` for new extractions
+  - [x] 4.5: Ensure backward compatibility (old extractions default to CHUNK level)
+  - [x] 4.6: Write unit tests for model validation (98 tests pass)
 
 - [ ] **Task 5: Update BaseExtractor Interface** (AC: #1, #2, #3)
   - [ ] 5.1: Add new async extract signature: `async def extract(content, source_id, context_level, context_id, chunk_ids=None)`
@@ -558,6 +558,10 @@ if __name__ == "__main__":
 | **Task 0** | Update Embedding Configuration | `b4e4d9d` |
 | **Task 0.5** | Create Re-embedding Script | `e4ca9cb` |
 | **Task 0.7** | Update MCP Server Embedding | `2583abd` |
+| **Task 1** | Create Extraction Level Configuration | 31 tests |
+| **Task 2** | Create Document Hierarchy Builder | 25 tests |
+| **Task 3** | Create Chunk Combiner Utility | 13 tests |
+| **Task 4** | Update ExtractionBase Model | 98 tests pass |
 
 ### What Was Done
 
@@ -589,16 +593,12 @@ if __name__ == "__main__":
 
 6. **Updated all 384d references to 768d** across both packages
 
-### Remaining Tasks (8 tasks)
+### Remaining Tasks (6 tasks)
 
-All remaining tasks implement the **Hierarchical Extraction Architecture**:
+All remaining tasks complete the **Hierarchical Extraction Architecture**:
 
 | Task | Status | Key Deliverable |
 |------|--------|-----------------|
-| **Task 1** | Pending | `src/extractors/extraction_levels.py` - ExtractionLevel enum |
-| **Task 2** | Pending | `src/extractors/hierarchy_builder.py` - DocumentHierarchy class |
-| **Task 3** | Pending | `src/extractors/chunk_combiner.py` - ChunkCombiner utility |
-| **Task 4** | Pending | Update `ExtractionBase` model with context fields |
 | **Task 5** | Pending | Update `BaseExtractor` interface with context support |
 | **Task 6** | Pending | `src/extractors/hierarchical_extractor.py` - Orchestrator |
 | **Task 7** | Pending | Update extraction pipeline to use HierarchicalExtractor |
@@ -608,26 +608,31 @@ All remaining tasks implement the **Hierarchical Extraction Architecture**:
 
 ### Key Context for Next Developer
 
-**Files to understand first:**
+**New files created (Tasks 1-4):**
 ```
-packages/pipeline/src/
-├── config.py                    # EMBEDDING_CONFIG, VECTOR_SIZE (already updated)
-├── processors/embedder.py       # NomicEmbedder (new, complete)
-├── models/chunk.py              # Chunk model - has position.chapter/section metadata
-├── extractors/base.py           # BaseExtractor, ExtractionBase - needs updates
-└── storage/extraction_storage.py # Needs context field updates
+packages/pipeline/src/extractors/
+├── extraction_levels.py         # ExtractionLevel enum + LevelConfig (Task 1)
+├── hierarchy.py                 # DocumentHierarchy, ChapterNode, SectionNode (Task 2 & 3)
+└── base.py                      # ExtractionBase updated with context fields (Task 4)
 ```
 
-**Chunks already have position metadata** from DoclingChunker:
-```python
-position = {
-    "chapter": "Chapter 5: RAG Architecture",
-    "section": "5.2 Retrieval Strategies",
-    "page": 127,
-    "chunk_index": 0,
-}
+**Key files to understand:**
 ```
-Use this to build the document hierarchy in Task 2.
+packages/pipeline/src/
+├── config.py                    # EMBEDDING_CONFIG, VECTOR_SIZE (768d)
+├── processors/embedder.py       # NomicEmbedder with count_tokens()
+├── extractors/base.py           # ExtractionBase now has context_level, context_id, chunk_ids
+├── extractors/extraction_levels.py  # ExtractionLevel.CHAPTER/SECTION/CHUNK
+├── extractors/hierarchy.py      # DocumentHierarchy + combine_chunks()
+└── storage/extraction_storage.py # Needs context field updates (Task 8)
+```
+
+**ExtractionBase now includes (v1.1.0):**
+```python
+context_level: ExtractionLevel = ExtractionLevel.CHUNK
+context_id: str = ""  # chapter_id, section_id, or chunk_id
+chunk_ids: list[str] = []  # All chunk IDs combined for extraction
+```
 
 **Token counting available** via:
 ```python
@@ -649,9 +654,9 @@ git checkout feature/3-cc-hierarchical-extraction
 git pull
 cd packages/pipeline
 uv sync
-uv run pytest tests/ -v  # Verify baseline
+uv run pytest tests/ -v  # Verify baseline (167 tests should pass)
 
-# Start with Task 1: Create extraction_levels.py
+# Start with Task 5: Update BaseExtractor interface
 ```
 
 ### Architecture Reference
