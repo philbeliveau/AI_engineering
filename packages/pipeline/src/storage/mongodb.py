@@ -713,6 +713,10 @@ class MongoDBClient:
                 "topics": extraction_data.get("topics", []),
                 "schema_version": extraction_data.get("schema_version", "1.0.0"),
                 "extracted_at": extraction_data.get("extracted_at"),
+                # Hierarchical context fields (v1.1.0)
+                "context_level": extraction_data.get("context_level", "chunk"),
+                "context_id": extraction_data.get("context_id", extraction_data.get("chunk_id", "")),
+                "chunk_ids": extraction_data.get("chunk_ids", []),
             }
 
             result = self._db[settings.extractions_collection].insert_one(doc)
