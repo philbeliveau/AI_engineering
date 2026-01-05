@@ -333,6 +333,79 @@ def run_extraction(
         )
 
 
+def _format_extraction_content(extraction: Any) -> str:
+    """Format extraction fields into readable markdown content.
+
+    Args:
+        extraction: Extraction model from MongoDB.
+
+    Returns:
+        Formatted markdown string with extraction content.
+    """
+    ext_type = extraction.type.value if hasattr(extraction.type, "value") else str(extraction.type)
+
+    if ext_type == "decision":
+        parts = []
+        if hasattr(extraction, "question") and extraction.question:
+            parts.append(f"**Question:** {extraction.question}")
+        if hasattr(extraction, "options") and extraction.options:
+            opts = "\n".join(f"- {opt}" for opt in extraction.options)
+            parts.append(f"**Options:**\n{opts}")
+        if hasattr(extraction, "considerations") and extraction.considerations:
+            parts.append(f"**Considerations:** {extraction.considerations}")
+        if hasattr(extraction, "recommended_approach") and extraction.recommended_approach:
+            parts.append(f"**Recommended:** {extraction.recommended_approach}")
+        return "\n\n".join(parts)
+
+    elif ext_type == "pattern":
+        parts = []
+        if hasattr(extraction, "name") and extraction.name:
+            parts.append(f"**Pattern:** {extraction.name}")
+        if hasattr(extraction, "problem") and extraction.problem:
+            parts.append(f"**Problem:** {extraction.problem}")
+        if hasattr(extraction, "solution") and extraction.solution:
+            parts.append(f"**Solution:** {extraction.solution}")
+        if hasattr(extraction, "code_example") and extraction.code_example:
+            parts.append(f"**Code Example:**\n```\n{extraction.code_example}\n```")
+        if hasattr(extraction, "trade_offs") and extraction.trade_offs:
+            parts.append(f"**Trade-offs:** {extraction.trade_offs}")
+        return "\n\n".join(parts)
+
+    elif ext_type == "warning":
+        parts = []
+        if hasattr(extraction, "title") and extraction.title:
+            parts.append(f"**Warning:** {extraction.title}")
+        if hasattr(extraction, "description") and extraction.description:
+            parts.append(f"**Description:** {extraction.description}")
+        if hasattr(extraction, "symptoms") and extraction.symptoms:
+            parts.append(f"**Symptoms:** {extraction.symptoms}")
+        if hasattr(extraction, "consequences") and extraction.consequences:
+            parts.append(f"**Consequences:** {extraction.consequences}")
+        if hasattr(extraction, "prevention") and extraction.prevention:
+            parts.append(f"**Prevention:** {extraction.prevention}")
+        return "\n\n".join(parts)
+
+    elif ext_type == "methodology":
+        parts = []
+        if hasattr(extraction, "name") and extraction.name:
+            parts.append(f"**Methodology:** {extraction.name}")
+        if hasattr(extraction, "steps") and extraction.steps:
+            steps_text = "\n".join(
+                f"{s.order}. **{s.title}**: {s.description}"
+                for s in extraction.steps
+            )
+            parts.append(f"**Steps:**\n{steps_text}")
+        if hasattr(extraction, "prerequisites") and extraction.prerequisites:
+            prereqs = "\n".join(f"- {p}" for p in extraction.prerequisites)
+            parts.append(f"**Prerequisites:**\n{prereqs}")
+        if hasattr(extraction, "outputs") and extraction.outputs:
+            outputs = "\n".join(f"- {o}" for o in extraction.outputs)
+            parts.append(f"**Outputs:**\n{outputs}")
+        return "\n\n".join(parts)
+
+    return ""
+
+
 def search_knowledge(
     query: str,
     limit: int = 20,
@@ -341,6 +414,9 @@ def search_knowledge(
 ) -> list[dict[str, Any]]:
     """Search the knowledge base using semantic search.
 
+    Queries Qdrant for vector similarity, then enriches results
+    with full content from MongoDB.
+
     Args:
         query: Search query text.
         limit: Maximum results to return.
@@ -348,22 +424,49 @@ def search_knowledge(
         source_id: Optional filter by source.
 
     Returns:
-        List of search results with scores and metadata.
+        List of search results with scores, metadata, and content.
     """
     # Generate embedding for query
     embedder = get_embedder()
     query_vector = embedder.embed_query(query)
 
-    # Search Qdrant
+    # Search Qdrant for matching extractions
     qdrant_client = QdrantStorageClient()
-    results = qdrant_client.search_extractions(
+    qdrant_results = qdrant_client.search_extractions(
         query_vector=query_vector,
         limit=limit,
         extraction_type=extraction_type,
         source_id=source_id,
     )
 
-    return results
+    # Enrich results with full content from MongoDB
+    mongo_client = None
+    try:
+        mongo_client = MongoDBClient()
+        mongo_client.connect()
+
+        for result in qdrant_results:
+            extraction_id = result.get("payload", {}).get("extraction_id")
+            if extraction_id:
+                try:
+                    # Fetch full extraction from MongoDB
+                    full_extraction = mongo_client.get_extraction(extraction_id)
+                    # Format and add content to payload
+                    result["payload"]["content"] = _format_extraction_content(full_extraction)
+                except Exception as e:
+                    logger.warning(
+                        "extraction_content_fetch_failed",
+                        extraction_id=extraction_id,
+                        error=str(e),
+                    )
+                    result["payload"]["content"] = ""
+    except Exception as e:
+        logger.error("mongodb_enrichment_failed", error=str(e))
+    finally:
+        if mongo_client:
+            mongo_client.close()
+
+    return qdrant_results
 
 
 def get_source_options(mongo_stats: dict[str, Any]) -> dict[str, str]:
