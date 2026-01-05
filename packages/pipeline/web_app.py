@@ -5,13 +5,19 @@ Simple drag-and-drop ingestion with database status monitoring.
 Run: uv run streamlit run web_app.py
 """
 
-import streamlit as st
-import subprocess
-import tempfile
 import os
 from pathlib import Path
 
-# Import pipeline components
+# Explicitly load .env BEFORE importing settings
+from dotenv import load_dotenv
+env_path = Path(__file__).parent / ".env"
+load_dotenv(env_path, override=True)
+
+import streamlit as st
+import subprocess
+import tempfile
+
+# Import pipeline components (AFTER loading .env)
 from src.config import settings
 from src.storage.mongodb import MongoDBClient
 from src.storage.qdrant import QdrantStorageClient
