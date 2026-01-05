@@ -352,7 +352,7 @@ def search_knowledge(
     """
     # Generate embedding for query
     embedder = get_embedder()
-    query_vector = embedder.embed(query)
+    query_vector = embedder.embed_query(query)
 
     # Search Qdrant
     qdrant_client = QdrantStorageClient()
