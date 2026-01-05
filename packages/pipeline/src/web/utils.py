@@ -342,64 +342,67 @@ def _format_extraction_content(extraction: Any) -> str:
     Returns:
         Formatted markdown string with extraction content.
     """
-    ext_type = extraction.type.value if hasattr(extraction.type, "value") else str(extraction.type)
+    ext_type = extraction.type if isinstance(extraction.type, str) else str(extraction.type)
+    content = extraction.content
 
     if ext_type == "decision":
         parts = []
-        if hasattr(extraction, "question") and extraction.question:
-            parts.append(f"**Question:** {extraction.question}")
-        if hasattr(extraction, "options") and extraction.options:
-            opts = "\n".join(f"- {opt}" for opt in extraction.options)
+        if hasattr(content, "question") and content.question:
+            parts.append(f"**Question:** {content.question}")
+        if hasattr(content, "options") and content.options:
+            opts = "\n".join(f"- {opt}" for opt in content.options)
             parts.append(f"**Options:**\n{opts}")
-        if hasattr(extraction, "considerations") and extraction.considerations:
-            parts.append(f"**Considerations:** {extraction.considerations}")
-        if hasattr(extraction, "recommended_approach") and extraction.recommended_approach:
-            parts.append(f"**Recommended:** {extraction.recommended_approach}")
+        if hasattr(content, "considerations") and content.considerations:
+            cons = "\n".join(f"- {c}" for c in content.considerations)
+            parts.append(f"**Considerations:**\n{cons}")
+        if hasattr(content, "recommended_approach") and content.recommended_approach:
+            parts.append(f"**Recommended:** {content.recommended_approach}")
         return "\n\n".join(parts)
 
     elif ext_type == "pattern":
         parts = []
-        if hasattr(extraction, "name") and extraction.name:
-            parts.append(f"**Pattern:** {extraction.name}")
-        if hasattr(extraction, "problem") and extraction.problem:
-            parts.append(f"**Problem:** {extraction.problem}")
-        if hasattr(extraction, "solution") and extraction.solution:
-            parts.append(f"**Solution:** {extraction.solution}")
-        if hasattr(extraction, "code_example") and extraction.code_example:
-            parts.append(f"**Code Example:**\n```\n{extraction.code_example}\n```")
-        if hasattr(extraction, "trade_offs") and extraction.trade_offs:
-            parts.append(f"**Trade-offs:** {extraction.trade_offs}")
+        if hasattr(content, "name") and content.name:
+            parts.append(f"**Pattern:** {content.name}")
+        if hasattr(content, "problem") and content.problem:
+            parts.append(f"**Problem:** {content.problem}")
+        if hasattr(content, "solution") and content.solution:
+            parts.append(f"**Solution:** {content.solution}")
+        if hasattr(content, "code_example") and content.code_example:
+            parts.append(f"**Code Example:**\n```\n{content.code_example}\n```")
+        if hasattr(content, "trade_offs") and content.trade_offs:
+            toffs = "\n".join(f"- {t}" for t in content.trade_offs)
+            parts.append(f"**Trade-offs:**\n{toffs}")
         return "\n\n".join(parts)
 
     elif ext_type == "warning":
         parts = []
-        if hasattr(extraction, "title") and extraction.title:
-            parts.append(f"**Warning:** {extraction.title}")
-        if hasattr(extraction, "description") and extraction.description:
-            parts.append(f"**Description:** {extraction.description}")
-        if hasattr(extraction, "symptoms") and extraction.symptoms:
-            parts.append(f"**Symptoms:** {extraction.symptoms}")
-        if hasattr(extraction, "consequences") and extraction.consequences:
-            parts.append(f"**Consequences:** {extraction.consequences}")
-        if hasattr(extraction, "prevention") and extraction.prevention:
-            parts.append(f"**Prevention:** {extraction.prevention}")
+        if hasattr(content, "title") and content.title:
+            parts.append(f"**Warning:** {content.title}")
+        if hasattr(content, "description") and content.description:
+            parts.append(f"**Description:** {content.description}")
+        if hasattr(content, "symptoms") and content.symptoms:
+            syms = "\n".join(f"- {s}" for s in content.symptoms)
+            parts.append(f"**Symptoms:**\n{syms}")
+        if hasattr(content, "consequences") and content.consequences:
+            cons = "\n".join(f"- {c}" for c in content.consequences)
+            parts.append(f"**Consequences:**\n{cons}")
+        if hasattr(content, "prevention") and content.prevention:
+            parts.append(f"**Prevention:** {content.prevention}")
         return "\n\n".join(parts)
 
     elif ext_type == "methodology":
         parts = []
-        if hasattr(extraction, "name") and extraction.name:
-            parts.append(f"**Methodology:** {extraction.name}")
-        if hasattr(extraction, "steps") and extraction.steps:
-            steps_text = "\n".join(
-                f"{s.order}. **{s.title}**: {s.description}"
-                for s in extraction.steps
-            )
+        if hasattr(content, "name") and content.name:
+            parts.append(f"**Methodology:** {content.name}")
+        if hasattr(content, "steps") and content.steps:
+            # steps is list[str], not objects
+            steps_text = "\n".join(f"{i+1}. {step}" for i, step in enumerate(content.steps))
             parts.append(f"**Steps:**\n{steps_text}")
-        if hasattr(extraction, "prerequisites") and extraction.prerequisites:
-            prereqs = "\n".join(f"- {p}" for p in extraction.prerequisites)
+        if hasattr(content, "prerequisites") and content.prerequisites:
+            prereqs = "\n".join(f"- {p}" for p in content.prerequisites)
             parts.append(f"**Prerequisites:**\n{prereqs}")
-        if hasattr(extraction, "outputs") and extraction.outputs:
-            outputs = "\n".join(f"- {o}" for o in extraction.outputs)
+        if hasattr(content, "outputs") and content.outputs:
+            outputs = "\n".join(f"- {o}" for o in content.outputs)
             parts.append(f"**Outputs:**\n{outputs}")
         return "\n\n".join(parts)
 
