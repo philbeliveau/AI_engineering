@@ -48,7 +48,7 @@ class ChunkerConfig(BaseModel):
 
     Attributes:
         chunk_size: Target maximum tokens per chunk (for HybridChunker max_tokens).
-                   Default 512 fits well within all-MiniLM-L6-v2 limits.
+                   Default 512 fits well within nomic-embed-text-v1.5's 8K token limit.
         merge_peers: Whether to merge peer elements for better context.
                     When True, adjacent elements of the same type are combined.
     """

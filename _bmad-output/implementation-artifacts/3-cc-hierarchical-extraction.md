@@ -561,6 +561,14 @@ if __name__ == "__main__":
   - Task 9: Verified backward compatibility (442 tests pass)
   - Task 10: All tests pass, story marked complete
   - **All 442 extractor tests pass**
+- 2026-01-05: **BMAD Code Review** (Adversarial Senior Dev Review):
+  - **0 Critical Issues** - All 10 ACs verified as implemented, all [x] tasks confirmed complete
+  - **3 Medium Issues Fixed:**
+    - Fixed outdated docstrings in `src/extraction/pipeline.py` (2 places) - all-MiniLM-L6-v2 → nomic-embed-text-v1.5
+    - Fixed Implementation Handoff section showing Tasks 5-10 as "Pending" → "Complete"
+    - Fixed `src/processors/chunker.py` docstring - updated embedding model reference
+  - **2 Low Issues** (not fixed - sample data only): prompts/methodology.md examples, models/extraction.py test data
+  - **All 50 affected tests pass post-fix**
 
 ### File List
 
@@ -641,12 +649,12 @@ All remaining tasks complete the **Hierarchical Extraction Architecture**:
 
 | Task | Status | Key Deliverable |
 |------|--------|-----------------|
-| **Task 5** | Pending | Update `BaseExtractor` interface with context support |
-| **Task 6** | Pending | `src/extractors/hierarchical_extractor.py` - Orchestrator |
-| **Task 7** | Pending | Update extraction pipeline to use HierarchicalExtractor |
-| **Task 8** | Pending | Update extraction storage for new fields |
-| **Task 9** | Pending | Backward compatibility verification |
-| **Task 10** | Pending | Full test suite + documentation |
+| **Task 5** | Complete | Update `BaseExtractor` interface with context support |
+| **Task 6** | Complete | `src/extractors/hierarchical.py` - Orchestrator |
+| **Task 7** | Complete | Update extraction pipeline to use HierarchicalExtractor |
+| **Task 8** | Complete | Update extraction storage for new fields |
+| **Task 9** | Complete | Backward compatibility verification |
+| **Task 10** | Complete | Full test suite + documentation |
 
 ### Key Context for Next Developer
 

@@ -17,7 +17,7 @@ Claude-as-Extractor Pattern (NFR3):
     - Zero external LLM API costs
     - High-quality extractions using Claude's reasoning
     - Consistent extraction format via Pydantic models
-    - Local embeddings only (all-MiniLM-L6-v2)
+    - Local embeddings only (nomic-embed-text-v1.5, 768d)
 
 Example:
     pipeline = ExtractionPipeline()
@@ -135,7 +135,7 @@ class ExtractionPipeline:
     - Extraction prompts define what to extract
     - Claude Code performs actual extraction during run
     - No external LLM API calls in pipeline code
-    - Local embeddings only (all-MiniLM-L6-v2)
+    - Local embeddings only (nomic-embed-text-v1.5, 768d)
 
     Example:
         pipeline = ExtractionPipeline()
@@ -398,11 +398,14 @@ class ExtractionPipeline:
 
         for extractor in extractors:
             try:
-                # Call the extract method
+                # Call the extract method with new hierarchical signature
+                # Uses CHUNK level for backward compatibility with flat extraction
                 result_or_coro = extractor.extract(
-                    chunk_content=chunk.content,
-                    chunk_id=chunk.id,
+                    content=chunk.content,
                     source_id=chunk.source_id,
+                    context_level=ExtractionLevel.CHUNK,
+                    context_id=chunk.id,
+                    chunk_ids=[chunk.id],
                 )
 
                 # Handle async extractors by running the coroutine
