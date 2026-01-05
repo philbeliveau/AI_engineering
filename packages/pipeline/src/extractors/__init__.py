@@ -28,6 +28,7 @@ Example:
 from src.extractors.base import (
     # Enums
     ExtractionType,
+    ExtractionLevel,
     # Base models
     ExtractionBase,
     ExtractionResult,
@@ -57,6 +58,26 @@ from src.extractors.base import (
 )
 from src.extractors.llm_client import LLMClient, LLMClientError
 from src.extractors.utils import generate_extraction_summary
+from src.extractors.extraction_levels import (
+    ExtractionLevelConfig,
+    EXTRACTION_LEVEL_CONFIG,
+    get_level_for_extraction_type,
+    get_extraction_types_for_level,
+    get_max_tokens_for_level,
+)
+from src.extractors.hierarchy import (
+    ChapterNode,
+    SectionNode,
+    DocumentHierarchy,
+    CombinedContent,
+    build_hierarchy,
+    combine_chunks,
+)
+from src.extractors.hierarchical import (
+    HierarchicalExtractor,
+    HierarchicalExtractionResult,
+    LevelExtractionStats,
+)
 from src.extractors.decision_extractor import DecisionExtractor
 from src.extractors.pattern_extractor import PatternExtractor
 from src.extractors.warning_extractor import WarningExtractor
@@ -68,6 +89,7 @@ from src.extractors.workflow_extractor import WorkflowExtractor
 __all__ = [
     # Enums
     "ExtractionType",
+    "ExtractionLevel",
     # Base models
     "ExtractionBase",
     "ExtractionResult",
@@ -99,6 +121,23 @@ __all__ = [
     "LLMClientError",
     # Utilities
     "generate_extraction_summary",
+    # Extraction Levels
+    "ExtractionLevelConfig",
+    "EXTRACTION_LEVEL_CONFIG",
+    "get_level_for_extraction_type",
+    "get_extraction_types_for_level",
+    "get_max_tokens_for_level",
+    # Document Hierarchy
+    "ChapterNode",
+    "SectionNode",
+    "DocumentHierarchy",
+    "CombinedContent",
+    "build_hierarchy",
+    "combine_chunks",
+    # Hierarchical Extractor
+    "HierarchicalExtractor",
+    "HierarchicalExtractionResult",
+    "LevelExtractionStats",
     # Extractors
     "DecisionExtractor",
     "PatternExtractor",

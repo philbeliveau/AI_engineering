@@ -4,13 +4,14 @@ Extracts warnings, gotchas, and anti-patterns from document chunks.
 Used by end users to avoid common mistakes via the get_warnings MCP tool.
 """
 
-from typing import Type
+from typing import Optional, Type
 
 import structlog
 
 from src.extractors.base import (
     BaseExtractor,
     ExtractionBase,
+    ExtractionLevel,
     ExtractionResult,
     ExtractionType,
     Warning,
@@ -28,6 +29,9 @@ class WarningExtractor(BaseExtractor):
     to avoid from text chunks. Used by end users to prevent costly
     errors via the get_warnings MCP tool.
 
+    Supports hierarchical extraction with chapter/section/chunk context levels.
+    Note: Warnings are typically extracted at CHUNK level (512 tokens).
+
     Example warnings:
     - Context Window Overflow: Sending too many tokens causes truncation
     - Cold Start Latency: First inference is slow due to model loading
@@ -44,74 +48,36 @@ class WarningExtractor(BaseExtractor):
         """Return the Warning model class."""
         return Warning
 
-    def extract(
+    async def extract(
         self,
-        chunk_content: str,
-        chunk_id: str,
+        content: str,
         source_id: str,
+        context_level: ExtractionLevel = ExtractionLevel.CHUNK,
+        context_id: str = "",
+        chunk_ids: Optional[list[str]] = None,
     ) -> list[ExtractionResult]:
-        """Sync extraction placeholder - use extract_async() for real extraction.
-
-        This method satisfies the BaseExtractor ABC interface but returns an
-        empty list. For actual LLM-based extraction, use the async method
-        extract_async() which integrates with LLMClient.
-
-        Note:
-            Production pipelines should use extract_async() for real extraction.
-            This sync method is provided for interface compliance and testing.
-
-        Args:
-            chunk_content: Text content to extract warnings from.
-            chunk_id: ID of the source chunk.
-            source_id: ID of the source document.
-
-        Returns:
-            Empty list. Use extract_async() for actual extractions.
-        """
-        logger.info(
-            "warning_extraction_started",
-            chunk_id=chunk_id,
-            source_id=source_id,
-            content_length=len(chunk_content),
-            mode="sync_placeholder",
-        )
-
-        # Sync method returns empty - real extraction uses extract_async()
-        results: list[ExtractionResult] = []
-
-        logger.info(
-            "warning_extraction_completed",
-            chunk_id=chunk_id,
-            warning_count=len(results),
-            mode="sync_placeholder",
-        )
-
-        return results
-
-    async def extract_async(
-        self,
-        chunk_content: str,
-        chunk_id: str,
-        source_id: str,
-    ) -> list[ExtractionResult]:
-        """Extract warnings from chunk content asynchronously.
+        """Extract warnings from content with hierarchical context.
 
         Uses LLMClient for automated batch extraction. Parses JSON response
         and validates each warning against the Pydantic model.
 
         Args:
-            chunk_content: Text content to extract warnings from.
-            chunk_id: ID of the source chunk.
+            content: Text content to extract from (single chunk or combined).
             source_id: ID of the source document.
+            context_level: Level at which extraction is performed.
+            context_id: ID of the context (chapter_id, section_id, or chunk_id).
+            chunk_ids: List of chunk IDs combined for this extraction.
 
         Returns:
             List of ExtractionResult with Warning extractions.
         """
         logger.info(
             "warning_extraction_started",
-            chunk_id=chunk_id,
+            context_id=context_id,
+            context_level=context_level.value,
             source_id=source_id,
-            content_length=len(chunk_content),
+            content_length=len(content),
+            chunk_count=len(chunk_ids) if chunk_ids else 1,
         )
 
         # Get the extraction prompt with base instructions
@@ -121,8 +87,8 @@ class WarningExtractor(BaseExtractor):
 
         async with LLMClient() as client:
             try:
-                # Send chunk content to LLM for extraction
-                response = await client.extract(prompt, chunk_content)
+                # Send content to LLM for extraction
+                response = await client.extract(prompt, content)
 
                 # Parse JSON response
                 parsed_items = self._parse_llm_response(response)
@@ -131,16 +97,18 @@ class WarningExtractor(BaseExtractor):
                 for item in parsed_items:
                     # Auto-tag topics from content
                     if self.config.auto_tag_topics:
-                        item["topics"] = self._generate_topics(chunk_content)
+                        item["topics"] = self._generate_topics(content)
 
-                    # Validate against Pydantic model
-                    result = self._validate_extraction(item, chunk_id, source_id)
+                    # Validate against Pydantic model with context fields
+                    result = self._validate_extraction(
+                        item, source_id, context_level, context_id, chunk_ids
+                    )
                     results.append(result)
 
             except Exception as e:
                 logger.error(
                     "warning_extraction_failed",
-                    chunk_id=chunk_id,
+                    context_id=context_id,
                     error=str(e),
                 )
                 results.append(
@@ -152,7 +120,7 @@ class WarningExtractor(BaseExtractor):
 
         logger.info(
             "warning_extraction_completed",
-            chunk_id=chunk_id,
+            context_id=context_id,
             warning_count=len([r for r in results if r.success]),
             failed_count=len([r for r in results if not r.success]),
         )

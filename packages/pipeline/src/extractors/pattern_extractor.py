@@ -4,13 +4,14 @@ This module extracts implementation patterns from document chunks,
 capturing problem-solution pairs with code examples and trade-offs.
 """
 
-from typing import Type
+from typing import Optional, Type
 
 import structlog
 
 from src.extractors.base import (
     BaseExtractor,
     ExtractionBase,
+    ExtractionLevel,
     ExtractionResult,
     ExtractionType,
     Pattern,
@@ -27,6 +28,8 @@ class PatternExtractor(BaseExtractor):
     Identifies and structures implementation patterns from text chunks,
     including code examples when present. Used by end users for
     implementation reference via the get_patterns MCP tool.
+
+    Supports hierarchical extraction with chapter/section/chunk context levels.
 
     Example patterns:
     - Semantic Caching: Cache LLM responses based on semantic similarity
@@ -78,29 +81,35 @@ class PatternExtractor(BaseExtractor):
 
     async def extract(
         self,
-        chunk_content: str,
-        chunk_id: str,
+        content: str,
         source_id: str,
+        context_level: ExtractionLevel = ExtractionLevel.CHUNK,
+        context_id: str = "",
+        chunk_ids: Optional[list[str]] = None,
     ) -> list[ExtractionResult]:
-        """Extract patterns from chunk content.
+        """Extract patterns from content with hierarchical context.
 
         Uses LLM to identify reusable patterns in the text. Each pattern
         includes name, problem, solution, and optionally code examples
         and trade-offs.
 
         Args:
-            chunk_content: Text content to extract patterns from.
-            chunk_id: ID of the source chunk.
+            content: Text content to extract from (single chunk or combined).
             source_id: ID of the source document.
+            context_level: Level at which extraction is performed.
+            context_id: ID of the context (chapter_id, section_id, or chunk_id).
+            chunk_ids: List of chunk IDs combined for this extraction.
 
         Returns:
             List of ExtractionResult with Pattern extractions.
         """
         logger.info(
             "pattern_extraction_started",
-            chunk_id=chunk_id,
+            context_id=context_id,
+            context_level=context_level.value,
             source_id=source_id,
-            content_length=len(chunk_content),
+            content_length=len(content),
+            chunk_count=len(chunk_ids) if chunk_ids else 1,
         )
 
         # Get extraction prompt
@@ -110,12 +119,12 @@ class PatternExtractor(BaseExtractor):
         try:
             raw_response = await self.llm_client.extract(
                 prompt=prompt,
-                content=chunk_content,
+                content=content,
             )
         except Exception as e:
             logger.error(
                 "pattern_extraction_llm_failed",
-                chunk_id=chunk_id,
+                context_id=context_id,
                 error=str(e),
             )
             return [
@@ -132,7 +141,7 @@ class PatternExtractor(BaseExtractor):
         except Exception as e:
             logger.warning(
                 "pattern_extraction_parse_failed",
-                chunk_id=chunk_id,
+                context_id=context_id,
                 error=str(e),
                 raw_response=raw_response[:500] if raw_response else None,
             )
@@ -148,7 +157,7 @@ class PatternExtractor(BaseExtractor):
         if not parsed_data:
             logger.info(
                 "pattern_extraction_no_patterns",
-                chunk_id=chunk_id,
+                context_id=context_id,
                 source_id=source_id,
             )
             return []
@@ -157,7 +166,9 @@ class PatternExtractor(BaseExtractor):
         results: list[ExtractionResult] = []
         for i, data in enumerate(parsed_data):
             # Validate with Pydantic model (confidence default handled by model)
-            result = self._validate_extraction(data, chunk_id, source_id)
+            result = self._validate_extraction(
+                data, source_id, context_level, context_id, chunk_ids
+            )
 
             if result.success and result.extraction:
                 # Apply auto-tagging if enabled
@@ -172,7 +183,8 @@ class PatternExtractor(BaseExtractor):
 
                 logger.info(
                     "pattern_extracted",
-                    chunk_id=chunk_id,
+                    context_id=context_id,
+                    context_level=context_level.value,
                     source_id=source_id,
                     pattern_name=result.extraction.name[:50] + "..."
                     if len(result.extraction.name) > 50
@@ -182,7 +194,7 @@ class PatternExtractor(BaseExtractor):
             else:
                 logger.warning(
                     "pattern_validation_failed",
-                    chunk_id=chunk_id,
+                    context_id=context_id,
                     extraction_index=i,
                     pattern_name=data.get("name"),
                     error=result.error,
@@ -193,7 +205,7 @@ class PatternExtractor(BaseExtractor):
         successful = sum(1 for r in results if r.success)
         logger.info(
             "pattern_extraction_completed",
-            chunk_id=chunk_id,
+            context_id=context_id,
             source_id=source_id,
             pattern_count=successful,
             total_parsed=len(parsed_data),

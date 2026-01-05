@@ -9,6 +9,7 @@ from src.extractors import (
     WarningExtractor,
     extractor_registry,
 )
+from src.extractors.base import ExtractionLevel
 
 
 class TestWarningExtractor:
@@ -37,14 +38,31 @@ class TestWarningExtractor:
         assert "consequences" in prompt.lower()
         assert "prevention" in prompt.lower()
 
-    def test_extract_returns_list(self, extractor: WarningExtractor):
+    @pytest.mark.asyncio
+    async def test_extract_returns_list(self):
         """Extract method returns list of results."""
-        results = extractor.extract(
-            chunk_content="Sample warning text about common mistakes",
-            chunk_id="chunk-123",
-            source_id="source-456",
-        )
-        assert isinstance(results, list)
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        extractor = WarningExtractor()
+
+        # Create a mock LLMClient that works as async context manager
+        mock_client_instance = AsyncMock()
+        mock_client_instance.extract = AsyncMock(return_value="[]")
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=None)
+
+        with patch(
+            "src.extractors.warning_extractor.LLMClient",
+            return_value=mock_client_instance,
+        ):
+            results = await extractor.extract(
+                content="Sample warning text about common mistakes",
+                source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
+            )
+            assert isinstance(results, list)
 
     def test_registry_contains_warning_extractor(self):
         """Warning extractor is registered in global registry."""
@@ -80,7 +98,7 @@ class TestWarningModel:
         assert warning.title == "Context Window Overflow"
         assert warning.description == "Sending too many tokens causes truncation"
         assert warning.type == ExtractionType.WARNING
-        assert warning.schema_version == "1.0.0"
+        assert warning.schema_version == "1.1.0"
 
     def test_warning_optional_fields(self):
         """Warning allows optional symptoms, consequences, prevention."""
@@ -260,7 +278,13 @@ class TestWarningValidation:
             "consequences": ["Data loss", "Incorrect outputs"],
             "prevention": "Count tokens before sending",
         }
-        result = extractor._validate_extraction(data, "chunk-123", "src-456")
+        result = extractor._validate_extraction(
+            data,
+            source_id="src-456",
+            context_level=ExtractionLevel.CHUNK,
+            context_id="chunk-123",
+            chunk_ids=["chunk-123"],
+        )
         assert result.success is True
         assert result.extraction is not None
         assert result.extraction.title == "Context Window Overflow"
@@ -273,7 +297,13 @@ class TestWarningValidation:
             "title": "Test Warning",
             "description": "Test description",
         }
-        result = extractor._validate_extraction(data, "chunk-123", "src-456")
+        result = extractor._validate_extraction(
+            data,
+            source_id="src-456",
+            context_level=ExtractionLevel.CHUNK,
+            context_id="chunk-123",
+            chunk_ids=["chunk-123"],
+        )
         assert result.success is True
         assert result.extraction.source_id == "src-456"
         assert result.extraction.chunk_id == "chunk-123"
@@ -286,7 +316,13 @@ class TestWarningValidation:
             "title": "Test Warning",
             # Missing description
         }
-        result = extractor._validate_extraction(data, "chunk-123", "src-456")
+        result = extractor._validate_extraction(
+            data,
+            source_id="src-456",
+            context_level=ExtractionLevel.CHUNK,
+            context_id="chunk-123",
+            chunk_ids=["chunk-123"],
+        )
         assert result.success is False
         assert result.error is not None
 

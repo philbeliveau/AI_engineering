@@ -11,6 +11,7 @@ from src.extractors import (
     Pattern,
     extractor_registry,
 )
+from src.extractors.base import ExtractionLevel
 from src.extractors.pattern_extractor import PatternExtractor
 
 
@@ -101,7 +102,7 @@ class TestPatternModel:
         assert pattern.source_id == "src-123"
         assert pattern.chunk_id == "chunk-456"
         assert pattern.type == ExtractionType.PATTERN
-        assert pattern.schema_version == "1.0.0"
+        assert pattern.schema_version == "1.1.0"
 
     def test_pattern_optional_fields(self):
         """Pattern allows optional code_example, context, trade_offs."""
@@ -271,9 +272,11 @@ class TestPatternExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert isinstance(results, list)
@@ -293,9 +296,11 @@ class TestPatternExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert results[0].success is True
@@ -316,12 +321,14 @@ class TestPatternExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
-            assert results[0].extraction.schema_version == "1.0.0"
+            assert results[0].extraction.schema_version == "1.1.0"
 
     @pytest.mark.asyncio
     async def test_extract_auto_tags_topics(
@@ -337,9 +344,11 @@ class TestPatternExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             pattern = results[0].extraction
@@ -357,9 +366,11 @@ class TestPatternExtractorExtract:
             mock_client.extract.return_value = no_pattern_response
 
             results = await extractor.extract(
-                chunk_content="The sky is blue.",
-                chunk_id="chunk-123",
+                content="The sky is blue.",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert results == []
@@ -375,9 +386,11 @@ class TestPatternExtractorExtract:
             mock_client.extract.return_value = "This is not valid JSON"
 
             results = await extractor.extract(
-                chunk_content="Some content",
-                chunk_id="chunk-123",
+                content="Some content",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert len(results) == 1
@@ -397,9 +410,11 @@ class TestPatternExtractorExtract:
             mock_client.extract.return_value = invalid_response
 
             results = await extractor.extract(
-                chunk_content="Some content",
-                chunk_id="chunk-123",
+                content="Some content",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert len(results) == 1
@@ -416,9 +431,11 @@ class TestPatternExtractorExtract:
             mock_client.extract.side_effect = Exception("API error")
 
             results = await extractor.extract(
-                chunk_content="Some content",
-                chunk_id="chunk-123",
+                content="Some content",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert len(results) == 1
@@ -460,9 +477,11 @@ class TestPatternExtractorWithCodeExample:
             mock_client.extract.return_value = mock_response_with_code
 
             results = await extractor.extract(
-                chunk_content="Implement retry logic with backoff",
-                chunk_id="chunk-123",
+                content="Implement retry logic with backoff",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             pattern = results[0].extraction
@@ -481,9 +500,11 @@ class TestPatternExtractorWithCodeExample:
             mock_client.extract.return_value = mock_response_with_code
 
             results = await extractor.extract(
-                chunk_content="Implement retry logic",
-                chunk_id="chunk-123",
+                content="Implement retry logic",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             pattern = results[0].extraction
@@ -529,9 +550,11 @@ class TestPatternExtractorIntegration:
             mock_client.extract.return_value = mock_response
 
             results = await extractor.extract(
-                chunk_content=chunk_content,
-                chunk_id="chunk-001",
+                content=chunk_content,
                 source_id="book-ai-engineering",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-001",
+                chunk_ids=["chunk-001"],
             )
 
             # Verify successful extraction
@@ -580,9 +603,11 @@ class TestPatternExtractorIntegration:
             mock_client.extract.return_value = mock_response
 
             results = await extractor.extract(
-                chunk_content="Multiple patterns in text",
-                chunk_id="chunk-001",
+                content="Multiple patterns in text",
                 source_id="source-001",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-001",
+                chunk_ids=["chunk-001"],
             )
 
             assert len(results) == 2
@@ -648,9 +673,11 @@ class TestPatternExtractorDependencyInjection:
 
         extractor = PatternExtractor(llm_client=mock_client)
         await extractor.extract(
-            chunk_content="Test content",
-            chunk_id="chunk-123",
+            content="Test content",
             source_id="source-456",
+            context_level=ExtractionLevel.CHUNK,
+            context_id="chunk-123",
+            chunk_ids=["chunk-123"],
         )
 
         # Verify injected client was called

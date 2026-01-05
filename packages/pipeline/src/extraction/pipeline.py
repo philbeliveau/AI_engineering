@@ -39,7 +39,10 @@ from src.embeddings.local_embedder import LocalEmbedder
 from src.exceptions import KnowledgeError
 from src.extractors import (
     BaseExtractor,
+    ExtractionLevel,
     ExtractionType,
+    HierarchicalExtractor,
+    HierarchicalExtractionResult,
     extractor_registry,
 )
 from src.models import Chunk, Source
@@ -471,3 +474,167 @@ class ExtractionPipeline:
             "extractor_count": len(extractors),
             "extractor_types": [e.extraction_type.value for e in extractors],
         }
+
+    def extract_hierarchical(
+        self,
+        source_id: str,
+        extractor_types: Optional[list[ExtractionType]] = None,
+        quiet: bool = False,
+    ) -> ExtractionPipelineResult:
+        """Run hierarchical extraction pipeline for a source.
+
+        Uses the HierarchicalExtractor to route extraction types to
+        appropriate context levels:
+        - CHAPTER level (8K tokens): methodology, workflow
+        - SECTION level (4K tokens): decision, pattern, checklist, persona
+        - CHUNK level (512 tokens): warning
+
+        This approach provides better extraction quality for knowledge that
+        spans multiple pages by combining chunks before extraction.
+
+        Args:
+            source_id: MongoDB source document ID.
+            extractor_types: Optional filter for specific extractor types.
+                            If None, all registered extractors are used.
+            quiet: If True, suppress progress output to stdout.
+
+        Returns:
+            ExtractionPipelineResult with counts and statistics.
+
+        Raises:
+            NotFoundError: If source_id doesn't exist.
+            ExtractionPipelineError: If extraction completely fails.
+        """
+        # Ensure connected
+        self._connect()
+
+        start_time = time.time()
+
+        # Stage 1: Validate source exists
+        logger.info("stage_started", stage="validate_hierarchical", source_id=source_id)
+        source = self._validate_source(source_id)
+
+        if not quiet:
+            print(f"📚 Hierarchical Extraction from: {source.title}")
+            print(f"🔍 Source ID: {source_id}")
+
+        # Stage 2: Get all chunks for source
+        logger.info("stage_started", stage="load_chunks", source_id=source_id)
+        chunks = self._get_chunks_for_source(source_id)
+
+        if not quiet:
+            print(f"📄 Chunks: {len(chunks)}")
+            print()
+
+        if not chunks:
+            logger.warning("no_chunks_found", source_id=source_id)
+            return ExtractionPipelineResult(
+                source_id=source_id,
+                source_title=source.title,
+                chunk_count=0,
+                extraction_counts={},
+                storage_counts={"saved": 0, "failed": 0},
+                duration=time.time() - start_time,
+            )
+
+        # Stage 3: Create hierarchical extractor
+        hierarchical_extractor = HierarchicalExtractor(
+            extraction_types=extractor_types,
+        )
+
+        if not quiet:
+            print("🔄 Running hierarchical extraction...")
+            print(f"   Extraction types: {[et.value for et in hierarchical_extractor.extraction_types]}")
+            print()
+
+        # Stage 4: Run hierarchical extraction
+        hierarchical_result = asyncio.run(
+            hierarchical_extractor.extract_document(chunks, source_id)
+        )
+
+        if not quiet:
+            self._display_hierarchical_stats(hierarchical_result)
+
+        # Stage 5: Store extractions
+        extraction_counts: dict[str, int] = {}
+        storage_counts = {"saved": 0, "failed": 0}
+
+        successful_results = hierarchical_result.get_successful_results()
+        total_to_store = len(successful_results)
+
+        for i, extraction_result in enumerate(successful_results, 1):
+            if not quiet:
+                self._display_progress(i, total_to_store)
+
+            extraction = extraction_result.extraction
+            if extraction is None:
+                continue
+
+            extraction_type = extraction.type.value
+            extraction_counts[extraction_type] = (
+                extraction_counts.get(extraction_type, 0) + 1
+            )
+
+            try:
+                save_result = self._storage.save_extraction(extraction)
+                if save_result["mongodb_saved"]:
+                    storage_counts["saved"] += 1
+                else:
+                    storage_counts["failed"] += 1
+            except Exception as e:
+                storage_counts["failed"] += 1
+                logger.error(
+                    "extraction_storage_failed",
+                    extraction_type=extraction_type,
+                    context_id=extraction.context_id if hasattr(extraction, 'context_id') else "unknown",
+                    error=str(e),
+                )
+
+        if not quiet and total_to_store > 0:
+            print()  # Newline after progress
+
+        duration = time.time() - start_time
+
+        logger.info(
+            "hierarchical_extraction_complete",
+            source_id=source_id,
+            chunk_count=len(chunks),
+            chapters=hierarchical_result.hierarchy_chapters,
+            sections=hierarchical_result.hierarchy_sections,
+            total_extractions=sum(extraction_counts.values()),
+            duration=f"{duration:.2f}s",
+        )
+
+        return ExtractionPipelineResult(
+            source_id=source_id,
+            source_title=source.title,
+            chunk_count=len(chunks),
+            extraction_counts=extraction_counts,
+            storage_counts=storage_counts,
+            duration=duration,
+        )
+
+    def _display_hierarchical_stats(
+        self, result: HierarchicalExtractionResult
+    ) -> None:
+        """Display hierarchical extraction statistics.
+
+        Args:
+            result: Hierarchical extraction result with level stats.
+        """
+        print("📊 Hierarchical Extraction Stats:")
+        print(f"   Chapters: {result.hierarchy_chapters}")
+        print(f"   Sections: {result.hierarchy_sections}")
+        print()
+
+        for level in [ExtractionLevel.CHAPTER, ExtractionLevel.SECTION, ExtractionLevel.CHUNK]:
+            stats = result.stats_by_level.get(level)
+            if stats:
+                print(f"   {level.value.upper()} level:")
+                print(f"      Attempted: {stats.extractions_attempted}")
+                print(f"      Successful: {stats.extractions_successful}")
+                print(f"      Failed: {stats.extractions_failed}")
+
+        print()
+        print(f"📈 Total successful: {result.successful_extractions}")
+        print()

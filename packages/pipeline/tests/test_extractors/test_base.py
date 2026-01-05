@@ -1,5 +1,7 @@
 """Tests for BaseExtractor ABC and related functionality."""
 
+from typing import Optional
+
 import pytest
 
 from src.extractors import (
@@ -12,6 +14,7 @@ from src.extractors import (
     PromptLoadError,
     UnsupportedExtractionTypeError,
 )
+from src.extractors.base import ExtractionLevel
 
 
 class TestBaseExtractorABC:
@@ -62,7 +65,14 @@ class TestBaseExtractorABC:
             def model_class(self):
                 return Decision
 
-            def extract(self, chunk_content, chunk_id, source_id):
+            def extract(
+                self,
+                content: str,
+                source_id: str,
+                context_level: ExtractionLevel = ExtractionLevel.CHUNK,
+                context_id: str = "",
+                chunk_ids: Optional[list[str]] = None,
+            ):
                 return []
 
         with pytest.raises(TypeError):
@@ -140,17 +150,25 @@ class TestExtractorUtilityMethods:
             "options": ["Yes", "No"],
             "considerations": ["Cost"],
         }
-        result = dummy_extractor._validate_extraction(data, "chunk-1", "src-1")
+        result = dummy_extractor._validate_extraction(
+            data, "src-1", ExtractionLevel.CHUNK, "chunk-1", ["chunk-1"]
+        )
         assert result.success is True
         assert result.extraction is not None
         assert result.extraction.source_id == "src-1"
         assert result.extraction.chunk_id == "chunk-1"
         assert result.extraction.type == ExtractionType.DECISION
+        # Test new hierarchical context fields
+        assert result.extraction.context_level == ExtractionLevel.CHUNK
+        assert result.extraction.context_id == "chunk-1"
+        assert result.extraction.chunk_ids == ["chunk-1"]
 
     def test_validate_extraction_failure(self, dummy_extractor):
         """_validate_extraction returns error result for invalid data."""
         data = {}  # Missing required 'question' field
-        result = dummy_extractor._validate_extraction(data, "chunk-1", "src-1")
+        result = dummy_extractor._validate_extraction(
+            data, "src-1", ExtractionLevel.CHUNK, "chunk-1", ["chunk-1"]
+        )
         assert result.success is False
         assert result.error is not None
 

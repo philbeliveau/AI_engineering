@@ -11,6 +11,7 @@ from src.extractors import (
     Methodology,
     MethodologyStep,
 )
+from src.extractors.base import ExtractionLevel
 from src.extractors.methodology_extractor import MethodologyExtractor
 
 
@@ -207,9 +208,11 @@ class TestMethodologyExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert isinstance(results, list)
@@ -227,9 +230,11 @@ class TestMethodologyExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert results[0].success is True
@@ -246,12 +251,14 @@ class TestMethodologyExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
-            assert results[0].extraction.schema_version == "1.0.0"
+            assert results[0].extraction.schema_version == "1.1.0"
 
     @pytest.mark.asyncio
     async def test_extract_returns_empty_list_for_no_methodologies(self):
@@ -263,9 +270,11 @@ class TestMethodologyExtractorExtract:
             mock_client.extract.return_value = no_methodology_response
 
             results = await extractor.extract(
-                chunk_content="The sky is blue.",
-                chunk_id="chunk-123",
+                content="The sky is blue.",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert results == []
@@ -279,9 +288,11 @@ class TestMethodologyExtractorExtract:
             mock_client.extract.return_value = "This is not valid JSON"
 
             results = await extractor.extract(
-                chunk_content="Some content",
-                chunk_id="chunk-123",
+                content="Some content",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert len(results) == 1
@@ -302,7 +313,7 @@ class TestMethodologyModel:
         assert methodology.source_id == "src-123"
         assert methodology.chunk_id == "chunk-456"
         assert methodology.type == ExtractionType.METHODOLOGY
-        assert methodology.schema_version == "1.0.0"
+        assert methodology.schema_version == "1.1.0"
 
     def test_methodology_with_steps(self):
         """Methodology can contain ordered steps."""

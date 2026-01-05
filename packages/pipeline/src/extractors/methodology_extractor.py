@@ -4,13 +4,14 @@ Extracts structured methodologies from document chunks for BMAD workflow creatio
 Used by builder to transform book content into executable workflows.
 """
 
-from typing import Type
+from typing import Optional, Type
 
 import structlog
 
 from src.extractors.base import (
     BaseExtractor,
     ExtractionBase,
+    ExtractionLevel,
     ExtractionParseError,
     ExtractionResult,
     ExtractionType,
@@ -30,6 +31,10 @@ class MethodologyExtractor(BaseExtractor):
     creation. Used by builder to transform book content into executable
     workflows.
 
+    Supports hierarchical extraction with chapter/section/chunk context levels.
+    Note: Methodologies are typically extracted at CHAPTER level (8K tokens)
+    to capture complete multi-step processes.
+
     Example methodologies:
     - RAG Implementation Methodology: Steps to build a RAG system
     - LLM Evaluation Framework: Process for evaluating model outputs
@@ -38,9 +43,11 @@ class MethodologyExtractor(BaseExtractor):
     Example:
         extractor = MethodologyExtractor()
         results = await extractor.extract(
-            chunk_content="Building a RAG system requires...",
-            chunk_id="chunk-123",
+            content="Building a RAG system requires...",
             source_id="source-456",
+            context_level=ExtractionLevel.CHAPTER,
+            context_id="chapter-123",
+            chunk_ids=["chunk-1", "chunk-2", "chunk-3"],
         )
 
         for result in results:
@@ -108,35 +115,41 @@ class MethodologyExtractor(BaseExtractor):
 
     async def extract(
         self,
-        chunk_content: str,
-        chunk_id: str,
+        content: str,
         source_id: str,
+        context_level: ExtractionLevel = ExtractionLevel.CHUNK,
+        context_id: str = "",
+        chunk_ids: Optional[list[str]] = None,
     ) -> list[ExtractionResult]:
-        """Extract methodologies from a text chunk.
+        """Extract methodologies from content with hierarchical context.
 
         Uses LLM to identify and extract structured methodologies from
-        the chunk content. Returns a list of ExtractionResult objects,
+        the content. Returns a list of ExtractionResult objects,
         each containing either a successful Methodology extraction or an error.
 
         Args:
-            chunk_content: Text content of the chunk to extract from.
-            chunk_id: ID of the source chunk.
+            content: Text content to extract from (single chunk or combined).
             source_id: ID of the source document.
+            context_level: Level at which extraction is performed.
+            context_id: ID of the context (chapter_id, section_id, or chunk_id).
+            chunk_ids: List of chunk IDs combined for this extraction.
 
         Returns:
             List of ExtractionResult with extracted methodologies or errors.
         """
         logger.debug(
             "methodology_extraction_start",
-            chunk_id=chunk_id,
+            context_id=context_id,
+            context_level=context_level.value,
             source_id=source_id,
-            content_length=len(chunk_content),
+            content_length=len(content),
+            chunk_count=len(chunk_ids) if chunk_ids else 1,
         )
 
         try:
             # Get prompt and call LLM
             prompt = self.get_prompt()
-            response = await self._llm_client.extract(prompt, chunk_content)
+            response = await self._llm_client.extract(prompt, content)
 
             # Parse LLM response
             try:
@@ -144,7 +157,7 @@ class MethodologyExtractor(BaseExtractor):
             except ExtractionParseError as e:
                 logger.warning(
                     "methodology_parse_failed",
-                    chunk_id=chunk_id,
+                    context_id=context_id,
                     error=str(e),
                 )
                 return [
@@ -159,14 +172,16 @@ class MethodologyExtractor(BaseExtractor):
             if not parsed_data:
                 logger.debug(
                     "no_methodologies_found",
-                    chunk_id=chunk_id,
+                    context_id=context_id,
                 )
                 return []
 
             # Validate and build results
             results = []
             for i, data in enumerate(parsed_data):
-                result = self._validate_extraction(data, chunk_id, source_id)
+                result = self._validate_extraction(
+                    data, source_id, context_level, context_id, chunk_ids
+                )
 
                 if result.success and result.extraction:
                     # Apply auto-tagging if enabled
@@ -180,7 +195,8 @@ class MethodologyExtractor(BaseExtractor):
 
                     logger.info(
                         "methodology_extracted",
-                        chunk_id=chunk_id,
+                        context_id=context_id,
+                        context_level=context_level.value,
                         source_id=source_id,
                         name=result.extraction.name,
                         step_count=len(result.extraction.steps),
@@ -189,7 +205,7 @@ class MethodologyExtractor(BaseExtractor):
                 else:
                     logger.warning(
                         "methodology_validation_failed",
-                        chunk_id=chunk_id,
+                        context_id=context_id,
                         extraction_index=i,
                         error=result.error,
                     )
@@ -198,7 +214,7 @@ class MethodologyExtractor(BaseExtractor):
 
             logger.debug(
                 "methodology_extraction_complete",
-                chunk_id=chunk_id,
+                context_id=context_id,
                 total_extractions=len(results),
                 successful=sum(1 for r in results if r.success),
             )
@@ -208,7 +224,7 @@ class MethodologyExtractor(BaseExtractor):
         except Exception as e:
             logger.error(
                 "methodology_extraction_error",
-                chunk_id=chunk_id,
+                context_id=context_id,
                 source_id=source_id,
                 error=str(e),
                 error_type=type(e).__name__,

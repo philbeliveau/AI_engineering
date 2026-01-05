@@ -100,11 +100,19 @@ class ExtractionStorage:
                 or MongoDB save fails. Qdrant failures are logged but don't
                 raise (MongoDB is source of truth).
         """
+        # Get hierarchical context info if available
+        context_level = getattr(extraction, "context_level", None)
+        context_id = getattr(extraction, "context_id", None)
+        chunk_ids = getattr(extraction, "chunk_ids", None)
+
         logger.info(
             "saving_extraction",
             type=extraction.type.value,
             source_id=extraction.source_id,
             chunk_id=extraction.chunk_id,
+            context_level=context_level.value if context_level else None,
+            context_id=context_id,
+            chunk_count=len(chunk_ids) if chunk_ids else 1,
         )
 
         # Step 1: Validate extraction
@@ -297,6 +305,11 @@ class ExtractionStorage:
         # Resolve project_id
         resolved_project_id = project_id or settings.project_id
 
+        # Get hierarchical context fields if available
+        context_level = getattr(extraction, "context_level", None)
+        context_id = getattr(extraction, "context_id", None)
+        chunk_ids = getattr(extraction, "chunk_ids", None)
+
         # Initialize payload with extraction data
         payload: dict[str, Any] = {
             # === INDEXED FIELDS (for filtering) ===
@@ -305,6 +318,10 @@ class ExtractionStorage:
             "source_id": extraction.source_id,
             "extraction_type": extraction.type.value,
             "topics": extraction.topics,
+            # === HIERARCHICAL CONTEXT FIELDS ===
+            "context_level": context_level.value if context_level else "chunk",
+            "context_id": context_id or extraction.chunk_id,
+            "chunk_ids": chunk_ids or [extraction.chunk_id],
             # === NON-INDEXED FIELDS (for display) ===
             "chunk_id": extraction.chunk_id,
             "extraction_id": extraction_id,

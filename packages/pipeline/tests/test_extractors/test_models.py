@@ -18,6 +18,7 @@ from src.extractors import (
     Workflow,
     WorkflowStep,
 )
+from src.extractors.base import ExtractionBase, ExtractionLevel
 
 
 class TestExtractionType:
@@ -63,13 +64,17 @@ class TestDecisionModel:
             question="Test?",
         )
         assert decision.type == ExtractionType.DECISION
-        assert decision.schema_version == "1.0.0"
+        assert decision.schema_version == "1.1.0"  # Updated for hierarchical extraction
         assert decision.options == []
         assert decision.considerations == []
         assert decision.recommended_approach is None
         assert decision.context == ""
         assert decision.topics == []
         assert decision.confidence == 0.8
+        # New v1.1.0 defaults for hierarchical extraction
+        assert decision.context_level == ExtractionLevel.CHUNK
+        assert decision.context_id == ""
+        assert decision.chunk_ids == []
 
     def test_decision_with_all_fields(self):
         """Decision model accepts all optional fields."""
@@ -434,7 +439,7 @@ class TestAllModelsCommonFields:
             **extra_fields,
         )
         assert hasattr(instance, "schema_version")
-        assert instance.schema_version == "1.0.0"
+        assert instance.schema_version == "1.1.0"  # Updated for hierarchical extraction
 
     @pytest.mark.parametrize(
         "model_class,extra_fields",
@@ -520,3 +525,134 @@ class TestExtractionBaseConfidence:
                 question="Test?",
                 confidence=-0.1,
             )
+
+
+class TestExtractionLevel:
+    """Test ExtractionLevel enum."""
+
+    def test_all_levels_defined(self):
+        """All 3 extraction levels are defined."""
+        levels = list(ExtractionLevel)
+        assert len(levels) == 3
+        assert ExtractionLevel.CHAPTER in levels
+        assert ExtractionLevel.SECTION in levels
+        assert ExtractionLevel.CHUNK in levels
+
+    def test_level_values_are_lowercase(self):
+        """Extraction level values are lowercase strings."""
+        for level in ExtractionLevel:
+            assert level.value == level.value.lower()
+
+
+class TestHierarchicalExtractionFields:
+    """Test v1.1.0 hierarchical extraction fields on ExtractionBase."""
+
+    @pytest.mark.parametrize(
+        "model_class,extra_fields",
+        [
+            (Decision, {"question": "Test?"}),
+            (Pattern, {"name": "Test", "problem": "P", "solution": "S"}),
+            (Warning, {"title": "Test", "description": "Desc"}),
+            (Methodology, {"name": "Test"}),
+            (Checklist, {"name": "Test"}),
+            (Persona, {"role": "Test"}),
+            (Workflow, {"name": "Test"}),
+        ],
+    )
+    def test_model_has_context_level(self, model_class, extra_fields):
+        """All extraction models include context_level field."""
+        instance = model_class(
+            source_id="src-123",
+            chunk_id="chunk-456",
+            **extra_fields,
+        )
+        assert hasattr(instance, "context_level")
+        assert instance.context_level == ExtractionLevel.CHUNK
+
+    @pytest.mark.parametrize(
+        "model_class,extra_fields",
+        [
+            (Decision, {"question": "Test?"}),
+            (Pattern, {"name": "Test", "problem": "P", "solution": "S"}),
+            (Warning, {"title": "Test", "description": "Desc"}),
+            (Methodology, {"name": "Test"}),
+            (Checklist, {"name": "Test"}),
+            (Persona, {"role": "Test"}),
+            (Workflow, {"name": "Test"}),
+        ],
+    )
+    def test_model_has_context_id(self, model_class, extra_fields):
+        """All extraction models include context_id field."""
+        instance = model_class(
+            source_id="src-123",
+            chunk_id="chunk-456",
+            **extra_fields,
+        )
+        assert hasattr(instance, "context_id")
+        assert instance.context_id == ""
+
+    @pytest.mark.parametrize(
+        "model_class,extra_fields",
+        [
+            (Decision, {"question": "Test?"}),
+            (Pattern, {"name": "Test", "problem": "P", "solution": "S"}),
+            (Warning, {"title": "Test", "description": "Desc"}),
+            (Methodology, {"name": "Test"}),
+            (Checklist, {"name": "Test"}),
+            (Persona, {"role": "Test"}),
+            (Workflow, {"name": "Test"}),
+        ],
+    )
+    def test_model_has_chunk_ids(self, model_class, extra_fields):
+        """All extraction models include chunk_ids field."""
+        instance = model_class(
+            source_id="src-123",
+            chunk_id="chunk-456",
+            **extra_fields,
+        )
+        assert hasattr(instance, "chunk_ids")
+        assert isinstance(instance.chunk_ids, list)
+        assert instance.chunk_ids == []
+
+    def test_hierarchical_fields_can_be_set(self):
+        """Hierarchical context fields can be explicitly set."""
+        decision = Decision(
+            source_id="src-123",
+            chunk_id="chunk-456",
+            question="Test?",
+            context_level=ExtractionLevel.SECTION,
+            context_id="section-id-789",
+            chunk_ids=["chunk-456", "chunk-457", "chunk-458"],
+        )
+        assert decision.context_level == ExtractionLevel.SECTION
+        assert decision.context_id == "section-id-789"
+        assert len(decision.chunk_ids) == 3
+        assert "chunk-456" in decision.chunk_ids
+
+    def test_chapter_level_extraction(self):
+        """Methodology with chapter-level context."""
+        methodology = Methodology(
+            source_id="src-123",
+            chunk_id="chunk-456",
+            name="RAG Implementation",
+            context_level=ExtractionLevel.CHAPTER,
+            context_id="chapter-id-123",
+            chunk_ids=["chunk-1", "chunk-2", "chunk-3", "chunk-4", "chunk-5"],
+        )
+        assert methodology.context_level == ExtractionLevel.CHAPTER
+        assert len(methodology.chunk_ids) == 5
+
+    def test_backward_compatibility_defaults(self):
+        """Old-style extractions (without context fields) use defaults."""
+        # Simulating loading an old 1.0.0 extraction
+        warning = Warning(
+            source_id="src-123",
+            chunk_id="chunk-456",
+            title="Test Warning",
+            description="Test description",
+            schema_version="1.0.0",  # Old version
+        )
+        # Should still have defaults for new fields
+        assert warning.context_level == ExtractionLevel.CHUNK
+        assert warning.context_id == ""
+        assert warning.chunk_ids == []

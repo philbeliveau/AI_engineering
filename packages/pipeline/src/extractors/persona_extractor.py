@@ -4,13 +4,14 @@ Extracts structured personas from document chunks for BMAD agent creation.
 Used by builder to define AI agent roles and behaviors.
 """
 
-from typing import Type
+from typing import Optional, Type
 
 import structlog
 
 from src.extractors.base import (
     BaseExtractor,
     ExtractionBase,
+    ExtractionLevel,
     ExtractionParseError,
     ExtractionResult,
     ExtractionType,
@@ -29,6 +30,9 @@ class PersonaExtractor(BaseExtractor):
     Identifies and structures persona definitions for BMAD agent creation.
     Used by builder to define agent roles, responsibilities, and behaviors.
 
+    Supports hierarchical extraction with chapter/section/chunk context levels.
+    Note: Personas are typically extracted at SECTION level (4K tokens).
+
     Example personas:
     - RAG Specialist: Expert in retrieval-augmented generation systems
     - ML Engineer: Responsible for model training and evaluation
@@ -37,9 +41,11 @@ class PersonaExtractor(BaseExtractor):
     Example:
         extractor = PersonaExtractor()
         results = await extractor.extract(
-            chunk_content="The ML Engineer is responsible for...",
-            chunk_id="chunk-123",
+            content="The ML Engineer is responsible for...",
             source_id="source-456",
+            context_level=ExtractionLevel.SECTION,
+            context_id="section-123",
+            chunk_ids=["chunk-1", "chunk-2"],
         )
 
         for result in results:
@@ -107,35 +113,41 @@ class PersonaExtractor(BaseExtractor):
 
     async def extract(
         self,
-        chunk_content: str,
-        chunk_id: str,
+        content: str,
         source_id: str,
+        context_level: ExtractionLevel = ExtractionLevel.CHUNK,
+        context_id: str = "",
+        chunk_ids: Optional[list[str]] = None,
     ) -> list[ExtractionResult]:
-        """Extract personas from a text chunk.
+        """Extract personas from content with hierarchical context.
 
         Uses LLM to identify and extract structured personas from
-        the chunk content. Returns a list of ExtractionResult objects,
+        the content. Returns a list of ExtractionResult objects,
         each containing either a successful Persona extraction or an error.
 
         Args:
-            chunk_content: Text content of the chunk to extract from.
-            chunk_id: ID of the source chunk.
+            content: Text content to extract from (single chunk or combined).
             source_id: ID of the source document.
+            context_level: Level at which extraction is performed.
+            context_id: ID of the context (chapter_id, section_id, or chunk_id).
+            chunk_ids: List of chunk IDs combined for this extraction.
 
         Returns:
             List of ExtractionResult with extracted personas or errors.
         """
         logger.debug(
             "persona_extraction_start",
-            chunk_id=chunk_id,
+            context_id=context_id,
+            context_level=context_level.value,
             source_id=source_id,
-            content_length=len(chunk_content),
+            content_length=len(content),
+            chunk_count=len(chunk_ids) if chunk_ids else 1,
         )
 
         try:
             # Get prompt and call LLM
             prompt = self.get_prompt()
-            response = await self._llm_client.extract(prompt, chunk_content)
+            response = await self._llm_client.extract(prompt, content)
 
             # Parse LLM response
             try:
@@ -143,7 +155,7 @@ class PersonaExtractor(BaseExtractor):
             except ExtractionParseError as e:
                 logger.warning(
                     "persona_parse_failed",
-                    chunk_id=chunk_id,
+                    context_id=context_id,
                     error=str(e),
                 )
                 return [
@@ -158,14 +170,16 @@ class PersonaExtractor(BaseExtractor):
             if not parsed_data:
                 logger.debug(
                     "no_personas_found",
-                    chunk_id=chunk_id,
+                    context_id=context_id,
                 )
                 return []
 
             # Validate and build results
             results = []
             for i, data in enumerate(parsed_data):
-                result = self._validate_extraction(data, chunk_id, source_id)
+                result = self._validate_extraction(
+                    data, source_id, context_level, context_id, chunk_ids
+                )
 
                 if result.success and result.extraction:
                     # Apply auto-tagging if enabled
@@ -179,7 +193,8 @@ class PersonaExtractor(BaseExtractor):
 
                     logger.info(
                         "persona_extracted",
-                        chunk_id=chunk_id,
+                        context_id=context_id,
+                        context_level=context_level.value,
                         source_id=source_id,
                         role=result.extraction.role,
                         responsibility_count=len(result.extraction.responsibilities),
@@ -188,7 +203,7 @@ class PersonaExtractor(BaseExtractor):
                 else:
                     logger.warning(
                         "persona_validation_failed",
-                        chunk_id=chunk_id,
+                        context_id=context_id,
                         extraction_index=i,
                         error=result.error,
                     )
@@ -197,7 +212,7 @@ class PersonaExtractor(BaseExtractor):
 
             logger.debug(
                 "persona_extraction_complete",
-                chunk_id=chunk_id,
+                context_id=context_id,
                 total_extractions=len(results),
                 successful=sum(1 for r in results if r.success),
             )
@@ -207,7 +222,7 @@ class PersonaExtractor(BaseExtractor):
         except Exception as e:
             logger.error(
                 "persona_extraction_error",
-                chunk_id=chunk_id,
+                context_id=context_id,
                 source_id=source_id,
                 error=str(e),
                 error_type=type(e).__name__,

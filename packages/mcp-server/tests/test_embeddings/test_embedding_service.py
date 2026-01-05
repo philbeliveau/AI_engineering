@@ -1,6 +1,7 @@
 """Tests for EmbeddingService.
 
-Tests embedding generation using fastembed with all-MiniLM-L6-v2 model.
+Tests embedding generation using sentence-transformers with nomic-embed-text-v1.5 model.
+Produces 768-dimensional vectors with 8K token context.
 """
 
 
@@ -30,13 +31,13 @@ class TestEmbeddingService:
         assert len(result) > 0
         assert all(isinstance(x, float) for x in result)
 
-    def test_embed_query_returns_384_dimensions(self):
-        """Test that embed_query returns exactly 384 dimensions."""
+    def test_embed_query_returns_768_dimensions(self):
+        """Test that embed_query returns exactly 768 dimensions (nomic-embed-text-v1.5)."""
         from src.embeddings.embedding_service import EmbeddingService
 
         service = EmbeddingService()
         result = service.embed_query("test query for embedding")
-        assert len(result) == 384
+        assert len(result) == 768
 
     def test_embed_query_different_texts_produce_different_vectors(self):
         """Test that different texts produce different embedding vectors."""
@@ -68,13 +69,13 @@ class TestGetEmbeddingModel:
         assert callable(get_embedding_model)
 
     def test_get_embedding_model_returns_model(self):
-        """Test that get_embedding_model returns a TextEmbedding model."""
-        from fastembed import TextEmbedding
+        """Test that get_embedding_model returns a SentenceTransformer model."""
+        from sentence_transformers import SentenceTransformer
 
         from src.embeddings.embedding_service import get_embedding_model
 
         model = get_embedding_model()
-        assert isinstance(model, TextEmbedding)
+        assert isinstance(model, SentenceTransformer)
 
     def test_get_embedding_model_is_singleton(self):
         """Test that get_embedding_model returns the same instance."""
@@ -95,12 +96,12 @@ class TestEmbedQueryFunction:
         assert embed_query is not None
         assert callable(embed_query)
 
-    def test_embed_query_function_returns_384_dimensions(self):
-        """Test that embed_query function returns 384 dimensions."""
+    def test_embed_query_function_returns_768_dimensions(self):
+        """Test that embed_query function returns 768 dimensions (nomic-embed-text-v1.5)."""
         from src.embeddings.embedding_service import embed_query
 
         result = embed_query("test query")
-        assert len(result) == 384
+        assert len(result) == 768
 
     def test_embed_query_function_is_sync(self):
         """Test that embed_query is a sync function (not async)."""

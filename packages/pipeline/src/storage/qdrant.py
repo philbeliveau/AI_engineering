@@ -471,7 +471,7 @@ class QdrantStorageClient:
             List of results with id, score, and payload.
 
         Raises:
-            QdrantVectorError: If query vector size is not 384.
+            QdrantVectorError: If query vector size is not 768.
             QdrantCollectionError: If search operation fails.
         """
         self._validate_vector_size(query_vector, "Query vector")
@@ -525,7 +525,7 @@ class QdrantStorageClient:
             List of results with id, score, and payload.
 
         Raises:
-            QdrantVectorError: If query vector size is not 384.
+            QdrantVectorError: If query vector size is not 768.
             QdrantCollectionError: If search operation fails.
         """
         self._validate_vector_size(query_vector, "Query vector")
@@ -618,7 +618,7 @@ class QdrantStorageClient:
             List of results with id, score, and payload.
 
         Raises:
-            QdrantVectorError: If query vector size is not 384.
+            QdrantVectorError: If query vector size is not 768.
             QdrantCollectionError: If search operation fails.
         """
         # Build filter dict with project isolation

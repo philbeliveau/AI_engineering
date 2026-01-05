@@ -11,6 +11,7 @@ from src.extractors import (
     Workflow,
     WorkflowStep,
 )
+from src.extractors.base import ExtractionLevel
 from src.extractors.workflow_extractor import WorkflowExtractor
 
 
@@ -210,9 +211,11 @@ class TestWorkflowExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert isinstance(results, list)
@@ -230,9 +233,11 @@ class TestWorkflowExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert results[0].success is True
@@ -250,9 +255,11 @@ class TestWorkflowExtractorExtract:
             mock_client.extract.return_value = no_workflow_response
 
             results = await extractor.extract(
-                chunk_content="The sky is blue.",
-                chunk_id="chunk-123",
+                content="The sky is blue.",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert results == []
@@ -266,9 +273,11 @@ class TestWorkflowExtractorExtract:
             mock_client.extract.return_value = "This is not valid JSON"
 
             results = await extractor.extract(
-                chunk_content="Some content",
-                chunk_id="chunk-123",
+                content="Some content",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert len(results) == 1
@@ -289,7 +298,7 @@ class TestWorkflowModel:
         assert workflow.source_id == "src-123"
         assert workflow.chunk_id == "chunk-456"
         assert workflow.type == ExtractionType.WORKFLOW
-        assert workflow.schema_version == "1.0.0"
+        assert workflow.schema_version == "1.1.0"
 
     def test_workflow_with_steps(self):
         """Workflow can contain steps."""

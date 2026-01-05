@@ -1,6 +1,6 @@
 """Test fixtures for extractor tests."""
 
-from typing import Type
+from typing import Optional, Type
 
 import pytest
 
@@ -13,6 +13,7 @@ from src.extractors import (
     ExtractorConfig,
     ExtractorRegistry,
 )
+from src.extractors.base import ExtractionLevel
 
 
 class DummyExtractor(BaseExtractor):
@@ -28,9 +29,11 @@ class DummyExtractor(BaseExtractor):
 
     def extract(
         self,
-        chunk_content: str,
-        chunk_id: str,
+        content: str,
         source_id: str,
+        context_level: ExtractionLevel = ExtractionLevel.CHUNK,
+        context_id: str = "",
+        chunk_ids: Optional[list[str]] = None,
     ) -> list[ExtractionResult]:
         return []
 

@@ -10,6 +10,7 @@ from src.extractors import (
     ExtractionType,
     ExtractorConfig,
 )
+from src.extractors.base import ExtractionLevel
 from src.extractors.decision_extractor import DecisionExtractor
 
 
@@ -213,9 +214,11 @@ class TestDecisionExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert isinstance(results, list)
@@ -235,9 +238,11 @@ class TestDecisionExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert results[0].success is True
@@ -258,12 +263,14 @@ class TestDecisionExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
-            assert results[0].extraction.schema_version == "1.0.0"
+            assert results[0].extraction.schema_version == "1.1.0"
 
     @pytest.mark.asyncio
     async def test_extract_auto_tags_topics(
@@ -279,9 +286,11 @@ class TestDecisionExtractorExtract:
             mock_client.extract.return_value = mock_llm_response
 
             results = await extractor.extract(
-                chunk_content=sample_chunk_content,
-                chunk_id="chunk-123",
+                content=sample_chunk_content,
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             decision = results[0].extraction
@@ -299,9 +308,11 @@ class TestDecisionExtractorExtract:
             mock_client.extract.return_value = no_decision_response
 
             results = await extractor.extract(
-                chunk_content="The sky is blue.",
-                chunk_id="chunk-123",
+                content="The sky is blue.",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert results == []
@@ -317,9 +328,11 @@ class TestDecisionExtractorExtract:
             mock_client.extract.return_value = "This is not valid JSON"
 
             results = await extractor.extract(
-                chunk_content="Some content",
-                chunk_id="chunk-123",
+                content="Some content",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert len(results) == 1
@@ -339,9 +352,11 @@ class TestDecisionExtractorExtract:
             mock_client.extract.return_value = invalid_response
 
             results = await extractor.extract(
-                chunk_content="Some content",
-                chunk_id="chunk-123",
+                content="Some content",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert len(results) == 1
@@ -359,15 +374,46 @@ class TestDecisionExtractorExtract:
             mock_client.extract.side_effect = RuntimeError("Unexpected network failure")
 
             results = await extractor.extract(
-                chunk_content="Some content about decisions",
-                chunk_id="chunk-123",
+                content="Some content about decisions",
                 source_id="source-456",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-123",
+                chunk_ids=["chunk-123"],
             )
 
             assert len(results) == 1
             assert results[0].success is False
             assert "Extraction failed" in results[0].error
             assert "Unexpected network failure" in results[0].error
+
+    @pytest.mark.asyncio
+    async def test_extract_with_hierarchical_context(
+        self, mock_llm_response
+    ):
+        """extract correctly sets hierarchical context fields."""
+        extractor = DecisionExtractor()
+        content = "Chapter content combining multiple chunks..."
+
+        with patch.object(
+            extractor, "_llm_client", new_callable=AsyncMock
+        ) as mock_client:
+            mock_client.extract.return_value = mock_llm_response
+
+            results = await extractor.extract(
+                content=content,
+                source_id="source-456",
+                context_level=ExtractionLevel.CHAPTER,
+                context_id="chapter-1",
+                chunk_ids=["chunk-1", "chunk-2", "chunk-3"],
+            )
+
+            assert results[0].success is True
+            decision = results[0].extraction
+            assert decision.context_level == ExtractionLevel.CHAPTER
+            assert decision.context_id == "chapter-1"
+            assert decision.chunk_ids == ["chunk-1", "chunk-2", "chunk-3"]
+            # For backward compatibility, chunk_id is first chunk
+            assert decision.chunk_id == "chunk-1"
 
 
 class TestDecisionExtractorIntegration:
@@ -407,9 +453,11 @@ class TestDecisionExtractorIntegration:
             mock_client.extract.return_value = mock_response
 
             results = await extractor.extract(
-                chunk_content=chunk_content,
-                chunk_id="chunk-001",
+                content=chunk_content,
                 source_id="book-ai-engineering",
+                context_level=ExtractionLevel.CHUNK,
+                context_id="chunk-001",
+                chunk_ids=["chunk-001"],
             )
 
             # Verify successful extraction

@@ -46,6 +46,23 @@ class ExtractionType(str, Enum):
     WORKFLOW = "workflow"
 
 
+class ExtractionLevel(str, Enum):
+    """Hierarchical extraction levels.
+
+    Defines the context scope used for extraction. Larger levels provide
+    more context for extracting multi-page concepts.
+
+    Attributes:
+        CHAPTER: Largest context (8K tokens) for multi-page processes like methodology.
+        SECTION: Medium context (4K tokens) for page-spanning concepts like decisions.
+        CHUNK: Original context (512 tokens) for single-paragraph items like warnings.
+    """
+
+    CHAPTER = "chapter"
+    SECTION = "section"
+    CHUNK = "chunk"
+
+
 # ============================================================================
 # Base Models
 # ============================================================================
@@ -56,25 +73,52 @@ class ExtractionBase(BaseModel):
 
     All extractions MUST include source attribution for traceability.
 
+    Schema version 1.1.0 adds hierarchical extraction context fields:
+    - context_level: The level at which extraction was performed (CHAPTER/SECTION/CHUNK)
+    - context_id: ID of the chapter, section, or chunk context
+    - chunk_ids: List of all chunk IDs combined for this extraction
+
+    For backward compatibility with 1.0.0:
+    - context_level defaults to CHUNK
+    - context_id defaults to chunk_id value
+    - chunk_ids defaults to [chunk_id] if empty
+
     Attributes:
         id: Unique extraction ID (MongoDB ObjectId compatible).
         source_id: Reference to source document.
-        chunk_id: Reference to chunk extracted from.
+        chunk_id: Reference to primary chunk (backward compatibility).
         type: Enum for extraction type.
         topics: Topic tags for filtering.
         schema_version: Schema version for evolution.
         extracted_at: Extraction timestamp.
         confidence: Extraction confidence score (0.0-1.0).
+        context_level: Hierarchical level used for extraction context.
+        context_id: ID of the context (chapter_id, section_id, or chunk_id).
+        chunk_ids: All chunk IDs that were combined for this extraction.
     """
 
     id: str = ""  # Set by storage layer
     source_id: str
-    chunk_id: str
+    chunk_id: str  # Kept for backward compatibility with 1.0.0
     type: ExtractionType
     topics: list[str] = Field(default_factory=list)
-    schema_version: str = "1.0.0"
+    schema_version: str = "1.1.0"  # Updated for hierarchical extraction
     extracted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     confidence: float = Field(ge=0.0, le=1.0, default=0.8)
+
+    # New fields for hierarchical extraction (v1.1.0)
+    context_level: ExtractionLevel = Field(
+        default=ExtractionLevel.CHUNK,
+        description="Hierarchical level at which extraction was performed",
+    )
+    context_id: str = Field(
+        default="",
+        description="ID of the extraction context (chapter_id, section_id, or chunk_id)",
+    )
+    chunk_ids: list[str] = Field(
+        default_factory=list,
+        description="All chunk IDs combined for this extraction",
+    )
 
 
 class ExtractionResult(BaseModel):
@@ -370,6 +414,10 @@ class BaseExtractor(ABC):
 
     Follows NFR6: Extensibility for Extractors pattern.
 
+    v1.1.0 Update: Supports hierarchical extraction with context levels.
+    The extract() method now accepts optional context parameters for
+    chapter/section-level extraction.
+
     Attributes:
         config: Extractor configuration settings.
         prompts_dir: Directory containing extraction prompts.
@@ -384,7 +432,7 @@ class BaseExtractor(ABC):
             def model_class(self) -> Type[ExtractionBase]:
                 return Decision
 
-            def extract(self, chunk_content, chunk_id, source_id):
+            async def extract(self, content, source_id, context_level, context_id, chunk_ids):
                 # Implementation here
                 pass
 
@@ -430,16 +478,25 @@ class BaseExtractor(ABC):
     @abstractmethod
     def extract(
         self,
-        chunk_content: str,
-        chunk_id: str,
+        content: str,
         source_id: str,
+        context_level: ExtractionLevel = ExtractionLevel.CHUNK,
+        context_id: str = "",
+        chunk_ids: Optional[list[str]] = None,
     ) -> list[ExtractionResult]:
-        """Extract knowledge from a chunk.
+        """Extract knowledge from content with hierarchical context support.
+
+        This is the primary extraction method supporting hierarchical extraction.
+        Content can be a single chunk or combined content from multiple chunks
+        (for chapter/section level extraction).
 
         Args:
-            chunk_content: Text content of the chunk.
-            chunk_id: ID of the chunk being extracted from.
+            content: Text content to extract from. Can be single chunk or combined.
             source_id: ID of the source document.
+            context_level: Level at which extraction is performed (CHAPTER/SECTION/CHUNK).
+            context_id: ID of the context (chapter_id, section_id, or chunk_id).
+            chunk_ids: List of chunk IDs that were combined for this extraction.
+                For backward compatibility, defaults to [context_id] if not provided.
 
         Returns:
             List of ExtractionResult with extracted knowledge.
@@ -539,23 +596,48 @@ class BaseExtractor(ABC):
         )
 
     def _validate_extraction(
-        self, data: dict, chunk_id: str, source_id: str
+        self,
+        data: dict,
+        source_id: str,
+        context_level: ExtractionLevel = ExtractionLevel.CHUNK,
+        context_id: str = "",
+        chunk_ids: Optional[list[str]] = None,
     ) -> ExtractionResult:
         """Validate extraction data against Pydantic model.
 
+        Sets hierarchical context fields on the extraction for traceability.
+
         Args:
             data: Parsed extraction dictionary.
-            chunk_id: ID of source chunk.
             source_id: ID of source document.
+            context_level: Level at which extraction was performed.
+            context_id: ID of the context (chapter_id, section_id, or chunk_id).
+            chunk_ids: List of chunk IDs combined for this extraction.
 
         Returns:
             ExtractionResult with validated extraction or error.
         """
         try:
+            # Ensure chunk_ids list exists
+            if chunk_ids is None:
+                chunk_ids = [context_id] if context_id else []
+
             # Add required fields
             data["source_id"] = source_id
-            data["chunk_id"] = chunk_id
             data["type"] = self.extraction_type
+
+            # Set hierarchical context fields (v1.1.0)
+            data["context_level"] = context_level
+            data["context_id"] = context_id
+            data["chunk_ids"] = chunk_ids
+
+            # For backward compatibility: set chunk_id to first chunk or context_id
+            if chunk_ids:
+                data["chunk_id"] = chunk_ids[0]
+            elif context_id:
+                data["chunk_id"] = context_id
+            else:
+                data["chunk_id"] = ""
 
             # Validate with Pydantic model
             extraction = self.model_class(**data)
@@ -656,9 +738,11 @@ class BaseExtractor(ABC):
 
     def extract_and_save(
         self,
-        chunk_content: str,
-        chunk_id: str,
+        content: str,
         source_id: str,
+        context_level: ExtractionLevel = ExtractionLevel.CHUNK,
+        context_id: str = "",
+        chunk_ids: Optional[list[str]] = None,
     ) -> tuple[list[ExtractionResult], list[dict]]:
         """Extract knowledge and automatically save to storage.
 
@@ -666,9 +750,11 @@ class BaseExtractor(ABC):
         Requires storage to be configured on the extractor.
 
         Args:
-            chunk_content: Text content of the chunk.
-            chunk_id: ID of the chunk being extracted from.
+            content: Text content to extract from.
             source_id: ID of the source document.
+            context_level: Level at which extraction is performed.
+            context_id: ID of the context (chapter_id, section_id, or chunk_id).
+            chunk_ids: List of chunk IDs combined for this extraction.
 
         Returns:
             Tuple of (extraction_results, save_results).
@@ -683,7 +769,7 @@ class BaseExtractor(ABC):
             )
 
         # Extract
-        results = self.extract(chunk_content, chunk_id, source_id)
+        results = self.extract(content, source_id, context_level, context_id, chunk_ids)
 
         # Save successful extractions
         save_results = self.save_extractions(results)

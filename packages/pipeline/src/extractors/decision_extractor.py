@@ -7,7 +7,7 @@ Decisions capture choice points where developers need to make choices,
 including options, considerations, and recommended approaches.
 """
 
-from typing import Type
+from typing import Optional, Type
 
 import structlog
 
@@ -15,6 +15,7 @@ from src.extractors.base import (
     BaseExtractor,
     Decision,
     ExtractionBase,
+    ExtractionLevel,
     ExtractionParseError,
     ExtractionResult,
     ExtractionType,
@@ -33,12 +34,16 @@ class DecisionExtractor(BaseExtractor):
     need to make choices. Each decision includes the question being asked,
     available options, considerations, and recommended approach if stated.
 
+    Supports hierarchical extraction with chapter/section/chunk context levels.
+
     Example:
         extractor = DecisionExtractor()
         results = await extractor.extract(
-            chunk_content="When choosing between RAG and fine-tuning...",
-            chunk_id="chunk-123",
+            content="When choosing between RAG and fine-tuning...",
             source_id="source-456",
+            context_level=ExtractionLevel.SECTION,
+            context_id="section-123",
+            chunk_ids=["chunk-1", "chunk-2"],
         )
 
         for result in results:
@@ -108,35 +113,41 @@ class DecisionExtractor(BaseExtractor):
 
     async def extract(
         self,
-        chunk_content: str,
-        chunk_id: str,
+        content: str,
         source_id: str,
+        context_level: ExtractionLevel = ExtractionLevel.CHUNK,
+        context_id: str = "",
+        chunk_ids: Optional[list[str]] = None,
     ) -> list[ExtractionResult]:
-        """Extract decision points from a text chunk.
+        """Extract decision points from content with hierarchical context.
 
         Uses LLM to identify and extract structured decision points from
-        the chunk content. Returns a list of ExtractionResult objects,
+        the content. Returns a list of ExtractionResult objects,
         each containing either a successful Decision extraction or an error.
 
         Args:
-            chunk_content: Text content of the chunk to extract from.
-            chunk_id: ID of the source chunk.
+            content: Text content to extract from (single chunk or combined).
             source_id: ID of the source document.
+            context_level: Level at which extraction is performed.
+            context_id: ID of the context (chapter_id, section_id, or chunk_id).
+            chunk_ids: List of chunk IDs combined for this extraction.
 
         Returns:
             List of ExtractionResult with extracted decisions or errors.
         """
         logger.debug(
             "decision_extraction_start",
-            chunk_id=chunk_id,
+            context_id=context_id,
+            context_level=context_level.value,
             source_id=source_id,
-            content_length=len(chunk_content),
+            content_length=len(content),
+            chunk_count=len(chunk_ids) if chunk_ids else 1,
         )
 
         try:
             # Get prompt and call LLM
             prompt = self.get_prompt()
-            response = await self._llm_client.extract(prompt, chunk_content)
+            response = await self._llm_client.extract(prompt, content)
 
             # Parse LLM response
             try:
@@ -144,7 +155,7 @@ class DecisionExtractor(BaseExtractor):
             except ExtractionParseError as e:
                 logger.warning(
                     "decision_parse_failed",
-                    chunk_id=chunk_id,
+                    context_id=context_id,
                     error=str(e),
                 )
                 return [
@@ -159,14 +170,16 @@ class DecisionExtractor(BaseExtractor):
             if not parsed_data:
                 logger.debug(
                     "no_decisions_found",
-                    chunk_id=chunk_id,
+                    context_id=context_id,
                 )
                 return []
 
             # Validate and build results
             results = []
             for i, data in enumerate(parsed_data):
-                result = self._validate_extraction(data, chunk_id, source_id)
+                result = self._validate_extraction(
+                    data, source_id, context_level, context_id, chunk_ids
+                )
 
                 if result.success and result.extraction:
                     # Apply auto-tagging if enabled
@@ -181,7 +194,8 @@ class DecisionExtractor(BaseExtractor):
 
                     logger.info(
                         "decision_extracted",
-                        chunk_id=chunk_id,
+                        context_id=context_id,
+                        context_level=context_level.value,
                         source_id=source_id,
                         question_preview=result.extraction.question[:50] + "..."
                         if len(result.extraction.question) > 50
@@ -191,7 +205,7 @@ class DecisionExtractor(BaseExtractor):
                 else:
                     logger.warning(
                         "decision_validation_failed",
-                        chunk_id=chunk_id,
+                        context_id=context_id,
                         extraction_index=i,
                         error=result.error,
                     )
@@ -200,7 +214,7 @@ class DecisionExtractor(BaseExtractor):
 
             logger.debug(
                 "decision_extraction_complete",
-                chunk_id=chunk_id,
+                context_id=context_id,
                 total_extractions=len(results),
                 successful=sum(1 for r in results if r.success),
             )
@@ -210,7 +224,7 @@ class DecisionExtractor(BaseExtractor):
         except Exception as e:
             logger.error(
                 "decision_extraction_error",
-                chunk_id=chunk_id,
+                context_id=context_id,
                 source_id=source_id,
                 error=str(e),
                 error_type=type(e).__name__,
