@@ -77,6 +77,7 @@ COPY --from=builder /app/.venv /app/.venv
 # Copy application source code and scripts
 COPY src/ /app/src/
 COPY scripts/ /app/scripts/
+COPY pages/ /app/pages/
 COPY web_app.py /app/
 COPY .streamlit/ /app/.streamlit/
 COPY pyproject.toml uv.lock README.md /app/
