@@ -2,6 +2,10 @@
 
 This module provides a single adapter that handles PDF, Markdown, DOCX,
 HTML, and PPTX files using the Docling library. Also supports URLs.
+
+Performance optimizations:
+- GPU acceleration via MPS (Apple Silicon) or CUDA (NVIDIA)
+- Increased batch sizes for faster processing of large documents
 """
 
 from pathlib import Path
@@ -9,7 +13,11 @@ from typing import Optional, Union
 from urllib.parse import urlparse
 
 import structlog
-from docling.document_converter import DocumentConverter
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.datamodel.settings import settings as docling_settings
+from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling_core.types.doc import DoclingDocument
 
 from src.adapters.base import (
@@ -21,6 +29,9 @@ from src.adapters.base import (
 )
 
 logger = structlog.get_logger()
+
+# Optimize Docling performance settings for large documents
+docling_settings.perf.page_batch_size = 64  # default is 4
 
 
 class DoclingAdapter(SourceAdapter):
@@ -45,12 +56,38 @@ class DoclingAdapter(SourceAdapter):
     def __init__(self, config: Optional[AdapterConfig] = None):
         """Initialize Docling adapter with optional configuration.
 
+        Configures GPU acceleration (MPS for Apple Silicon, CUDA for NVIDIA)
+        and optimized batch sizes for faster processing of large documents.
+
         Args:
             config: Adapter configuration. Uses defaults if not provided.
         """
         super().__init__(config)
-        self._converter = DocumentConverter()
-        logger.debug("docling_adapter_initialized")
+
+        # Configure GPU acceleration (AUTO detects MPS/CUDA/CPU)
+        accelerator_options = AcceleratorOptions(
+            num_threads=8,
+            device=AcceleratorDevice.AUTO,
+        )
+
+        # Configure optimized PDF pipeline
+        pdf_pipeline_options = PdfPipelineOptions()
+        pdf_pipeline_options.accelerator_options = accelerator_options
+
+        # Create converter with optimized PDF settings
+        self._converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(
+                    pipeline_options=pdf_pipeline_options,
+                ),
+            }
+        )
+
+        logger.debug(
+            "docling_adapter_initialized",
+            device="AUTO (MPS/CUDA/CPU)",
+            page_batch_size=docling_settings.perf.page_batch_size,
+        )
 
     def extract_text(self, file_path: Path) -> AdapterResult:
         """Extract text and structure from document using Docling.
