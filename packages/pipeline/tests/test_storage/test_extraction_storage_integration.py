@@ -253,12 +253,12 @@ class TestQdrantPayloadAccuracy:
 
 
 class TestEmbeddingDimensionValidation:
-    """Test that embeddings are validated to 384 dimensions."""
+    """Test that embeddings are validated to 768 dimensions."""
 
-    def test_embedding_is_384_dimensions(
+    def test_embedding_is_768_dimensions(
         self, extraction_storage, real_embedder, cleanup_extractions
     ):
-        """Verify generated embeddings are exactly 384 dimensions."""
+        """Verify generated embeddings are exactly 768 dimensions."""
         decision = Decision(
             source_id="test-source-001",
             chunk_id="test-chunk-001",
@@ -272,12 +272,12 @@ class TestEmbeddingDimensionValidation:
         summary = generate_extraction_summary(decision)
         embedding = real_embedder.embed_text(summary)
 
-        assert len(embedding) == 384
+        assert len(embedding) == 768
 
-    def test_storage_uses_384d_embeddings(
+    def test_storage_uses_768d_embeddings(
         self, extraction_storage, real_qdrant, cleanup_extractions
     ):
-        """Verify storage service uses 384d embeddings for Qdrant."""
+        """Verify storage service uses 768d embeddings for Qdrant."""
         decision = Decision(
             source_id="test-source-001",
             chunk_id="test-chunk-001",

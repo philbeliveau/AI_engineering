@@ -22,6 +22,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "httpx>=0.26.0",
     "structlog>=25.5.0",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]
@@ -52,3 +53,9 @@ markers = [
 ]
 # By default, skip integration tests
 addopts = "-m 'not integration'"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+]

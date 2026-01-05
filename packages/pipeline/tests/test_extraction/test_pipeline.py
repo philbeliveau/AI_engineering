@@ -122,8 +122,8 @@ class TestExtractionPipeline:
     def mock_embedder(self):
         """Create mock embedder."""
         mock = MagicMock()
-        mock.embed_text.return_value = [0.1] * 384
-        mock.get_dimension.return_value = 384
+        mock.embed_text.return_value = [0.1] * 768
+        mock.get_dimension.return_value = 768
         return mock
 
     @pytest.fixture

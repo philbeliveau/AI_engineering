@@ -81,8 +81,8 @@ Add to your Claude config (`claude_desktop_config.json`):
 
 - **Runtime:** Python 3.11, uv package manager
 - **API:** FastAPI + fastapi-mcp
-- **Storage:** MongoDB 7 + Qdrant (384d vectors)
-- **Embeddings:** all-MiniLM-L6-v2 (local)
+- **Storage:** MongoDB 7 + Qdrant (768d vectors)
+- **Embeddings:** nomic-embed-text-v1.5 (local, 8K context)
 
 ## For AI Agents
 

@@ -17,12 +17,12 @@ from src.embeddings import (
 class TestLocalEmbedder:
     """Tests for LocalEmbedder class."""
 
-    def test_embed_text_returns_384_dimensions(self, embedder):
-        """Single text embedding should return 384-dimensional vector."""
+    def test_embed_text_returns_768_dimensions(self, embedder):
+        """Single text embedding should return 768-dimensional vector."""
         vector = embedder.embed_text("Hello, world!")
 
         assert isinstance(vector, list)
-        assert len(vector) == 384
+        assert len(vector) == 768
         assert all(isinstance(v, float) for v in vector)
 
     def test_embed_batch_returns_correct_count(self, embedder):
@@ -31,7 +31,7 @@ class TestLocalEmbedder:
         vectors = embedder.embed_batch(texts)
 
         assert len(vectors) == 3
-        assert all(len(v) == 384 for v in vectors)
+        assert all(len(v) == 768 for v in vectors)
 
     def test_embed_empty_text_raises_error(self, embedder):
         """Empty text should raise EmbeddingGenerationError."""
@@ -68,9 +68,9 @@ class TestLocalEmbedder:
         assert "empty" in exc_info.value.message.lower()
         assert "index 1" in exc_info.value.message.lower()
 
-    def test_get_dimension_returns_384(self, embedder):
-        """get_dimension should return 384."""
-        assert embedder.get_dimension() == 384
+    def test_get_dimension_returns_768(self, embedder):
+        """get_dimension should return 768."""
+        assert embedder.get_dimension() == 768
 
     def test_model_loaded_once(self, embedder):
         """Model should only be loaded once per instance."""
@@ -90,7 +90,7 @@ class TestLocalEmbedder:
 
         assert embedder.config.batch_size == 16
         assert embedder.config.show_progress is False
-        assert embedder.config.model_name == "all-MiniLM-L6-v2"
+        assert embedder.config.model_name == "nomic-ai/nomic-embed-text-v1.5"
 
 
 class TestSingletonPattern:
@@ -156,8 +156,8 @@ class TestEmbeddingConfig:
         """Default config should have expected values."""
         config = EmbeddingConfig()
 
-        assert config.model_name == "all-MiniLM-L6-v2"
-        assert config.embedding_dimension == 384
+        assert config.model_name == "nomic-ai/nomic-embed-text-v1.5"
+        assert config.embedding_dimension == 768
         assert config.batch_size == 32
         assert config.show_progress is True
         assert config.normalize_embeddings is True
@@ -179,9 +179,9 @@ class TestEmbeddingConfig:
         assert config.normalize_embeddings is False
 
     def test_config_max_tokens_default(self):
-        """Default max_tokens should be 256."""
+        """Default max_tokens should be 8192 for nomic model."""
         config = EmbeddingConfig()
-        assert config.max_tokens == 256
+        assert config.max_tokens == 8192
 
 
 class TestExceptionHierarchy:

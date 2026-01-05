@@ -111,10 +111,10 @@ def mock_embedder():
     """Create a mock embedder."""
     with patch("src.ingestion.pipeline.get_embedder") as mock:
         embedder = MagicMock()
-        # Return 384-dimensional embeddings
+        # Return 768-dimensional embeddings
         embedder.embed_batch.return_value = [
-            [0.1] * 384,
-            [0.2] * 384,
+            [0.1] * 768,
+            [0.2] * 768,
         ]
         mock.return_value = embedder
         yield embedder

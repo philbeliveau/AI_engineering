@@ -52,18 +52,20 @@ class LevelExtractionStats:
     Attributes:
         level: The extraction level.
         contexts_processed: Number of contexts (chapters/sections/chunks) processed.
+            Note: Reserved for future use, not currently populated.
         extractions_attempted: Number of extraction attempts.
         extractions_successful: Number of successful extractions.
         extractions_failed: Number of failed extractions.
         total_tokens_processed: Total tokens processed at this level.
+            Note: Reserved for future use, not currently populated.
     """
 
     level: ExtractionLevel
-    contexts_processed: int = 0
+    contexts_processed: int = 0  # TODO: Not yet populated
     extractions_attempted: int = 0
     extractions_successful: int = 0
     extractions_failed: int = 0
-    total_tokens_processed: int = 0
+    total_tokens_processed: int = 0  # TODO: Not yet populated
 
 
 @dataclass

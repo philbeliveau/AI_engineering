@@ -10,27 +10,12 @@ by matching extraction context to content scope:
 - CHUNK (512 tokens): warning (single paragraph)
 """
 
-from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
-class ExtractionLevel(str, Enum):
-    """Hierarchical extraction levels.
-
-    Each level corresponds to a different context window size for extraction.
-    Larger context windows allow extracting knowledge that spans multiple pages.
-
-    Attributes:
-        CHAPTER: Largest context (8K tokens) for multi-page processes.
-        SECTION: Medium context (4K tokens) for page-spanning concepts.
-        CHUNK: Original context (512 tokens) for single-paragraph items.
-    """
-
-    CHAPTER = "chapter"
-    SECTION = "section"
-    CHUNK = "chunk"
+# Import the canonical ExtractionLevel from base to avoid duplicate definitions
+from src.extractors.base import ExtractionLevel
 
 
 class ExtractionLevelConfig(BaseModel):

@@ -28,7 +28,7 @@ class TestCollectionManagement:
     """Tests for collection creation and management."""
 
     def test_ensure_chunks_collection(self, qdrant_client):
-        """Test chunks collection creation with 384d vectors and Cosine distance."""
+        """Test chunks collection creation with 768d vectors and Cosine distance."""
         qdrant_client.ensure_collection("test_chunks")
 
         collections = qdrant_client.client.get_collections().collections
@@ -57,7 +57,7 @@ class TestCollectionManagement:
         assert "test_collection" in collection_names
 
     def test_collection_vector_config(self, qdrant_client):
-        """Test that collection has correct vector configuration (384d, Cosine)."""
+        """Test that collection has correct vector configuration (768d, Cosine)."""
         qdrant_client.ensure_collection("test_collection")
 
         collection_info = qdrant_client.client.get_collection("test_collection")
@@ -71,23 +71,23 @@ class TestVectorUpsert:
     """Tests for vector upsert operations."""
 
     def test_upsert_valid_vector(
-        self, qdrant_client, test_vector_384d, sample_chunk_payload
+        self, qdrant_client, test_vector_768d, sample_chunk_payload
     ):
-        """Test upsert with valid 384d vector."""
+        """Test upsert with valid 768d vector."""
         qdrant_client.ensure_collection("test_collection")
 
         # Should not raise
         qdrant_client._upsert_vector(
             collection="test_collection",
             point_id="test_point_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_chunk_payload,
         )
 
         # Verify point was inserted
         results = qdrant_client.search(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=1,
         )
 
@@ -95,35 +95,35 @@ class TestVectorUpsert:
         assert results[0]["id"] == "test_point_1"
 
     def test_upsert_invalid_vector_size_rejected(
-        self, qdrant_client, test_vector_256d, sample_chunk_payload
+        self, qdrant_client, test_vector_384d, sample_chunk_payload
     ):
-        """Test that non-384d vectors are rejected before reaching Qdrant."""
+        """Test that non-768d vectors are rejected before reaching Qdrant."""
         # Test through public methods that validate before calling Qdrant
         with pytest.raises(QdrantVectorError) as exc_info:
             qdrant_client.upsert_chunk_vector(
                 chunk_id="bad_point",
-                vector=test_vector_256d,
+                vector=test_vector_384d,
                 payload=sample_chunk_payload,
             )
 
         assert exc_info.value.code == "INVALID_VECTOR_SIZE"
-        assert exc_info.value.details["expected"] == 384
-        assert exc_info.value.details["actual"] == 256
+        assert exc_info.value.details["expected"] == 768
+        assert exc_info.value.details["actual"] == 384
 
     def test_upsert_chunk_vector(
-        self, qdrant_client, test_vector_384d, sample_chunk_payload
+        self, qdrant_client, test_vector_768d, sample_chunk_payload
     ):
         """Test upsert_chunk_vector method uses unified collection."""
         qdrant_client.ensure_knowledge_collection()
 
         qdrant_client.upsert_chunk_vector(
             chunk_id="chunk_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_chunk_payload,
         )
 
         results = qdrant_client.search_chunks(
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=1,
         )
 
@@ -132,19 +132,19 @@ class TestVectorUpsert:
         assert results[0]["payload"]["content_type"] == "chunk"
 
     def test_upsert_extraction_vector(
-        self, qdrant_client, test_vector_384d, sample_extraction_payload
+        self, qdrant_client, test_vector_768d, sample_extraction_payload
     ):
         """Test upsert_extraction_vector method uses unified collection."""
         qdrant_client.ensure_knowledge_collection()
 
         qdrant_client.upsert_extraction_vector(
             extraction_id="extraction_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_extraction_payload,
         )
 
         results = qdrant_client.search_extractions(
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=1,
         )
 
@@ -157,14 +157,14 @@ class TestVectorUpsert:
 class TestSemanticSearch:
     """Tests for semantic search operations."""
 
-    def test_search_returns_ranked_results(self, qdrant_client, test_vector_384d):
+    def test_search_returns_ranked_results(self, qdrant_client, test_vector_768d):
         """Test that search returns results ranked by similarity score."""
         qdrant_client.ensure_collection("test_collection")
 
         # Insert multiple vectors with varying similarity
         for i in range(3):
             # Slightly different vectors
-            vector = [0.1 + (i * 0.01)] * 384
+            vector = [0.1 + (i * 0.01)] * 768
             qdrant_client._upsert_vector(
                 collection="test_collection",
                 point_id=f"point_{i}",
@@ -174,7 +174,7 @@ class TestSemanticSearch:
 
         results = qdrant_client.search(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=3,
         )
 
@@ -184,7 +184,7 @@ class TestSemanticSearch:
         assert scores == sorted(scores, reverse=True)
 
     def test_search_includes_payload(
-        self, qdrant_client, test_vector_384d, sample_extraction_payload
+        self, qdrant_client, test_vector_768d, sample_extraction_payload
     ):
         """Test that search results include payload data."""
         qdrant_client.ensure_collection("test_collection")
@@ -192,13 +192,13 @@ class TestSemanticSearch:
         qdrant_client._upsert_vector(
             collection="test_collection",
             point_id="point_with_payload",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_extraction_payload,
         )
 
         results = qdrant_client.search(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=1,
         )
 
@@ -206,7 +206,7 @@ class TestSemanticSearch:
         assert results[0]["payload"]["source_id"] == sample_extraction_payload["source_id"]
         assert results[0]["payload"]["extraction_type"] == "decision"
 
-    def test_search_respects_limit(self, qdrant_client, test_vector_384d):
+    def test_search_respects_limit(self, qdrant_client, test_vector_768d):
         """Test that search respects the limit parameter."""
         qdrant_client.ensure_collection("test_collection")
 
@@ -215,14 +215,14 @@ class TestSemanticSearch:
             qdrant_client._upsert_vector(
                 collection="test_collection",
                 point_id=f"point_{i}",
-                vector=test_vector_384d,
+                vector=test_vector_768d,
                 payload={"index": i},
             )
 
         # Request only 2
         results = qdrant_client.search(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=2,
         )
 
@@ -233,7 +233,7 @@ class TestFilteredSearch:
     """Tests for filtered semantic search."""
 
     def test_search_with_type_filter(
-        self, qdrant_client, test_vector_384d, sample_chunk_payload
+        self, qdrant_client, test_vector_768d, sample_chunk_payload
     ):
         """Test filtered search by type."""
         qdrant_client.ensure_collection("test_collection")
@@ -242,20 +242,20 @@ class TestFilteredSearch:
         qdrant_client._upsert_vector(
             collection="test_collection",
             point_id="decision_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload={**sample_chunk_payload, "type": "decision"},
         )
         qdrant_client._upsert_vector(
             collection="test_collection",
             point_id="pattern_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload={**sample_chunk_payload, "type": "pattern"},
         )
 
         # Filter by type
         results = qdrant_client.search_with_filter(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             filter_dict={"type": "decision"},
             limit=10,
         )
@@ -264,7 +264,7 @@ class TestFilteredSearch:
         assert results[0]["payload"]["type"] == "decision"
 
     def test_search_with_source_id_filter(
-        self, qdrant_client, test_vector_384d
+        self, qdrant_client, test_vector_768d
     ):
         """Test filtered search by source_id."""
         qdrant_client.ensure_collection("test_collection")
@@ -273,19 +273,19 @@ class TestFilteredSearch:
         qdrant_client._upsert_vector(
             collection="test_collection",
             point_id="source_a_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload={"source_id": "source_a", "chunk_id": "c1"},
         )
         qdrant_client._upsert_vector(
             collection="test_collection",
             point_id="source_b_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload={"source_id": "source_b", "chunk_id": "c2"},
         )
 
         results = qdrant_client.search_with_filter(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             filter_dict={"source_id": "source_a"},
             limit=10,
         )
@@ -294,7 +294,7 @@ class TestFilteredSearch:
         assert results[0]["payload"]["source_id"] == "source_a"
 
     def test_search_with_topics_filter(
-        self, qdrant_client, test_vector_384d
+        self, qdrant_client, test_vector_768d
     ):
         """Test filtered search by topics (match any in list)."""
         qdrant_client.ensure_collection("test_collection")
@@ -303,20 +303,20 @@ class TestFilteredSearch:
         qdrant_client._upsert_vector(
             collection="test_collection",
             point_id="rag_point",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload={"source_id": "s1", "topics": ["rag", "embeddings"]},
         )
         qdrant_client._upsert_vector(
             collection="test_collection",
             point_id="ml_point",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload={"source_id": "s2", "topics": ["ml", "training"]},
         )
 
         # Filter by topics - should match any
         results = qdrant_client.search_with_filter(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             filter_dict={"topics": ["rag", "ml"]},
             limit=10,
         )
@@ -328,7 +328,7 @@ class TestFilteredSearch:
 class TestDeleteOperations:
     """Tests for delete operations."""
 
-    def test_delete_by_id(self, qdrant_client, test_vector_384d, sample_chunk_payload):
+    def test_delete_by_id(self, qdrant_client, test_vector_768d, sample_chunk_payload):
         """Test deleting a point by ID."""
         qdrant_client.ensure_collection("test_collection")
 
@@ -336,14 +336,14 @@ class TestDeleteOperations:
         qdrant_client._upsert_vector(
             collection="test_collection",
             point_id="to_delete",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_chunk_payload,
         )
 
         # Verify it exists
         results_before = qdrant_client.search(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=1,
         )
         assert len(results_before) == 1
@@ -354,12 +354,12 @@ class TestDeleteOperations:
         # Verify it's gone
         results_after = qdrant_client.search(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=1,
         )
         assert len(results_after) == 0
 
-    def test_delete_by_source(self, qdrant_client, test_vector_384d):
+    def test_delete_by_source(self, qdrant_client, test_vector_768d):
         """Test deleting all points for a source."""
         qdrant_client.ensure_collection("test_collection")
 
@@ -368,7 +368,7 @@ class TestDeleteOperations:
             qdrant_client._upsert_vector(
                 collection="test_collection",
                 point_id=f"source_x_{i}",
-                vector=test_vector_384d,
+                vector=test_vector_768d,
                 payload={"source_id": "source_x", "chunk_id": f"c{i}"},
             )
 
@@ -376,14 +376,14 @@ class TestDeleteOperations:
         qdrant_client._upsert_vector(
             collection="test_collection",
             point_id="source_y_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload={"source_id": "source_y", "chunk_id": "c0"},
         )
 
         # Verify 4 points exist
         results_before = qdrant_client.search(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=10,
         )
         assert len(results_before) == 4
@@ -394,7 +394,7 @@ class TestDeleteOperations:
         # Verify only source_y remains
         results_after = qdrant_client.search(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=10,
         )
         assert len(results_after) == 1
@@ -410,7 +410,7 @@ class TestDeleteOperations:
             point_id="nonexistent_point",
         )
 
-    def test_delete_batch(self, qdrant_client, test_vector_384d):
+    def test_delete_batch(self, qdrant_client, test_vector_768d):
         """Test batch delete operations."""
         qdrant_client.ensure_collection("test_collection")
 
@@ -419,7 +419,7 @@ class TestDeleteOperations:
             qdrant_client._upsert_vector(
                 collection="test_collection",
                 point_id=f"batch_{i}",
-                vector=test_vector_384d,
+                vector=test_vector_768d,
                 payload={"index": i},
             )
 
@@ -432,7 +432,7 @@ class TestDeleteOperations:
         # Verify only batch_1 and batch_3 remain
         results = qdrant_client.search(
             collection="test_collection",
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=10,
         )
         assert len(results) == 2
@@ -444,22 +444,22 @@ class TestErrorHandling:
     """Tests for error handling with structured error format."""
 
     def test_invalid_vector_size_error_format(
-        self, qdrant_client, test_vector_256d, sample_chunk_payload
+        self, qdrant_client, test_vector_384d, sample_chunk_payload
     ):
         """Test that QdrantVectorError has correct structured format."""
         # Use public method that validates before calling Qdrant
         with pytest.raises(QdrantVectorError) as exc_info:
             qdrant_client.upsert_chunk_vector(
                 chunk_id="bad_point",
-                vector=test_vector_256d,
+                vector=test_vector_384d,
                 payload=sample_chunk_payload,
             )
 
         error = exc_info.value
         assert error.code == "INVALID_VECTOR_SIZE"
-        assert "256" in error.message
-        assert error.details["expected"] == 384
-        assert error.details["actual"] == 256
+        assert "384" in error.message
+        assert error.details["expected"] == 768
+        assert error.details["actual"] == 384
 
         # Test to_dict format
         error_dict = error.to_dict()
@@ -467,14 +467,14 @@ class TestErrorHandling:
         assert "message" in error_dict["error"]
         assert "details" in error_dict["error"]
 
-    def test_search_with_invalid_vector_raises(self, qdrant_client, test_vector_256d):
+    def test_search_with_invalid_vector_raises(self, qdrant_client, test_vector_384d):
         """Test that search with invalid vector raises QdrantVectorError."""
         qdrant_client.ensure_collection("test_collection")
 
         with pytest.raises(QdrantVectorError) as exc_info:
             qdrant_client.search(
                 collection="test_collection",
-                query_vector=test_vector_256d,
+                query_vector=test_vector_384d,
                 limit=10,
             )
 
@@ -494,7 +494,7 @@ class TestUnifiedCollectionArchitecture:
         assert COLLECTION_NAME in collection_names
 
     def test_chunks_and_extractions_in_same_collection(
-        self, qdrant_client, test_vector_384d, sample_chunk_payload, sample_extraction_payload
+        self, qdrant_client, test_vector_768d, sample_chunk_payload, sample_extraction_payload
     ):
         """Test that chunks and extractions coexist in unified collection."""
         qdrant_client.ensure_knowledge_collection()
@@ -502,28 +502,28 @@ class TestUnifiedCollectionArchitecture:
         # Insert a chunk
         qdrant_client.upsert_chunk_vector(
             chunk_id="unified_chunk_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_chunk_payload,
         )
 
         # Insert an extraction
         qdrant_client.upsert_extraction_vector(
             extraction_id="unified_extraction_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_extraction_payload,
         )
 
         # Search all (no content_type filter)
         all_results = qdrant_client.search(
             collection=COLLECTION_NAME,
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=10,
         )
 
         assert len(all_results) >= 2
 
     def test_content_type_filtering(
-        self, qdrant_client, test_vector_384d, sample_chunk_payload, sample_extraction_payload
+        self, qdrant_client, test_vector_768d, sample_chunk_payload, sample_extraction_payload
     ):
         """Test that content_type correctly filters chunks vs extractions."""
         qdrant_client.ensure_knowledge_collection()
@@ -531,31 +531,31 @@ class TestUnifiedCollectionArchitecture:
         # Insert both types
         qdrant_client.upsert_chunk_vector(
             chunk_id="filter_test_chunk",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_chunk_payload,
         )
         qdrant_client.upsert_extraction_vector(
             extraction_id="filter_test_extraction",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_extraction_payload,
         )
 
         # Search only chunks
         chunk_results = qdrant_client.search_chunks(
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=10,
         )
         assert all(r["payload"]["content_type"] == "chunk" for r in chunk_results)
 
         # Search only extractions
         extraction_results = qdrant_client.search_extractions(
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             limit=10,
         )
         assert all(r["payload"]["content_type"] == "extraction" for r in extraction_results)
 
     def test_project_id_isolation(
-        self, qdrant_client, test_vector_384d, sample_chunk_payload
+        self, qdrant_client, test_vector_768d, sample_chunk_payload
     ):
         """Test that project_id isolates data between projects."""
         qdrant_client.ensure_knowledge_collection()
@@ -563,7 +563,7 @@ class TestUnifiedCollectionArchitecture:
         # Insert chunk for project A
         qdrant_client.upsert_chunk_vector(
             chunk_id="project_a_chunk",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_chunk_payload,
             project_id="project_a",
         )
@@ -571,14 +571,14 @@ class TestUnifiedCollectionArchitecture:
         # Insert chunk for project B
         qdrant_client.upsert_chunk_vector(
             chunk_id="project_b_chunk",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_chunk_payload,
             project_id="project_b",
         )
 
         # Search project A only
         results_a = qdrant_client.search_knowledge(
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             project_id="project_a",
             limit=10,
         )
@@ -586,14 +586,14 @@ class TestUnifiedCollectionArchitecture:
 
         # Search project B only
         results_b = qdrant_client.search_knowledge(
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             project_id="project_b",
             limit=10,
         )
         assert all(r["payload"]["project_id"] == "project_b" for r in results_b)
 
     def test_extraction_type_filtering(
-        self, qdrant_client, test_vector_384d
+        self, qdrant_client, test_vector_768d
     ):
         """Test filtering extractions by extraction_type."""
         qdrant_client.ensure_knowledge_collection()
@@ -601,25 +601,25 @@ class TestUnifiedCollectionArchitecture:
         # Insert different extraction types using extraction_type key
         qdrant_client.upsert_extraction_vector(
             extraction_id="decision_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload={"source_id": "s1", "chunk_id": "c1", "extraction_type": "decision", "topics": []},
         )
         qdrant_client.upsert_extraction_vector(
             extraction_id="pattern_1",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload={"source_id": "s1", "chunk_id": "c1", "extraction_type": "pattern", "topics": []},
         )
 
         # Filter by extraction_type
         decision_results = qdrant_client.search_extractions(
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             extraction_type="decision",
             limit=10,
         )
         assert all(r["payload"]["extraction_type"] == "decision" for r in decision_results)
 
     def test_search_knowledge_combined_filters(
-        self, qdrant_client, test_vector_384d
+        self, qdrant_client, test_vector_768d
     ):
         """Test search_knowledge with multiple filters combined."""
         qdrant_client.ensure_knowledge_collection()
@@ -628,7 +628,7 @@ class TestUnifiedCollectionArchitecture:
         # Use extraction_type (not legacy 'type' key) per single-collection architecture
         qdrant_client.upsert_extraction_vector(
             extraction_id="combined_filter_test",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload={
                 "source_id": "special_source",
                 "chunk_id": "c1",
@@ -641,7 +641,7 @@ class TestUnifiedCollectionArchitecture:
 
         # Search with multiple filters
         results = qdrant_client.search_knowledge(
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             project_id="test_project",
             content_type="extraction",
             extraction_type="methodology",
@@ -655,7 +655,7 @@ class TestUnifiedCollectionArchitecture:
         assert results[0]["payload"]["source_id"] == "special_source"
 
     def test_default_project_id_backwards_compatibility(
-        self, qdrant_client, test_vector_384d, sample_chunk_payload
+        self, qdrant_client, test_vector_768d, sample_chunk_payload
     ):
         """Test AC9: Data without explicit project_id defaults to 'default'.
 
@@ -667,14 +667,14 @@ class TestUnifiedCollectionArchitecture:
         # Insert chunk WITHOUT explicit project_id (should use default from settings)
         qdrant_client.upsert_chunk_vector(
             chunk_id="backwards_compat_chunk",
-            vector=test_vector_384d,
+            vector=test_vector_768d,
             payload=sample_chunk_payload,
             # project_id not specified - should default to settings.project_id ("default")
         )
 
         # Search with explicit project_id="default" should find the chunk
         results = qdrant_client.search_chunks(
-            query_vector=test_vector_384d,
+            query_vector=test_vector_768d,
             project_id="default",
             limit=10,
         )

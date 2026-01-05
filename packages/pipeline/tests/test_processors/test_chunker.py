@@ -138,8 +138,8 @@ class TestDoclingChunkerTokenCounting:
 
     def test_count_tokens_uses_embedding_model(self, chunker):
         """Test that we're using the correct embedding model tokenizer."""
-        # This is the model specified in the architecture
-        assert EMBED_MODEL_ID == "sentence-transformers/all-MiniLM-L6-v2"
+        # This is the model specified in the architecture (updated to nomic-embed-text-v1.5)
+        assert EMBED_MODEL_ID == "nomic-ai/nomic-embed-text-v1.5"
 
 
 class TestDoclingChunkerExceptions:

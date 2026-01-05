@@ -27,13 +27,13 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ### Data Storage
 - **MongoDB:** 7 - collections: `sources`, `chunks`, `extractions`
-- **Qdrant:** latest - 384d vectors, Cosine distance
+- **Qdrant:** latest - 768d vectors, Cosine distance
 - **pymongo/qdrant-client:** Use async patterns where available
 
 ### Embeddings
-- **Model:** all-MiniLM-L6-v2 (384 dimensions)
+- **Model:** nomic-embed-text-v1.5 (768 dimensions, 8K context)
 - **Pipeline:** sentence-transformers >=5.0
-- **MCP Server:** fastembed >=0.2.0
+- **MCP Server:** sentence-transformers (nomic model)
 
 ### Development
 - **ruff:** line-length 100, target py311
@@ -309,7 +309,7 @@ uv run uvicorn src.server:app --reload  # Dev server
 - NEVER commit `.env` files or secrets
 
 ### Edge Cases to Handle
-- Qdrant vectors MUST be exactly 384 dimensions
+- Qdrant vectors MUST be exactly 768 dimensions (nomic-embed-text-v1.5)
 - MongoDB ObjectIds → convert to strings in API responses
 - Every extraction MUST have `source_id` AND `chunk_id` for traceability
 - Empty search results → still return `{results: [], metadata: {...}}`

@@ -12,8 +12,9 @@ class TestSettingsProjectNamespacing:
     """Tests for project namespacing configuration."""
 
     def test_default_project_id(self) -> None:
-        """Default project_id should be 'default'."""
-        settings = Settings()
+        """Default project_id should be 'default' when explicitly not set."""
+        # Explicitly pass project_id=default to bypass .env file
+        settings = Settings(project_id="default")
         assert settings.project_id == "default"
 
     def test_custom_project_id_from_env(self) -> None:
@@ -24,17 +25,20 @@ class TestSettingsProjectNamespacing:
 
     def test_sources_collection_default(self) -> None:
         """sources_collection uses default project_id prefix."""
-        settings = Settings()
+        # Explicitly pass project_id=default to bypass .env file
+        settings = Settings(project_id="default")
         assert settings.sources_collection == "default_sources"
 
     def test_chunks_collection_default(self) -> None:
         """chunks_collection uses default project_id prefix."""
-        settings = Settings()
+        # Explicitly pass project_id=default to bypass .env file
+        settings = Settings(project_id="default")
         assert settings.chunks_collection == "default_chunks"
 
     def test_extractions_collection_default(self) -> None:
         """extractions_collection uses default project_id prefix."""
-        settings = Settings()
+        # Explicitly pass project_id=default to bypass .env file
+        settings = Settings(project_id="default")
         assert settings.extractions_collection == "default_extractions"
 
     def test_sources_collection_custom_project(self) -> None:

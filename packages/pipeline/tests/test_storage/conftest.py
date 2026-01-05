@@ -122,15 +122,15 @@ def qdrant_client():
 
 
 @pytest.fixture
-def test_vector_384d() -> list[float]:
-    """Provide a valid 384-dimensional test vector."""
-    return [0.1] * 384
+def test_vector_768d() -> list[float]:
+    """Provide a valid 768-dimensional test vector."""
+    return [0.1] * 768
 
 
 @pytest.fixture
-def test_vector_256d() -> list[float]:
-    """Provide an invalid 256-dimensional test vector for rejection tests."""
-    return [0.1] * 256
+def test_vector_384d() -> list[float]:
+    """Provide an invalid 384-dimensional test vector for rejection tests."""
+    return [0.1] * 384
 
 
 @pytest.fixture

@@ -43,8 +43,8 @@ def mock_qdrant_client():
 def mock_embedder():
     """Provide a mock embedder."""
     mock = MagicMock()
-    mock.embed_text.return_value = [0.1] * 384
-    mock.get_dimension.return_value = 384
+    mock.embed_text.return_value = [0.1] * 768
+    mock.get_dimension.return_value = 768
     return mock
 
 
@@ -120,7 +120,7 @@ class TestExtractionStorageSaveExtraction:
         mock_qdrant_client.upsert_extraction_vector.assert_called_once()
         call_args = mock_qdrant_client.upsert_extraction_vector.call_args
         assert call_args.kwargs["extraction_id"] == "507f1f77bcf86cd799439013"
-        assert len(call_args.kwargs["vector"]) == 384
+        assert len(call_args.kwargs["vector"]) == 768
 
         payload = call_args.kwargs["payload"]
         assert payload["source_id"] == sample_decision.source_id

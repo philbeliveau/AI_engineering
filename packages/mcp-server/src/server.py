@@ -4,6 +4,7 @@ Main application entry point providing:
 - Health check endpoint at /health
 - MCP protocol endpoint at /mcp (mounted via fastapi-mcp)
 - Database connections to MongoDB and Qdrant
+- Rate limiting middleware (Story 5.1)
 
 Follows project-context.md:54-57 (all endpoints MUST be async) and
 project-context.md:152-164 (structured logging).
@@ -13,9 +14,11 @@ from contextlib import asynccontextmanager
 
 import structlog
 import uvicorn
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi_mcp import FastApiMCP
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from src import __version__
 from src.config import settings
@@ -28,6 +31,12 @@ from src.middleware.error_handlers import (
     validation_exception_handler,
 )
 from src.middleware.auth import AuthMiddleware, get_validator
+from src.middleware.rate_limit import (
+    RateLimitHeaderMiddleware,
+    get_tier_rate_limit,
+    limiter,
+    rate_limit_error_handler,
+)
 from src.models.auth import APIKey, UserTier
 from src.storage import validate_environment
 from src.storage.mongodb import MongoDBClient
@@ -193,6 +202,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add rate limiter to app state (required by slowapi)
+# Story 5.1: Rate limiting with tier-based limits
+app.state.limiter = limiter
+
+# Add rate limit header middleware (Story 5.1 Task 8)
+# Adds X-RateLimit-* headers to all responses
+app.add_middleware(RateLimitHeaderMiddleware)
+
 # Add authentication middleware
 # Extracts X-API-Key header, validates key, sets request.state.auth_context
 # Missing/invalid keys are handled per story 5.2 ACs:
@@ -209,21 +226,25 @@ app.include_router(methodologies_router, tags=["extractions"])
 app.include_router(sources_router, tags=["sources"])
 
 
-# Register global exception handlers (Story 4.6)
+# Register global exception handlers (Story 4.6, 5.1)
 # Follows architecture.md error response format
 # Order matters: specific handlers first, then generic
+app.add_exception_handler(RateLimitExceeded, rate_limit_error_handler)  # Story 5.1
 app.add_exception_handler(KnowledgeError, knowledge_error_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
 # Define health endpoint BEFORE MCP mount so it can be explicitly excluded
 # Health is infrastructure, not a knowledge query tool
+# Rate limiting applied via @limiter.limit decorator (Story 5.1)
 @app.get("/health", operation_id="health_check", tags=["infrastructure"])
-async def health_endpoint() -> Response:
-    """Health check endpoint.
+@limiter.limit(get_tier_rate_limit)  # Dynamic tier-based rate limit
+async def health_endpoint(request: Request) -> Response:
+    """Health check endpoint with rate limiting.
 
     Returns server health status including MongoDB and Qdrant connectivity.
     Returns HTTP 200 if all services healthy, HTTP 503 if any service unavailable.
+    Rate limited per tier: Public 100/hr, Registered 1000/hr, Premium unlimited.
     """
     result = await check_health(
         mongodb_client=mongodb_client,
