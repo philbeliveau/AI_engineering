@@ -1,6 +1,6 @@
 """
 Knowledge Pipeline Web Interface
-Simple drag-and-drop ingestion with database status monitoring.
+Multi-page Streamlit app for document ingestion, extraction, and search.
 
 Run: uv run streamlit run web_app.py
 """
@@ -14,407 +14,49 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path, override=True)
 
 import streamlit as st
-import subprocess
-import tempfile
 
-# Import pipeline components (AFTER loading .env)
-from src.config import settings
-from src.storage.mongodb import MongoDBClient
-from src.storage.qdrant import QdrantStorageClient
-from src.extraction.pipeline import ExtractionPipeline, ExtractionPipelineResult
-from src.extractors import ExtractionType
-
-
-@st.cache_data(ttl=60)  # Cache for 60 seconds, manual refresh clears it
-def get_mongodb_stats():
-    """Get MongoDB collection statistics."""
-    client = None
-    try:
-        client = MongoDBClient()
-        client.connect()  # Must connect before using
-        db = client._client[settings.mongodb_database]
-
-        # Get collection stats using settings properties (not hardcoded names)
-        sources_count = db[settings.sources_collection].count_documents({})
-        chunks_count = db[settings.chunks_collection].count_documents({})
-        extractions_count = db[settings.extractions_collection].count_documents({})
-
-        # Get recent sources
-        recent_sources = list(
-            db[settings.sources_collection]
-            .find({}, {"title": 1, "status": 1, "ingested_at": 1, "type": 1})
-            .sort("ingested_at", -1)
-            .limit(10)
-        )
-
-        # Get extraction counts per source
-        extraction_counts_by_source = {}
-        for src in recent_sources:
-            source_id = str(src.get("_id", ""))
-            count = db[settings.extractions_collection].count_documents(
-                {"source_id": source_id}
-            )
-            extraction_counts_by_source[source_id] = count
-
-        return {
-            "connected": True,
-            "sources": sources_count,
-            "chunks": chunks_count,
-            "extractions": extractions_count,
-            "recent_sources": recent_sources,
-            "extraction_counts_by_source": extraction_counts_by_source,
-            "database": settings.mongodb_database,
-            "project_id": settings.project_id,
-        }
-    except Exception as e:
-        return {"connected": False, "error": str(e)}
-    finally:
-        if client:
-            client.close()
-
-
-def rename_source(source_id: str, new_title: str) -> bool:
-    """Rename a source in MongoDB."""
-    from bson import ObjectId
-    client = None
-    try:
-        client = MongoDBClient()
-        client.connect()
-        db = client._client[settings.mongodb_database]
-        result = db[settings.sources_collection].update_one(
-            {"_id": ObjectId(source_id)},
-            {"$set": {"title": new_title}}
-        )
-        return result.modified_count > 0
-    except Exception as e:
-        st.error(f"Failed to rename: {e}")
-        return False
-    finally:
-        if client:
-            client.close()
-
-
-@st.cache_data(ttl=60)  # Cache for 60 seconds, manual refresh clears it
-def get_qdrant_stats():
-    """Get Qdrant collection statistics."""
-    try:
-        client = QdrantStorageClient()  # Uses settings internally
-
-        # Ensure collection exists (creates if not)
-        client.ensure_knowledge_collection()
-
-        # Get collection info using project-specific name (matches storage client)
-        collection_name = settings.chunks_collection
-        info = client.client.get_collection(collection_name)
-
-        return {
-            "connected": True,
-            "collection": collection_name,
-            "vectors_count": info.points_count,
-            "vector_dimension": info.config.params.vectors.size,
-            "status": info.status.value,
-        }
-    except Exception as e:
-        return {"connected": False, "error": str(e)}
-
-
-def run_ingestion(file_path: str, category: str, tags: str, year: int | None):
-    """Run the ingestion pipeline."""
-    cmd = ["uv", "run", "scripts/ingest.py", file_path]
-
-    if category:
-        cmd.extend(["--category", category])
-    if tags:
-        cmd.extend(["--tags", tags])
-    if year:
-        cmd.extend(["--year", str(year)])
-
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        cwd=Path(__file__).parent,
-    )
-
-    return result.stdout, result.stderr, result.returncode
-
-
-def run_extraction(
-    source_id: str,
-    extractor_types: list[ExtractionType] | None = None,
-) -> ExtractionPipelineResult:
-    """Run hierarchical extraction pipeline on a source.
-
-    Args:
-        source_id: MongoDB source document ID.
-        extractor_types: Optional list of extraction types to run.
-                        If None, all extractors are used.
-
-    Returns:
-        ExtractionPipelineResult with counts and statistics.
-    """
-    with ExtractionPipeline() as pipeline:
-        return pipeline.extract_hierarchical(
-            source_id=source_id,
-            extractor_types=extractor_types,
-            quiet=True,
-        )
-
-
-# Page config
+# Page config must be first Streamlit command
 st.set_page_config(
     page_title="Knowledge Pipeline",
-    page_icon="📚",
+    page_icon="",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-st.title("📚 Knowledge Pipeline Ingestion")
+# Import shared utilities (AFTER loading .env)
+from src.web.utils import render_sidebar_stats
 
-# Sidebar: Database Status
-with st.sidebar:
-    st.header("Database Status")
+# Render sidebar stats on all pages and store in session state
+mongo_stats, qdrant_stats = render_sidebar_stats()
 
-    if st.button("🔄 Refresh Status"):
-        st.cache_data.clear()
+# Always update session state with fresh stats from sidebar render
+st.session_state.mongo_stats = mongo_stats
+st.session_state.qdrant_stats = qdrant_stats
 
-    # MongoDB Status
-    st.subheader("MongoDB")
-    mongo_stats = get_mongodb_stats()
+# Main page content
+st.title("Knowledge Pipeline")
 
-    if mongo_stats["connected"]:
-        st.success(f"✅ Connected to `{mongo_stats['database']}`")
-        st.metric("Sources", mongo_stats["sources"])
-        st.metric("Chunks", mongo_stats["chunks"])
-        st.metric("Extractions", mongo_stats["extractions"])
-        st.caption(f"Project: `{mongo_stats['project_id']}`")
-    else:
-        st.error(f"❌ Disconnected: {mongo_stats.get('error', 'Unknown')}")
+st.markdown("""
+Welcome to the Knowledge Pipeline! This tool helps you:
 
-    st.divider()
+1. **Upload** - Ingest documents (PDF, Markdown, Word, HTML)
+2. **Sources** - Manage your ingested sources
+3. **Extract** - Run AI extraction to create structured knowledge
+4. **Search** - Query your knowledge base
 
-    # Qdrant Status
-    st.subheader("Qdrant")
-    qdrant_stats = get_qdrant_stats()
+Use the sidebar to navigate between pages.
+""")
 
-    if qdrant_stats["connected"]:
-        st.success(f"✅ Connected")
-        st.metric("Vectors", qdrant_stats["vectors_count"])
-        st.caption(f"Dimension: {qdrant_stats['vector_dimension']}d")
-        st.caption(f"Collection: `{qdrant_stats['collection']}`")
-        st.caption(f"Status: {qdrant_stats['status']}")
-    else:
-        st.error(f"❌ Disconnected: {qdrant_stats.get('error', 'Unknown')}")
-
-# Main content: File Upload
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.subheader("Upload Document")
-
-    uploaded_file = st.file_uploader(
-        "Drag and drop a file here",
-        type=["pdf", "md", "markdown", "docx", "html", "pptx"],
-        help="Supported formats: PDF, Markdown, Word, HTML, PowerPoint",
-    )
-
-with col2:
-    st.subheader("Metadata")
-
-    category = st.selectbox(
-        "Category",
-        options=["", "foundational", "advanced", "reference", "case_study"],
-        help="Categorize the document for filtering",
-    )
-
-    tags = st.text_input(
-        "Tags",
-        placeholder="rag, llm, production",
-        help="Comma-separated tags",
-    )
-
-    year = st.number_input(
-        "Publication Year",
-        min_value=1900,
-        max_value=2100,
-        value=2024,
-        help="Year of publication",
-    )
-
-# Ingestion
-if uploaded_file:
-    st.divider()
-
-    # File info
-    st.info(f"📄 **{uploaded_file.name}** ({uploaded_file.size / 1024:.1f} KB)")
-
-    if st.button("🚀 Ingest Document", type="primary"):
-        with st.spinner("Processing document..."):
-            # Save uploaded file to temp location
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=Path(uploaded_file.name).suffix,
-            ) as tmp:
-                tmp.write(uploaded_file.getbuffer())
-                tmp_path = tmp.name
-
-            try:
-                # Run ingestion
-                stdout, stderr, returncode = run_ingestion(
-                    tmp_path,
-                    category or None,
-                    tags or None,
-                    year if year else None,
-                )
-
-                if returncode == 0:
-                    st.success("✅ Ingestion complete!")
-                    st.code(stdout, language="text")
-
-                    # Show updated stats
-                    st.balloons()
-                else:
-                    st.error("❌ Ingestion failed")
-                    st.code(stderr, language="text")
-
-            finally:
-                # Cleanup temp file
-                os.unlink(tmp_path)
-
-# Recent Sources Table
-st.divider()
-st.subheader("Recent Sources")
-
-mongo_stats = get_mongodb_stats()
-if mongo_stats["connected"] and mongo_stats.get("recent_sources"):
-    import pandas as pd
-
-    # Get extraction counts per source
-    extraction_counts = mongo_stats.get("extraction_counts_by_source", {})
-
-    # Build dataframe with source IDs for editing
-    sources_data = []
-    source_ids = []
-    for src in mongo_stats["recent_sources"]:
-        source_id = str(src.get("_id", ""))
-        source_ids.append(source_id)
-        sources_data.append({
-            "Title": src.get("title", "Untitled"),
-            "Type": src.get("type", "-"),
-            "Status": src.get("status", "-"),
-            "Extractions": extraction_counts.get(source_id, 0),
-            "Ingested": str(src.get("ingested_at", "-"))[:19],
-        })
-
-    df = pd.DataFrame(sources_data)
-
-    # Editable table - only Title column is editable
-    edited_df = st.data_editor(
-        df,
-        column_config={
-            "Title": st.column_config.TextColumn("Title", help="Click to edit"),
-            "Type": st.column_config.TextColumn("Type", disabled=True),
-            "Status": st.column_config.TextColumn("Status", disabled=True),
-            "Extractions": st.column_config.NumberColumn(
-                "Extractions",
-                help="Number of knowledge extractions",
-                disabled=True,
-            ),
-            "Ingested": st.column_config.TextColumn("Ingested", disabled=True),
-        },
-        hide_index=True,
-        use_container_width=True,
-        key="sources_editor",
-    )
-
-    # Check for changes and save
-    if not df["Title"].equals(edited_df["Title"]):
-        for idx, (old_title, new_title) in enumerate(zip(df["Title"], edited_df["Title"])):
-            if old_title != new_title and new_title.strip():
-                if rename_source(source_ids[idx], new_title.strip()):
-                    st.success(f"Renamed to: {new_title.strip()}")
-                    st.cache_data.clear()
-                    st.rerun()
-
-    # Extraction section
-    st.divider()
-    st.subheader("🧠 Extract Knowledge")
-
-    # Source selection for extraction
-    source_options = {
-        f"{src['Title']} ({extraction_counts.get(source_ids[i], 0)} extractions)": source_ids[i]
-        for i, src in enumerate(sources_data)
-        if mongo_stats["recent_sources"][i].get("status") == "complete"
-    }
-
-    if source_options:
-        col1, col2 = st.columns([2, 1])
-
-        with col1:
-            selected_label = st.selectbox(
-                "Select source to extract",
-                options=list(source_options.keys()),
-                help="Choose a completed source to extract knowledge from",
-            )
-
-        with col2:
-            # Extraction type selection
-            extraction_type_labels = {
-                "Decision": ExtractionType.DECISION,
-                "Pattern": ExtractionType.PATTERN,
-                "Warning": ExtractionType.WARNING,
-                "Methodology": ExtractionType.METHODOLOGY,
-            }
-            selected_types = st.multiselect(
-                "Extraction types (optional)",
-                options=list(extraction_type_labels.keys()),
-                help="Leave empty for all types",
-            )
-
-        if selected_label:
-            selected_source_id = source_options[selected_label]
-
-            # Show current extraction count
-            current_extractions = extraction_counts.get(selected_source_id, 0)
-            if current_extractions > 0:
-                st.info(f"ℹ️ This source already has {current_extractions} extractions.")
-
-            if st.button("🔄 Run Extraction", type="primary"):
-                # Convert selected type labels to ExtractionType enum
-                extractor_types = None
-                if selected_types:
-                    extractor_types = [extraction_type_labels[t] for t in selected_types]
-
-                type_str = ", ".join(selected_types) if selected_types else "all types"
-                with st.spinner(f"Extracting {type_str}... This may take 30-60 seconds."):
-                    try:
-                        result = run_extraction(selected_source_id, extractor_types)
-
-                        # Show success
-                        st.success(
-                            f"✅ Extraction complete! "
-                            f"Created {result.total_extractions} extractions in {result.duration:.1f}s"
-                        )
-
-                        # Show breakdown by type
-                        if result.extraction_counts:
-                            st.write("**Extraction breakdown:**")
-                            cols = st.columns(len(result.extraction_counts))
-                            for i, (ext_type, count) in enumerate(
-                                sorted(result.extraction_counts.items())
-                            ):
-                                cols[i].metric(ext_type.title(), count)
-
-                        # Clear cache and refresh
-                        st.cache_data.clear()
-                        st.balloons()
-
-                    except Exception as e:
-                        st.error(f"❌ Extraction failed: {str(e)}")
-    else:
-        st.caption("No completed sources available for extraction. Ingest a document first.")
-else:
-    st.caption("No sources ingested yet.")
+# Quick stats
+if mongo_stats["connected"]:
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Sources", mongo_stats["sources"])
+    with col2:
+        st.metric("Total Chunks", mongo_stats["chunks"])
+    with col3:
+        st.metric("Total Extractions", mongo_stats["extractions"])
 
 # Footer
 st.divider()
-st.caption("Knowledge Pipeline | [Architecture](_bmad-output/architecture.md)")
+st.caption("Knowledge Pipeline | Built with Streamlit")
