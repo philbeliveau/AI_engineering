@@ -233,18 +233,26 @@ async def list_sources(
         source_id = source.get("id", "")
         extraction_counts = all_extraction_counts.get(source_id, {})
 
-        results.append(
-            SourceResult(
-                id=source_id,
-                title=source.get("title", "Unknown"),
-                authors=source.get("authors", []),
-                type=source.get("type", "unknown"),
-                path=source.get("path", ""),
-                ingested_at=source.get("ingested_at", ""),
-                status=source.get("status", "unknown"),
-                extraction_counts=extraction_counts,
+        try:
+            results.append(
+                SourceResult(
+                    id=source_id,
+                    title=source.get("title", "Unknown"),
+                    authors=source.get("authors", []),
+                    type=source.get("type", "unknown"),
+                    path=source.get("path", ""),
+                    ingested_at=source.get("ingested_at", ""),
+                    status=source.get("status", "unknown"),
+                    extraction_counts=extraction_counts,
+                )
             )
-        )
+        except Exception as e:
+            logger.warning(
+                "source_result_build_failed",
+                source_id=source_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     latency_ms = int((time.time() - start_time) * 1000)
 
