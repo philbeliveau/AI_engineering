@@ -174,6 +174,36 @@ async def list_sources(
     """
     start_time = time.time()
 
+    # Global try/except for debugging - catches any unhandled exception
+    try:
+        return await _list_sources_impl(request, limit, start_time)
+    except Exception as e:
+        logger.error(
+            "list_sources_unhandled_exception",
+            error=str(e),
+            error_type=type(e).__name__,
+            limit=limit,
+        )
+        latency_ms = int((time.time() - start_time) * 1000)
+        return SourceListResponse(
+            results=[],
+            metadata=SourceListMetadata(
+                query="all",
+                sources_cited=[],
+                result_count=0,
+                search_type="list",
+                latency_ms=latency_ms,
+            ),
+        )
+
+
+async def _list_sources_impl(
+    request: Request,
+    limit: int,
+    start_time: float,
+) -> SourceListResponse:
+    """Implementation of list_sources - separated for exception handling."""
+
     logger.info(
         "list_sources_start",
         limit=limit,
