@@ -1,30 +1,50 @@
+# Get Warnings
+
+Retrieve anti-patterns and pitfalls to avoid.
+
 ---
-description: Query anti-patterns and pitfalls to avoid from knowledge base
-argument-hint: [topic or technology]
+
+## Arguments
+
+$ARGUMENTS - Topic or technology (e.g., "RAG pipeline", "fine-tuning", "prompt injection")
+
 ---
 
-# Get Warnings and Anti-Patterns
+## Instructions
 
-Query the knowledge base for warnings, pitfalls, anti-patterns, and common mistakes documented in AI engineering literature.
+Query the Knowledge MCP for warnings and anti-patterns related to: **$ARGUMENTS**
 
-## Examples
+### How to Query
 
-- `/knowledge:get-warnings prompt injection vulnerabilities`
-- `/knowledge:get-warnings LLM hallucination mitigation`
-- `/knowledge:get-warnings embedding model gotchas`
-- `/knowledge:get-warnings` (lists all available warnings)
+Use the `get_warnings` MCP tool with the topic: **$ARGUMENTS**
 
-## Task
+### What You'll Get
 
-Use the knowledge-pipeline MCP server's `get_warnings` tool to find warnings about: $ARGUMENTS
+- **Warning**: What can go wrong
+- **Symptoms**: How to recognize the problem
+- **Impact**: Consequences of ignoring
+- **Prevention**: How to avoid it
+- **Mitigation**: How to fix if it happens
+- **Source citations**: Where this warning comes from
 
-If no arguments provided, list all available warnings organized by severity.
+### CRITICAL: Always Check Warnings Before Implementing
 
-## Output Format
+Before recommending any implementation approach:
+1. Query warnings for that approach
+2. Surface top 2-3 relevant warnings
+3. Frame as: "To avoid X, ensure you Y"
 
-Present each warning with:
-- **Anti-pattern** - What to avoid
-- **Why problematic** - The risks or issues it causes
-- **What to do instead** - Recommended alternative
-- **Real-world example** - Case where this caused issues (if available)
-- **Source** - Book/paper and section
+### Common Warning Categories
+
+- Data quality pitfalls
+- Chunking mistakes
+- Embedding failures
+- RAG anti-patterns
+- Fine-tuning traps
+- Prompt injection risks
+- Evaluation blind spots
+- Production failure modes
+
+---
+
+**EXECUTE**: Call `get_warnings` tool with topic: "$ARGUMENTS"

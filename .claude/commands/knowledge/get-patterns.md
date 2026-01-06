@@ -1,31 +1,50 @@
+# Get Patterns
+
+Retrieve reusable implementation patterns with code examples.
+
 ---
-description: Query reusable implementation patterns from knowledge base
-argument-hint: [pattern type or problem]
+
+## Arguments
+
+$ARGUMENTS - Pattern type or problem (e.g., "semantic caching", "hybrid retrieval", "prompt templates")
+
 ---
 
-# Get Implementation Patterns
+## Instructions
 
-Query the knowledge base for reusable implementation patterns, design solutions, and proven approaches from AI engineering literature.
+Query the Knowledge MCP for implementation patterns related to: **$ARGUMENTS**
 
-## Examples
+### How to Query
 
-- `/knowledge:get-patterns retry with exponential backoff`
-- `/knowledge:get-patterns RAG retrieval patterns`
-- `/knowledge:get-patterns prompt template management`
-- `/knowledge:get-patterns` (lists all available patterns)
+Use the `get_patterns` MCP tool with the topic: **$ARGUMENTS**
 
-## Task
+### What You'll Get
 
-Use the knowledge-pipeline MCP server's `get_patterns` tool to find patterns about: $ARGUMENTS
+- **Pattern name**: What this pattern is called
+- **Problem**: What problem it solves
+- **Solution**: How it works
+- **Code examples**: Implementation snippets (when available)
+- **When to use**: Appropriate contexts
+- **Variations**: Alternative approaches
+- **Source citations**: Where this pattern comes from
 
-If no arguments provided, list all available patterns organized by category.
+### Best For
 
-## Output Format
+- Implementation guidance (how to build X)
+- Code structure (how to organize Y)
+- Integration patterns (how to connect A to B)
+- Optimization techniques (how to improve Z)
 
-Present each pattern with:
-- **Pattern name** - Identifier for the pattern
-- **Problem** - What situation this solves
-- **Solution** - How to implement it
-- **Code example** - Sample implementation (if available)
-- **Trade-offs** - When to use vs. alternatives
-- **Source** - Book/paper and section
+### Common Pattern Categories
+
+- Data ingestion patterns
+- Chunking strategies
+- Embedding pipelines
+- RAG architectures
+- Prompt templates
+- Evaluation frameworks
+- Monitoring setups
+
+---
+
+**EXECUTE**: Call `get_patterns` tool with topic: "$ARGUMENTS"

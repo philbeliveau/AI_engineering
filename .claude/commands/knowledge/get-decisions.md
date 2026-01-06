@@ -1,30 +1,44 @@
+# Get Decisions
+
+Retrieve architectural decisions with trade-offs and recommendations.
+
 ---
-description: Query architectural decisions and trade-offs from knowledge base
-argument-hint: [topic or technology]
+
+## Arguments
+
+$ARGUMENTS - Topic for decision guidance (e.g., "RAG vs fine-tuning", "vector database selection")
+
 ---
 
-# Get Architectural Decisions
+## Instructions
 
-Query the knowledge base for architectural decisions, trade-offs, and technology choices documented in AI engineering literature.
+Query the Knowledge MCP for architectural decisions related to: **$ARGUMENTS**
 
-## Examples
+### How to Query
 
-- `/knowledge:get-decisions embedding model selection`
-- `/knowledge:get-decisions monolith vs microservices`
-- `/knowledge:get-decisions caching strategies for LLM apps`
-- `/knowledge:get-decisions` (lists all available decisions)
+Use the `get_decisions` MCP tool with the topic: **$ARGUMENTS**
 
-## Task
+### What You'll Get
 
-Use the knowledge-pipeline MCP server's `get_decisions` tool to find decisions about: $ARGUMENTS
+- **Options**: Available choices for the decision
+- **Trade-offs**: Pros/cons of each option
+- **Recommendations**: When to choose which option
+- **Context factors**: Constraints that influence the decision
+- **Source citations**: Where this guidance comes from
 
-If no arguments provided, list all available decisions with brief summaries.
+### Best For
 
-## Output Format
+- Architecture choices (RAG vs fine-tuning, hybrid approaches)
+- Technology selection (vector DB, embedding model, LLM)
+- Design patterns (chunking strategy, retrieval approach)
+- Scale decisions (when to fine-tune vs prompt engineer)
 
-Present each decision with:
-- **Decision point** - The question being answered
-- **Options considered** - Alternatives evaluated
-- **Trade-offs** - Pros/cons of each approach
-- **Recommended approach** - What the source suggests (if available)
-- **Source** - Book/paper and section
+### Follow-Up
+
+After reviewing decisions, consider:
+- `get_warnings` - Pitfalls to avoid for your choice
+- `get_patterns` - Implementation patterns for your choice
+
+---
+
+**EXECUTE**: Call `get_decisions` tool with topic: "$ARGUMENTS"

@@ -1,28 +1,42 @@
+# Search Knowledge
+
+Semantic search across all AI engineering knowledge.
+
 ---
-description: Semantic search across AI engineering knowledge base
-argument-hint: [search query]
+
+## Arguments
+
+$ARGUMENTS - Your search query (e.g., "chunking strategies for legal documents")
+
 ---
 
-# Search AI Engineering Knowledge
+## Instructions
 
-Search the knowledge base for AI engineering insights using semantic search across all extracted content from methodology books, papers, and case studies.
+Execute a semantic search against the Knowledge MCP to find relevant AI engineering information.
 
-## Examples
+### How to Search
 
-- `/knowledge:search-knowledge RAG chunking strategies`
-- `/knowledge:search-knowledge when to fine-tune vs prompt engineering`
-- `/knowledge:search-knowledge vector database selection criteria`
-- `/knowledge:search-knowledge agent orchestration patterns`
+Use the `search_knowledge` MCP tool with the query: **$ARGUMENTS**
 
-## Task
+### Search Tips
 
-Use the knowledge-pipeline MCP server's `search_knowledge` tool to find relevant information about: $ARGUMENTS
+- **Be specific**: "RAG chunking for code documentation" > "chunking"
+- **Include domain context**: "embedding model for multilingual support"
+- **Try synonyms**: If few results, try related terms
 
-If no arguments provided, ask the user what they want to search for.
+### Multi-Query Strategy
 
-## Output Format
+For comprehensive answers, search 2-3 times with varied queries:
+1. User's original phrasing
+2. Technical synonyms (e.g., "RAG" → "retrieval augmented generation")
+3. Related concepts (e.g., "chunking" → "document splitting")
 
-Present results with:
-- **Key insights** found with relevance to query
-- **Source citations** (book/paper title, chapter/section)
-- **Actionable takeaways** the user can apply
+### What You'll Get
+
+- Relevant patterns, decisions, warnings, and methodologies
+- Source citations (books, papers, case studies)
+- Synthesized recommendations from multiple sources
+
+---
+
+**EXECUTE**: Call `search_knowledge` tool with query: "$ARGUMENTS"
