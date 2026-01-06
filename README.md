@@ -108,17 +108,19 @@ Agents don't just answer — they **guide**. They know what to ask, when to warn
 │                                                                          │
 │  Books, Papers, Case Studies                                             │
 │        ↓                                                                 │
-│  Chunking → LLM Extraction → Structured Knowledge                        │
-│  (decisions, patterns, warnings, methodologies, agent definitions)       │
+│  PDF/Markdown Parsing → Semantic Chunking → Claude API Extraction        │
+│        ↓                                                                 │
+│  Structured prompts extract: decisions, patterns, warnings,              │
+│  methodologies, agent definitions (with validation & deduplication)      │
 └──────────────────────────────────────────────────────────────────────────┘
                                   │
                                   ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
 │  2. VECTOR STORAGE                                                       │
 │                                                                          │
-│  MongoDB (metadata, sources) + Qdrant (384d embeddings)                  │
+│  MongoDB (metadata, full content) + Qdrant (768d nomic embeddings)       │
 │                                                                          │
-│  Semantic search across all structured knowledge                         │
+│  Semantic search with 8K context window for long-form retrieval          │
 └──────────────────────────────────────────────────────────────────────────┘
                                   │
                                   ▼
@@ -208,16 +210,60 @@ This creates an **implicit orchestration layer** — Claude behaves like a resea
 
 ---
 
+## AI Engineering Workflow (FTI Pattern)
+
+The workflow follows the **Feature/Training/Inference (FTI)** pipeline pattern from the LLM Engineer's Handbook:
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│    FEATURE      │     │    TRAINING     │     │   INFERENCE     │
+│    PIPELINE     │────▶│    PIPELINE     │────▶│    PIPELINE     │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+### Phase Structure
+
+| Phase | Description | Key Decisions |
+|-------|-------------|---------------|
+| **0. Scoping** | Use case classification, RAG vs Fine-tuning | Architecture direction |
+| **1. Feature Pipeline** | Data collection, processing, vectorization | Data & embedding choices |
+| **2. Training Pipeline** | SFT, DPO, model optimization (if fine-tuning) | Training strategy |
+| **3. Inference Pipeline** | RAG setup, deployment, serving | Deployment pattern |
+| **4. Evaluation** | Testing, benchmarking, quality assurance | Evaluation metrics |
+| **5. Operations** | Drift detection, prompt monitoring, scaling | Monitoring strategy |
+
+### Why FTI Pattern
+
+- **Solves training-serving skew** — same feature logic in training and inference
+- **Clear separation of concerns** — each pipeline has one job
+- **Independent scaling** — scale inference without touching training
+- **Team ownership** — different teams can own different pipelines
+
+### Knowledge Integration
+
+Each phase queries the knowledge base contextually:
+
+| Phase | Knowledge Queries |
+|-------|------------------|
+| Scoping | `get_decisions` for RAG vs fine-tuning trade-offs |
+| Feature | `get_patterns` for chunking, embedding strategies |
+| Training | `get_methodologies` for SFT, DPO processes |
+| Inference | `get_patterns` for RAG, caching, deployment |
+| Evaluation | `get_warnings` for evaluation pitfalls |
+| Operations | `get_warnings` for drift detection, monitoring gaps |
+
+---
+
 ## Tech Stack
 
 | Component | Technology |
 |-----------|------------|
 | **Runtime** | Python 3.11, uv package manager |
 | **API** | FastAPI + fastapi-mcp |
-| **Vector DB** | Qdrant Cloud (384d embeddings) |
+| **Vector DB** | Qdrant Cloud (768d embeddings) |
 | **Document DB** | MongoDB Atlas |
-| **Embeddings** | all-MiniLM-L6-v2 (local, no API costs) |
-| **Extraction** | Claude API (one-time ingestion only) |
+| **Embeddings** | nomic-embed-text-v1.5 (local, 8K context, no API costs) |
+| **Extraction** | Claude API with structured prompts (one-time ingestion) |
 | **Deployment** | Railway (server), Docker |
 
 ---

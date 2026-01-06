@@ -37,4 +37,10 @@ data/embeddings/
 .DS_Store
 Thumbs.db
 
+# Data
+_bmad-output/data/RAG-survey
 newcode
+_bmad-output/data/perplexity
+_bmad-output/data/books
+_bmad-output/data/pdf
+_bmad-output/data/files
