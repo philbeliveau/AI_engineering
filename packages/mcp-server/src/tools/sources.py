@@ -205,7 +205,7 @@ async def list_sources(
     if qdrant and source_ids:
         try:
             all_extraction_counts = await qdrant.count_extractions_by_sources(source_ids)
-        except (UnexpectedResponse, ResponseHandlingException, RuntimeError) as e:
+        except Exception as e:
             # Graceful degradation: return empty counts on Qdrant errors
             logger.warning(
                 "extraction_counts_batch_failed",
