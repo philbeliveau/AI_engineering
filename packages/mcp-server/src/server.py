@@ -11,6 +11,7 @@ project-context.md:152-164 (structured logging).
 """
 
 from contextlib import asynccontextmanager
+from typing import Any
 
 import structlog
 import uvicorn
