@@ -300,14 +300,12 @@ async def compare_sources(
         le=50,
         description="Extractions per source. Use 5-10 for focused comparison.",
     ),
-    auth_context: AuthContext = Depends(require_tier(UserTier.REGISTERED)),
+    auth_context: AuthContext = Depends(require_tier(UserTier.PUBLIC)),
 ) -> CompareSourcesResponse:
     """Compare extractions across multiple sources for a topic.
 
     Returns extractions from specified sources grouped by source for side-by-side
     comparison. Enables Claude to synthesize across different perspectives.
-
-    Requires Registered tier access (valid API key in X-API-Key header).
 
     Args:
         request: FastAPI request object

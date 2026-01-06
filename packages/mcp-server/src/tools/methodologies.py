@@ -197,14 +197,12 @@ async def get_methodologies(
         le=500,
         description="Max results. Use 5-10 for specific processes.",
     ),
-    auth_context: AuthContext = Depends(require_tier(UserTier.REGISTERED)),
+    auth_context: AuthContext = Depends(require_tier(UserTier.PUBLIC)),
 ) -> MethodologyResponse:
     """Get step-by-step methodology extractions from the knowledge base.
 
     Returns methodologies extracted from AI engineering books and papers.
     Each methodology includes steps, prerequisites, and expected outputs.
-
-    Requires Registered tier access (valid API key in X-API-Key header).
 
     Args:
         request: FastAPI request object
