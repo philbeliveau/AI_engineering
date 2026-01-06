@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "knowledge-pipeline": {
-      "type": "http",
+      "type": "sse",
       "url": "https://knowledge-mcp-production.up.railway.app/mcp"
     }
   }
