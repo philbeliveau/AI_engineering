@@ -210,47 +210,137 @@ This creates an **implicit orchestration layer** — Claude behaves like a resea
 
 ---
 
-## AI Engineering Workflow (FTI Pattern)
+## AI Engineering Workflow (FTI + 11 Specialized Agents)
 
-The workflow follows the **Feature/Training/Inference (FTI)** pipeline pattern from the LLM Engineer's Handbook:
+The workflow guides you through building production LLM systems using the **Feature/Training/Inference (FTI)** pipeline pattern, with specialized agents at each step and knowledge-grounded decisions throughout.
+
+### Architecture Overview
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│    FEATURE      │     │    TRAINING     │     │   INFERENCE     │
-│    PIPELINE     │────▶│    PIPELINE     │────▶│    PIPELINE     │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    AI ENGINEERING WORKFLOW                               │
+│                    (11 Specialized Agents)                               │
+└──────────────────────────────────────────────────────────────────────────┘
+
+PHASE 0: SCOPING
+  Step 1: Business Analyst   📋  → Stakeholders, use cases, success metrics
+  Step 2: FTI Architect      🏗️  → RAG vs Fine-tuning decision
+
+PHASE 1: FEATURE PIPELINE
+  Step 3: Data Engineer      🔧  → Data sources, ingestion, cleaning
+  Step 4: Embeddings Engineer 🧬 → Chunking strategy, embedding model
+
+PHASE 2: TRAINING (Conditional)
+  Step 5: Fine-Tuning Specialist 🎯 → SFT/DPO config, dataset prep
+
+PHASE 3: INFERENCE
+  Step 6: RAG Specialist     🔍  → RAG pipeline, retrieval, reranking
+  Step 7: Prompt Engineer    📝  → System prompts, few-shot examples
+
+PHASE 4: EVALUATION
+  Step 8: LLM Evaluator      📊  → Evaluation framework, quality gate
+
+PHASE 5: OPERATIONS
+  Step 9: MLOps Engineer     🔄  → Monitoring, drift detection, alerting
+
+PHASE 6: INTEGRATION & HANDOFF
+  Step 10: Tech Lead         👨‍💼 → Story review, sequencing, GO/REVISE decision
+  Step 11: Story Elaborator  📚  → BMM format transformation, dev handoff
 ```
 
-### Phase Structure
+### The 11 Agents
 
-| Phase | Description | Key Decisions |
-|-------|-------------|---------------|
-| **0. Scoping** | Use case classification, RAG vs Fine-tuning | Architecture direction |
-| **1. Feature Pipeline** | Data collection, processing, vectorization | Data & embedding choices |
-| **2. Training Pipeline** | SFT, DPO, model optimization (if fine-tuning) | Training strategy |
-| **3. Inference Pipeline** | RAG setup, deployment, serving | Deployment pattern |
-| **4. Evaluation** | Testing, benchmarking, quality assurance | Evaluation metrics |
-| **5. Operations** | Drift detection, prompt monitoring, scaling | Monitoring strategy |
+Each agent brings domain expertise, asks clarifying questions, and generates implementation stories:
+
+| Step | Agent | Focus |
+|------|-------|-------|
+| **1** | **Business Analyst** 📋 | Project initialization, stakeholder identification, use cases, success metrics |
+| **2** | **FTI Architect** 🏗️ | Architecture decision (RAG-only, fine-tuning, or hybrid), design trade-offs |
+| **3** | **Data Engineer** 🔧 | Data sources, ingestion pipeline, data quality, cleaning workflows |
+| **4** | **Embeddings Engineer** 🧬 | Chunking strategy selection, embedding model choice, vector DB setup |
+| **5** | **Fine-Tuning Specialist** 🎯 | SFT/DPO configuration, dataset preparation, training workflow (conditional) |
+| **6** | **RAG Specialist** 🔍 | RAG pipeline design, retrieval strategy, reranking, context optimization |
+| **7** | **Prompt Engineer** 📝 | System prompt design, few-shot examples, response templates |
+| **8** | **LLM Evaluator** 📊 | Evaluation framework design, metrics selection, quality gates |
+| **9** | **MLOps Engineer** 🔄 | Deployment architecture, monitoring setup, drift detection, alerting |
+| **10** | **Tech Lead** 👨‍💼 | Story review, dependency sequencing, implementation validation, GO/REVISE decision |
+| **11** | **Story Elaborator** 📚 | Story format transformation, task breakdown, dev handoff |
+
+### Phase Structure with Knowledge Integration
+
+| Phase | Steps | Description | Knowledge Queries |
+|-------|-------|-------------|-------------------|
+| **Phase 0: Scoping** | 1-2 | Business requirements, architecture decisions | `get_decisions` (RAG vs fine-tuning trade-offs) |
+| **Phase 1: Feature** | 3-4 | Data pipeline and vectorization | `get_patterns` (chunking, embeddings), `get_warnings` (data quality pitfalls) |
+| **Phase 2: Training** | 5 | Fine-tuning setup (conditional) | `get_methodologies` (SFT/DPO), `get_patterns` (training data prep) |
+| **Phase 3: Inference** | 6-7 | RAG and prompt optimization | `get_patterns` (RAG architecture), `get_warnings` (prompt injection risks) |
+| **Phase 4: Evaluation** | 8 | Quality framework | `get_warnings` (LLM-as-judge limitations), `get_patterns` (evaluation metrics) |
+| **Phase 5: Operations** | 9 | Monitoring and drift | `get_warnings` (production failures), `get_patterns` (monitoring setup) |
+| **Phase 6: Integration** | 10-11 | Review and BMM handoff | Story validation, implementation planning |
+
+### Workflow Design Principles
+
+- **Micro-file Design** — Each step is self-contained, read completely before execution
+- **Sequential Enforcement** — Complete phases in order, no skipping or optimization
+- **Specialized Agents** — Each step has a dedicated persona with domain expertise
+- **Knowledge-Grounded** — Every decision references the Knowledge MCP for best practices
+- **Story Generation** — Each phase outputs implementation stories (~41 total across phases)
+- **State Tracking** — Progress tracked in `sidecar.yaml` with completion checkpoints
+- **Conditional Routing** — RAG-only path skips Step 5 (Training); hybrid path includes it
+- **Feedback Loops** — Tech Lead can send work back to specific phases when conflicts detected
 
 ### Why FTI Pattern
 
-- **Solves training-serving skew** — same feature logic in training and inference
-- **Clear separation of concerns** — each pipeline has one job
-- **Independent scaling** — scale inference without touching training
-- **Team ownership** — different teams can own different pipelines
+- **Solves training-serving skew** — Same feature logic in training and inference
+- **Clear separation of concerns** — Each pipeline has one job
+- **Independent scaling** — Scale inference without touching training
+- **Team ownership** — Different teams can own different pipelines
+- **Quality gates** — Evaluation step validates before operations phase
 
-### Knowledge Integration
+### How to Run the Workflow
 
-Each phase queries the knowledge base contextually:
+The workflow is designed to be executed step-by-step with your AI engineering project:
 
-| Phase | Knowledge Queries |
-|-------|------------------|
-| Scoping | `get_decisions` for RAG vs fine-tuning trade-offs |
-| Feature | `get_patterns` for chunking, embedding strategies |
-| Training | `get_methodologies` for SFT, DPO processes |
-| Inference | `get_patterns` for RAG, caching, deployment |
-| Evaluation | `get_warnings` for evaluation pitfalls |
-| Operations | `get_warnings` for drift detection, monitoring gaps |
+1. **Start at Step 1** — Business Analyst
+   - Initialize your project with stakeholder and use case discovery
+   - Generate project specification and success metrics
+   - Create `sidecar.yaml` for state tracking
+
+2. **Progress Through Steps** — Follow the numbered sequence
+   - Each step reads completely before execution
+   - Each agent queries Knowledge MCP contextually
+   - Each phase generates implementation stories
+
+3. **Conditional Routing at Step 2** — FTI Architect decides
+   - **RAG-only path** — Skips Step 5 (Training), goes directly to Step 6
+   - **Fine-tuning path** — Includes Step 5, then continues to inference
+   - **Hybrid path** — Uses both fine-tuning and RAG together
+
+4. **Quality Gate at Step 8** — LLM Evaluator validates
+   - Define metrics and benchmarks before inference
+   - Ensure quality standards before deployment
+
+5. **Tech Lead Review at Step 10** — Integration validation
+   - Review all stories from previous steps
+   - Validate sequencing and dependencies
+   - Make GO/REVISE decision
+
+6. **Handoff to Development** — Step 11 Story Elaborator
+   - Transform stories to BMM format
+   - Break down into implementation tasks
+   - Hand off to development team via dev agent
+
+### Output Artifacts
+
+Each phase generates documentation and implementation stories:
+
+- **Phase 0:** Business requirements, architecture decision document
+- **Phase 1:** Data pipeline specification, ~4 implementation stories (DATA prefix)
+- **Phase 2:** Fine-tuning configuration, ~5 stories (TRAIN prefix, conditional)
+- **Phase 3:** RAG architecture, prompt templates, ~10 stories (RAG + PROMPT prefix)
+- **Phase 4:** Evaluation framework, quality checklist
+- **Phase 5:** Operations plan, monitoring setup
+- **Phase 6:** Story sequencing document, ~41 total stories across all phases
 
 ---
 
