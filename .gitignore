@@ -24,6 +24,10 @@ build/
 !.env.local.example
 !.env.production.example
 
+# API Keys (secrets)
+api-keys.json
+.mcp.json
+
 # Data directories (keep structure, ignore contents)
 data/raw/
 data/processed/

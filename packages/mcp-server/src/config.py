@@ -90,6 +90,10 @@ class Settings(BaseSettings):
         default=None,
         description="Path to JSON file containing API keys",
     )
+    api_keys_json: str | None = Field(
+        default=None,
+        description="JSON string containing API keys (alternative to file)",
+    )
 
     @property
     def sources_collection(self) -> str:
@@ -107,26 +111,38 @@ class Settings(BaseSettings):
         return f"{self.project_id}_extractions"
 
     def get_api_keys(self) -> list[dict[str, Any]]:
-        """Load API keys from configured file.
+        """Load API keys from environment variable or file.
+
+        Checks API_KEYS_JSON first (for Railway/cloud), then falls back to API_KEYS_FILE.
 
         Returns:
             List of API key dictionaries with keys: key, tier, created_at, expires_at, metadata
 
-        Example file format:
+        Example JSON format:
             {
               "keys": [
                 {
                   "key": "kp_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
                   "tier": "REGISTERED",
-                  "created_at": "2025-12-30T00:00:00Z",
-                  "expires_at": null,
                   "metadata": {"user_id": "user_123"}
                 }
               ]
             }
         """
+        # Try JSON string first (for Railway/cloud deployments)
+        if self.api_keys_json:
+            try:
+                data = json.loads(self.api_keys_json)
+                keys = data.get("keys", [])
+                logger.info("api_keys_loaded_from_env", count=len(keys))
+                return keys
+            except json.JSONDecodeError as e:
+                logger.error("api_keys_json_invalid", error=str(e))
+                return []
+
+        # Fall back to file
         if not self.api_keys_file:
-            logger.debug("api_keys_file_not_configured")
+            logger.debug("api_keys_not_configured")
             return []
 
         path = Path(self.api_keys_file)
@@ -138,7 +154,7 @@ class Settings(BaseSettings):
             with open(path) as f:
                 data = json.load(f)
                 keys = data.get("keys", [])
-                logger.info("api_keys_loaded", count=len(keys))
+                logger.info("api_keys_loaded_from_file", count=len(keys))
                 return keys
         except json.JSONDecodeError as e:
             logger.error("api_keys_file_invalid_json", path=str(path), error=str(e))
