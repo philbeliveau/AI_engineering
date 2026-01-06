@@ -243,6 +243,26 @@ async def debug_config() -> dict[str, Any]:
     }
 
 
+@app.get("/debug/sources", operation_id="debug_sources", tags=["infrastructure"])
+async def debug_sources() -> dict[str, Any]:
+    """Debug endpoint to test MongoDB list_sources."""
+    try:
+        if mongodb_client is None:
+            return {"status": "error", "message": "MongoDB client not initialized"}
+        sources = await mongodb_client.list_sources(limit=3)
+        return {
+            "status": "ok",
+            "count": len(sources),
+            "sources": [{"id": s.get("id"), "title": s.get("title")} for s in sources],
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+        }
+
+
 # Define health endpoint BEFORE MCP mount so it can be explicitly excluded
 # Health is infrastructure, not a knowledge query tool
 # Rate limiting applied via @limiter.limit decorator (Story 5.1)

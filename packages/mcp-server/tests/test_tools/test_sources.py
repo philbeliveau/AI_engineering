@@ -176,6 +176,113 @@ class TestListSourcesEndpoint:
                 assert len(result.results) == 1
                 assert result.results[0].extraction_counts == {}
 
+    @pytest.mark.asyncio
+    async def test_list_sources_datetime_serialization(self):
+        """Test that datetime objects from MongoDB are properly serialized to ISO strings.
+
+        MongoDB returns datetime objects for ingested_at field.
+        These must be converted to ISO 8601 strings for JSON serialization.
+        This test reproduces the production 500 error where datetime objects
+        caused serialization failures.
+        """
+        from datetime import datetime
+        from src.tools.sources import list_sources
+
+        mock_request = MagicMock()
+
+        # Mock MongoDB to return datetime object (as it does in production)
+        test_datetime = datetime(2024, 1, 15, 10, 30, 0)
+        mock_sources = [
+            {
+                "id": "test-source",
+                "title": "Test Source",
+                "type": "book",
+                "path": "/test/path",
+                "ingested_at": test_datetime,  # datetime object, NOT string
+                "status": "complete",
+                "authors": ["Test Author"],
+            }
+        ]
+
+        with patch("src.tools.sources.get_mongodb_client") as mock_get_mongo:
+            mock_mongo = AsyncMock()
+            mock_mongo.list_sources = AsyncMock(return_value=mock_sources)
+            mock_get_mongo.return_value = mock_mongo
+
+            with patch("src.tools.sources.get_qdrant_client") as mock_get_qdrant:
+                mock_qdrant = AsyncMock()
+                mock_qdrant.count_extractions_by_sources = AsyncMock(return_value={})
+                mock_get_qdrant.return_value = mock_qdrant
+
+                result = await list_sources(request=mock_request, limit=100)
+
+                # Verify datetime was converted to ISO string
+                assert len(result.results) == 1
+                assert result.results[0].ingested_at == "2024-01-15T10:30:00"
+                assert isinstance(result.results[0].ingested_at, str)
+
+    @pytest.mark.asyncio
+    async def test_list_sources_handles_none_datetime(self):
+        """Test that None ingested_at values are handled gracefully."""
+        from src.tools.sources import list_sources
+
+        mock_request = MagicMock()
+
+        mock_sources = [
+            {
+                "id": "test-source",
+                "title": "Test Source",
+                "type": "book",
+                "path": "/test/path",
+                "ingested_at": None,  # None value
+                "status": "complete",
+                "authors": [],
+            }
+        ]
+
+        with patch("src.tools.sources.get_mongodb_client") as mock_get_mongo:
+            mock_mongo = AsyncMock()
+            mock_mongo.list_sources = AsyncMock(return_value=mock_sources)
+            mock_get_mongo.return_value = mock_mongo
+
+            with patch("src.tools.sources.get_qdrant_client", return_value=None):
+                result = await list_sources(request=mock_request, limit=100)
+
+                # Should handle None gracefully
+                assert len(result.results) == 1
+                assert result.results[0].ingested_at == ""
+
+    @pytest.mark.asyncio
+    async def test_list_sources_handles_string_datetime(self):
+        """Test that string datetime values pass through unchanged."""
+        from src.tools.sources import list_sources
+
+        mock_request = MagicMock()
+
+        mock_sources = [
+            {
+                "id": "test-source",
+                "title": "Test Source",
+                "type": "book",
+                "path": "/test/path",
+                "ingested_at": "2024-01-15T10:30:00Z",  # Already a string
+                "status": "complete",
+                "authors": [],
+            }
+        ]
+
+        with patch("src.tools.sources.get_mongodb_client") as mock_get_mongo:
+            mock_mongo = AsyncMock()
+            mock_mongo.list_sources = AsyncMock(return_value=mock_sources)
+            mock_get_mongo.return_value = mock_mongo
+
+            with patch("src.tools.sources.get_qdrant_client", return_value=None):
+                result = await list_sources(request=mock_request, limit=100)
+
+                # String should pass through
+                assert len(result.results) == 1
+                assert result.results[0].ingested_at == "2024-01-15T10:30:00Z"
+
 
 class TestListSourcesNoAuth:
     """Tests for Public tier access (no authentication required)."""

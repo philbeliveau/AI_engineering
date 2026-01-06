@@ -9,6 +9,7 @@ and architecture.md:315-327 tiered authentication model.
 """
 
 import time
+from datetime import datetime
 from typing import Any
 
 import structlog
@@ -33,6 +34,23 @@ from src.storage.qdrant import QdrantStorageClient
 logger = structlog.get_logger()
 
 router = APIRouter()
+
+
+def _serialize_datetime(value: Any) -> str:
+    """Convert datetime to ISO 8601 string for JSON serialization.
+
+    MongoDB returns datetime objects which are not JSON serializable.
+    This helper ensures proper conversion for Pydantic models expecting str.
+
+    Args:
+        value: A datetime object, string, or None
+
+    Returns:
+        ISO 8601 string or empty string if value is falsy
+    """
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value) if value else ""
 
 # Global clients - set by server.py during startup
 _qdrant_client: QdrantStorageClient | None = None
@@ -271,7 +289,7 @@ async def _list_sources_impl(
                     authors=source.get("authors", []),
                     type=source.get("type", "unknown"),
                     path=source.get("path", ""),
-                    ingested_at=source.get("ingested_at", ""),
+                    ingested_at=_serialize_datetime(source.get("ingested_at")),
                     status=source.get("status", "unknown"),
                     extraction_counts=extraction_counts,
                 )
