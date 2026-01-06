@@ -73,3 +73,8 @@ codex --sandbox danger-full-access --ask-for-approval never
   qdrant_client = QdrantClient(                                                                  
       url="https://c6240148-6d49-4f0f-b947-621498676045.us-east-1-1.aws.cloud.qdrant.io:6333",   
       api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.8hZc9qqN2gehfyOV13Qn-it  
+
+       Also, i want one agent to really know about the tech stacks to choose at the beginning of the  
+  phases. If you see the book LLM Handbook, the author mentions clearly about the zenML, opik,   
+  cometML stack, why and whats best. We need to have one of our current  agent that own part     
+  of this role.   

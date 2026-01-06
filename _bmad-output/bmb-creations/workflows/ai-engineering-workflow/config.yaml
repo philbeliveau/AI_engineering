@@ -1,0 +1,207 @@
+# AI Engineering Workflow Configuration
+# =====================================
+# Central configuration for the AI Engineering Workflow.
+# All step files reference this config for consistent path resolution.
+
+name: ai-engineering-workflow
+version: "1.0.0"
+description: "Guide AI/LLM engineering projects from business analysis through operations using the FTI pipeline pattern"
+
+# Path Configuration
+# ------------------
+# These paths are resolved at runtime. {project-root} is the repository root.
+#
+# Variable Naming Convention:
+# - Single braces {variable} are used for all runtime substitution
+# - Frontmatter 'nextStep' maps to {nextStepFile} in step body text
+# - Conditional steps may use {nextStepFileRAG}, {nextStepFileTraining} for branching
+# - {workflow_path} = workflow_root, {output_folder} = paths.output_folder
+# - {project_name}, {user_name}, {date} come from project sidecar or user input
+paths:
+  # Where this workflow lives
+  workflow_root: "{project-root}/_bmad-output/bmb-creations/workflows/ai-engineering-workflow"
+
+  # Where project outputs are stored (each project gets a subfolder)
+  output_folder: "{project-root}/_bmad-output/ai-projects"
+
+  # Relative paths within workflow_root
+  steps_folder: "steps"
+  agents_folder: "agents"
+  templates_folder: "templates"
+  checklists_folder: "checklists"
+
+# Knowledge MCP Integration
+# -------------------------
+# The Knowledge MCP provides AI engineering best practices at runtime.
+knowledge_mcp:
+  endpoint: "https://knowledge-mcp-production.up.railway.app"
+  tools:
+    - search_knowledge    # Semantic search across all knowledge
+    - get_decisions       # Architectural decisions with trade-offs
+    - get_patterns        # Reusable implementation patterns
+    - get_warnings        # Anti-patterns and pitfalls to avoid
+    - get_methodologies   # Step-by-step processes
+    - list_sources        # Available knowledge sources
+
+# Architecture Options
+# --------------------
+# Set during Step 2 (FTI Architect) based on requirements analysis.
+architecture_options:
+  - "rag-only"      # Retrieval-Augmented Generation without fine-tuning
+  - "fine-tuning"   # Custom model training (SFT/DPO)
+  - "hybrid"        # RAG + Fine-tuning combined
+
+# Phase Structure
+# ---------------
+# Each project creates these phase folders for organized outputs.
+phase_folders:
+  - name: "phase-0-scoping"
+    description: "Business requirements and architecture decisions"
+    steps: [1, 2]
+
+  - name: "phase-1-feature"
+    description: "Data pipeline, chunking, embeddings"
+    steps: [3, 4]
+
+  - name: "phase-2-training"
+    description: "Fine-tuning configuration (conditional)"
+    steps: [5]
+    conditional: true
+    skip_when: "architecture == 'rag-only'"
+
+  - name: "phase-3-inference"
+    description: "RAG pipeline and prompt engineering"
+    steps: [6, 7]
+
+  - name: "phase-4-evaluation"
+    description: "Evaluation framework and quality gate"
+    steps: [8]
+
+  - name: "phase-5-operations"
+    description: "MLOps, monitoring, deployment"
+    steps: [9]
+
+  - name: "phase-6-integration"
+    description: "Integration review and BMM handoff"
+    steps: [10, 11]
+
+# Agent Roster
+# ------------
+# Maps step numbers to agent files.
+agents:
+  1: "business-analyst.md"
+  2: "fti-architect.md"
+  3: "data-engineer.md"
+  4: "embeddings-engineer.md"
+  5: "fine-tuning-specialist.md"
+  6: "rag-specialist.md"
+  7: "prompt-engineer.md"
+  8: "llm-evaluator.md"
+  9: "mlops-engineer.md"
+  10: "tech-lead.md"
+  # Step 11 (Story Elaborator) is embedded in the step file
+
+# Step Sequence
+# -------------
+# Defines the step execution order and files.
+steps:
+  1:
+    file: "0-scoping/step-01-business-analyst.md"
+    agent: "business-analyst.md"
+    phase: "phase-0-scoping"
+
+  2:
+    file: "0-scoping/step-02-fti-architect.md"
+    agent: "fti-architect.md"
+    phase: "phase-0-scoping"
+
+  3:
+    file: "1-feature/step-03-data-engineer.md"
+    agent: "data-engineer.md"
+    phase: "phase-1-feature"
+
+  4:
+    file: "1-feature/step-04-embeddings-engineer.md"
+    agent: "embeddings-engineer.md"
+    phase: "phase-1-feature"
+
+  5:
+    file: "2-training/step-05-fine-tuning-specialist.md"
+    agent: "fine-tuning-specialist.md"
+    phase: "phase-2-training"
+    conditional: true
+
+  6:
+    file: "3-inference/step-06-rag-specialist.md"
+    agent: "rag-specialist.md"
+    phase: "phase-3-inference"
+
+  7:
+    file: "3-inference/step-07-prompt-engineer.md"
+    agent: "prompt-engineer.md"
+    phase: "phase-3-inference"
+
+  8:
+    file: "4-evaluation/step-08-llm-evaluator.md"
+    agent: "llm-evaluator.md"
+    phase: "phase-4-evaluation"
+
+  9:
+    file: "5-operations/step-09-mlops-engineer.md"
+    agent: "mlops-engineer.md"
+    phase: "phase-5-operations"
+
+  10:
+    file: "6-integration/step-10-tech-lead.md"
+    agent: "tech-lead.md"
+    phase: null  # Integration review spans all phases
+
+  11:
+    file: "6-integration/step-11-story-elaborator.md"
+    agent: null  # Embedded in step file
+    phase: null  # BMM handoff
+
+# Sidecar Template
+# ----------------
+# Template for project sidecar.yaml initialization.
+sidecar_template:
+  project_name: "{project_name}"
+  created: "{date}"
+  user_name: "{user_name}"
+  architecture: null
+  currentStep: 1
+  stepsCompleted: []
+  decisions: []
+  stories: {}
+  phases:
+    phase_0_scoping: "pending"
+    phase_1_feature: "pending"
+    phase_2_training: "pending"
+    phase_3_inference: "pending"
+    phase_4_evaluation: "pending"
+    phase_5_operations: "pending"
+    phase_6_integration: "pending"
+
+# Story ID Prefixes
+# -----------------
+# Each step uses a prefix for story IDs.
+# Note: Step 1 (Business Analyst) has no prefix - it gathers requirements, not implementation stories.
+# Note: Step 11 (Story Elaborator) has no prefix - it transforms existing stories, doesn't create new ones.
+story_prefixes:
+  2: "ARCH"      # Architecture stories
+  3: "DATA"      # Data pipeline stories
+  4: "EMB"       # Embedding stories
+  5: "TRAIN"     # Training stories (skipped if RAG-only)
+  6: "RAG"       # RAG pipeline stories
+  7: "PROMPT"    # Prompt engineering stories
+  8: "EVAL"      # Evaluation stories
+  9: "OPS"       # Operations stories
+  10: "INTEG"    # Integration stories (Tech Lead)
+
+# BMM Integration
+# ---------------
+# Handoff to BMM dev agent after workflow completion.
+bmm_integration:
+  dev_agent: "/bmad:bmm:agents:dev"
+  dev_workflow: "dev-story"
+  story_format: "bmm-compliant"

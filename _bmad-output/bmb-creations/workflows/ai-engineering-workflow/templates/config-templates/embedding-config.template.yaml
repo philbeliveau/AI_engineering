@@ -1,0 +1,196 @@
+# ============================================================
+# Embedding Configuration Template
+# AI Engineering Workflow - Phase 1: Feature Pipeline
+# ============================================================
+#
+# Decision Reference: See decision-log.md for embedding rationale
+#
+# This template defines how text is converted to vectors
+# for similarity search and retrieval.
+#
+# ============================================================
+
+# Model Configuration
+model:
+  # Model identifier
+  # Local: "nomic-embed-text-v1.5", "BAAI/bge-large-en-v1.5"
+  # OpenAI: "text-embedding-3-small", "text-embedding-3-large"
+  # Cohere: "embed-english-v3.0"
+  name: "{{EMBEDDING_MODEL}}"
+
+  # Model provider
+  # Options: "local" | "openai" | "cohere" | "huggingface" | "custom"
+  provider: "{{EMBEDDING_PROVIDER}}"
+
+  # Output dimensions
+  # Must match vector database configuration
+  dimensions: {{EMBEDDING_DIMENSIONS}}
+
+  # Model revision/version (for reproducibility)
+  revision: "{{MODEL_REVISION}}"
+
+# Provider-Specific Settings
+providers:
+  # Local model settings (sentence-transformers, etc.)
+  local:
+    # Device for inference
+    device: "{{DEVICE}}"  # "cpu" | "cuda" | "mps"
+
+    # Model cache directory
+    cache_dir: "{{CACHE_DIR}}"
+
+    # Use half precision (faster, less memory)
+    use_fp16: {{USE_FP16}}
+
+  # OpenAI settings
+  openai:
+    api_key_env: "OPENAI_API_KEY"
+    organization: "{{OPENAI_ORG}}"
+
+    # Dimension reduction (for text-embedding-3-* only)
+    # Set lower than max for cost savings
+    dimensions: {{OPENAI_DIMENSIONS}}
+
+  # Cohere settings
+  cohere:
+    api_key_env: "COHERE_API_KEY"
+
+    # Input type affects embedding quality
+    # Options: "search_document" | "search_query" | "classification" | "clustering"
+    input_type_document: "search_document"
+    input_type_query: "search_query"
+
+  # Hugging Face settings
+  huggingface:
+    api_key_env: "HF_TOKEN"
+    use_inference_api: {{USE_HF_INFERENCE}}
+
+# Instruction Prefixes
+# Some models require prefixes for optimal performance
+prefixes:
+  # Prefix for documents being indexed
+  # Example for nomic: "search_document: "
+  document: "{{DOCUMENT_PREFIX}}"
+
+  # Prefix for queries during search
+  # Example for nomic: "search_query: "
+  query: "{{QUERY_PREFIX}}"
+
+  # Whether to use prefixes
+  enabled: {{USE_PREFIXES}}
+
+# Normalization
+normalization:
+  # Normalize vectors to unit length
+  # Required for cosine similarity, optional for dot product
+  normalize: {{NORMALIZE_VECTORS}}
+
+  # Normalization method
+  # Options: "l2" | "max"
+  method: "l2"
+
+# Batching Configuration
+batching:
+  # Batch size for embedding generation
+  # Larger = faster but more memory
+  batch_size: {{BATCH_SIZE}}
+
+  # Maximum texts per API call (for cloud providers)
+  max_texts_per_request: {{MAX_TEXTS_PER_REQUEST}}
+
+  # Show progress bar during embedding
+  show_progress: true
+
+# Performance Settings
+performance:
+  # Number of worker threads
+  num_workers: {{NUM_WORKERS}}
+
+  # Request timeout in seconds
+  timeout_seconds: {{TIMEOUT_SECONDS}}
+
+  # Maximum retries on failure
+  max_retries: {{MAX_RETRIES}}
+
+  # Retry delay in seconds
+  retry_delay: {{RETRY_DELAY}}
+
+  # Use connection pooling
+  connection_pooling: true
+
+# Caching
+caching:
+  # Cache embeddings to avoid recomputation
+  enabled: {{CACHE_EMBEDDINGS}}
+
+  # Cache backend
+  # Options: "memory" | "redis" | "disk"
+  backend: "{{CACHE_BACKEND}}"
+
+  # Cache TTL in seconds (0 = no expiry)
+  ttl_seconds: {{CACHE_TTL}}
+
+  # Maximum cache size (items or bytes depending on backend)
+  max_size: {{CACHE_MAX_SIZE}}
+
+  # Redis settings (if using redis backend)
+  redis:
+    url: "{{REDIS_URL}}"
+    prefix: "{{PROJECT_NAME}}:embeddings:"
+
+# Quality Assurance
+quality:
+  # Verify output dimensions match expected
+  verify_dimensions: true
+
+  # Check for NaN/Inf values
+  check_valid: true
+
+  # Log statistics
+  log_statistics: true
+
+  # Sample rate for quality checks (0-1)
+  sample_rate: 0.01
+
+# Cost Tracking (for cloud providers)
+cost:
+  # Track token/character usage
+  track_usage: {{TRACK_USAGE}}
+
+  # Log usage to file
+  usage_log_path: "{{USAGE_LOG_PATH}}"
+
+  # Cost per 1M tokens (for budgeting)
+  cost_per_million_tokens: {{COST_PER_MILLION}}
+
+  # Budget alerts
+  daily_budget_tokens: {{DAILY_BUDGET}}
+  alert_threshold: 0.8
+
+# ============================================================
+# Example Configurations
+# ============================================================
+#
+# Local (nomic-embed-text-v1.5):
+#   name: "nomic-ai/nomic-embed-text-v1.5"
+#   provider: "local"
+#   dimensions: 768
+#   document_prefix: "search_document: "
+#   query_prefix: "search_query: "
+#   device: "cuda"
+#   batch_size: 32
+#
+# OpenAI (text-embedding-3-small):
+#   name: "text-embedding-3-small"
+#   provider: "openai"
+#   dimensions: 1536
+#   batch_size: 100
+#   max_texts_per_request: 2048
+#
+# Cohere (embed-english-v3.0):
+#   name: "embed-english-v3.0"
+#   provider: "cohere"
+#   dimensions: 1024
+#   batch_size: 96
+#
+# ============================================================

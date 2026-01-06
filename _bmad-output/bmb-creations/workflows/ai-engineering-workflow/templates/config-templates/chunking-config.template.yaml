@@ -1,0 +1,161 @@
+# ============================================================
+# Chunking Configuration Template
+# AI Engineering Workflow - Phase 1: Feature Pipeline
+# ============================================================
+#
+# Decision Reference: See decision-log.md for chunking rationale
+#
+# This template defines how documents are split into chunks
+# for embedding and retrieval. Chunking strategy significantly
+# impacts retrieval quality.
+#
+# ============================================================
+
+# Chunking Strategy
+chunking:
+  # Strategy type
+  # Options: "fixed" | "semantic" | "recursive" | "document_aware"
+  strategy: "{{CHUNKING_STRATEGY}}"
+
+  # Target chunk size in tokens
+  # Smaller = more precise retrieval, less context
+  # Larger = more context, may include irrelevant content
+  # Recommended: 256-1024 tokens
+  chunk_size: {{CHUNK_SIZE}}
+
+  # Overlap between consecutive chunks in tokens
+  # Helps preserve context at chunk boundaries
+  # Recommended: 10-20% of chunk_size
+  overlap: {{OVERLAP}}
+
+  # Maximum chunk size (hard limit)
+  # Chunks will never exceed this size
+  max_chunk_size: {{MAX_CHUNK_SIZE}}
+
+  # Minimum chunk size
+  # Very small chunks are often not useful
+  min_chunk_size: {{MIN_CHUNK_SIZE}}
+
+# Separator Configuration
+# Used for recursive/fixed strategies
+separators:
+  # Priority order - try each separator in sequence
+  priority:
+    - "\n\n"      # Paragraph breaks (highest priority)
+    - "\n"        # Line breaks
+    - ". "        # Sentence boundaries
+    - ", "        # Clause boundaries
+    - " "         # Word boundaries (fallback)
+
+  # Custom separators for specific document types
+  custom:
+    markdown:
+      - "\n## "   # H2 headers
+      - "\n### "  # H3 headers
+      - "\n- "    # List items
+    code:
+      - "\nclass "
+      - "\ndef "
+      - "\nfunction "
+
+# Document-Aware Settings
+# Used when strategy = "document_aware"
+document_aware:
+  # Respect document structure (headers, sections)
+  respect_structure: {{RESPECT_STRUCTURE}}
+
+  # Maximum header depth to use as chunk boundaries
+  # 1 = only H1, 2 = H1 and H2, etc.
+  max_header_depth: {{MAX_HEADER_DEPTH}}
+
+  # Keep code blocks together
+  preserve_code_blocks: {{PRESERVE_CODE_BLOCKS}}
+
+  # Keep tables together
+  preserve_tables: {{PRESERVE_TABLES}}
+
+  # Keep lists together (up to max items)
+  preserve_lists: {{PRESERVE_LISTS}}
+  max_list_items: {{MAX_LIST_ITEMS}}
+
+# Semantic Chunking Settings
+# Used when strategy = "semantic"
+semantic:
+  # Embedding model for semantic similarity
+  model: "{{SEMANTIC_MODEL}}"
+
+  # Similarity threshold for chunk boundaries
+  # Lower = more chunks, Higher = larger chunks
+  similarity_threshold: {{SIMILARITY_THRESHOLD}}
+
+  # Minimum sentences per chunk
+  min_sentences: {{MIN_SENTENCES}}
+
+# Metadata Configuration
+metadata:
+  # Fields to extract and attach to each chunk
+  extract_fields:
+    - source           # Source document identifier
+    - document_type    # Type of document (pdf, markdown, etc.)
+    - created_at       # Document creation timestamp
+    - section_title    # Title of containing section
+    - page_number      # Page number (if applicable)
+
+  # Add chunk position information
+  include_position: true
+
+  # Add surrounding context hints
+  include_context_hints: {{INCLUDE_CONTEXT_HINTS}}
+
+# Processing Options
+processing:
+  # Clean text before chunking
+  clean_text: true
+
+  # Remove excessive whitespace
+  normalize_whitespace: true
+
+  # Convert to lowercase (usually false for LLMs)
+  lowercase: false
+
+  # Remove special characters
+  remove_special_chars: false
+
+  # Language for sentence detection
+  language: "{{LANGUAGE}}"
+
+# Quality Checks
+quality:
+  # Warn if average chunk size deviates significantly
+  size_variance_threshold: 0.5
+
+  # Warn if too many chunks are at min/max size
+  boundary_chunk_threshold: 0.1
+
+  # Log statistics after chunking
+  log_statistics: true
+
+# ============================================================
+# Example Configurations
+# ============================================================
+#
+# RAG for Technical Documentation:
+#   strategy: "document_aware"
+#   chunk_size: 512
+#   overlap: 50
+#   respect_structure: true
+#   max_header_depth: 3
+#
+# RAG for Conversational Content:
+#   strategy: "semantic"
+#   chunk_size: 256
+#   overlap: 25
+#   similarity_threshold: 0.85
+#
+# RAG for Legal/Formal Documents:
+#   strategy: "recursive"
+#   chunk_size: 1024
+#   overlap: 100
+#   preserve_tables: true
+#
+# ============================================================

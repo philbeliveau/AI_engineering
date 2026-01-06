@@ -1,4 +1,11 @@
-You're absolutely right! Here are all the repositories with direct links:
+# Awesome-Production-LLM
+https://github.com/jihoo-kim/awesome-production-llm
+
+# Awesome Prompt Engineering 🧙‍♂️
+https://github.com/promptslab/Awesome-Prompt-Engineering
+
+# Prompt-Engineering-Guide
+https://github.com/dair-ai/Prompt-Engineering-Guide
 
 ## 🔗 **Complete List with Links**
 

@@ -6,6 +6,51 @@ Building an AI engineering knowledge system that extracts structured knowledge f
 
 **Core Philosophy:** Extractions are for NAVIGATION, Claude is for SYNTHESIS.
 
+## Knowledge-Grounding Principles (CRITICAL)
+
+When authoring workflows, agents, or any BMAD artifacts that use the Knowledge MCP:
+
+### The Three Principles
+
+1. **Reference knowledge PATTERNS, not copy-paste**
+   - Extract principles and methodologies
+   - Don't hardcode values from a single source
+   - Present as "current recommendation" not "the answer"
+
+2. **Query at RUNTIME**
+   - The Knowledge MCP will grow with more sources
+   - Design workflows to query dynamically
+   - Don't embed static content that becomes stale
+
+3. **Show SYNTHESIS approach**
+   - Teach HOW to apply knowledge, not just WHAT it says
+   - Include synthesis steps in workflow guidance
+   - Example: "Extract patterns → Identify trade-offs → Surface warnings"
+
+### Synthesis Pattern Template
+
+```markdown
+### Query Knowledge MCP
+**MANDATORY QUERIES** - Execute and synthesize:
+- Query 1: [specific endpoint + query]
+- Query 2: [specific endpoint + query]
+
+**Synthesis Approach:**
+1. Extract [what to look for]
+2. Identify [patterns]
+3. Surface [warnings]
+
+**Key Pattern/Warning to Surface:**
+> [Example from current knowledge - will evolve as more sources added]
+```
+
+### Anti-Patterns to Avoid
+
+- NEVER hardcode specific values as "the answer"
+- NEVER copy-paste entire sections from one book
+- NEVER present knowledge as static/final - it grows
+- NEVER skip Knowledge MCP queries when they would add value
+
 ## The Two-Layer Architecture
 
 This project serves a dual purpose that is critical to understand:
@@ -105,84 +150,31 @@ Add to your Claude config (`claude_desktop_config.json`):
 }
 ```
 
-## Current Status
+## Database Overview (CRITICAL - READ THIS)
 
-**Phase:** Epic 5 - Production Deployment (Pipeline Complete)
-**Next Phase:** Epic 6 - AI Engineering Workflow Authoring
-**Deployed:** MCP Server live on Railway
-**Completed:** Epics 1-4, Stories 5.2-5.5
+**Connection String:** `mongodb+srv://philbeliv_db_user:UJQaFv2xtPScNv2S@knowledge-cluster.2tb7rue.mongodb.net/knowledge_db?retryWrites=true&w=majority`
 
-### Upcoming: Knowledge Ingestion & Workflow Creation
+**Important:** MongoDB contains BOTH collections. Always query `knowledge-pipeline_extractions` (NOT `ai_engineering_extractions` which is empty).
 
-With the pipeline infrastructure complete, the next phase involves:
-1. **Ingesting AI engineering literature** - MLOps books, RAG papers, agent patterns, evaluation frameworks
-2. **Authoring the BMAD AI-Eng workflow** - Using extracted knowledge to ground each step
-3. **Embedding MCP queries into workflow agents** - Contextual knowledge access at runtime
+### Collections in knowledge_db
+- `knowledge-pipeline_chunks` - Document chunks ingested from sources
+- `knowledge-pipeline_sources` - Source metadata (books, papers, etc.)
+- `knowledge-pipeline_extractions` - **MAIN COLLECTION** Contains all structured extractions (1,684+ total)
+- `ai_engineering_chunks`, `ai_engineering_sources`, `ai_engineering_extractions` - Legacy/unused collections
 
-## Key Artifacts
+### Extraction Counts (knowledge-pipeline_extractions) CHanges all the time 
+| Type | Count | Status |
+|------|-------|--------|
+| **decision** | 356 | ✅ Complete |
+| **warning** | 335 | ✅ Complete |
+| **pattern** | 314 | ✅ Complete |
+| **methodology** | 182 | ✅ Complete |
+| **checklist** | 115 | ✅ Complete |
+| **workflow** | 187 | ✅ Complete (recently added) |
+| **persona** | 195 | ✅ Complete (recently added) |
+| **TOTAL** | **1,684** | Ready for MCP serving |
 
-| Document | Purpose | Status |
-|----------|---------|--------|
-| `_bmad-output/architecture.md` | All technical decisions | Complete |
-| `_bmad-output/prd.md` | Product requirements | Complete |
-| `_bmad-output/epics.md` | Implementation roadmap | Complete |
-| `_bmad-output/project-context.md` | AI agent implementation rules | Complete |
-| `_bmad-output/implementation-artifacts/` | Story files | In Progress |
-
-## Architecture Summary
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                 packages/pipeline (batch)                    │
-│   Adapters → Processors → Extractors → Storage (WRITE)      │
-└─────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┴───────────────┐
-              ▼                               ▼
-        ┌──────────┐                   ┌──────────┐
-        │ MongoDB  │                   │  Qdrant  │
-        └──────────┘                   └──────────┘
-                              │
-┌─────────────────────────────┼───────────────────────────────┐
-│                             ▼                                │
-│                packages/mcp-server (server)                  │
-│     Middleware → Tools → Storage (READ) → FastAPI-MCP       │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Technical Stack
-
-- **Runtime:** Python 3.11, uv package manager
-- **API:** FastAPI + fastapi-mcp
-- **Storage:** MongoDB 7 + Qdrant (768d vectors)
-- **Embeddings:** nomic-embed-text-v1.5 (local, 8K context)
-
-## For AI Agents
-
-**Before implementing any code, read:**
-`_bmad-output/project-context.md`
-
-This contains 85+ critical implementation rules covering:
-- Naming conventions and async patterns
-- API response formats (MANDATORY)
-- Testing and code quality rules
-- Anti-patterns to avoid
-
-## Project Structure (Target)
-
-```
-packages/
-├── pipeline/          # Batch ingestion & extraction (WRITE)
-│   ├── src/
-│   │   ├── adapters/  # PDF, Markdown, arXiv
-│   │   ├── extractors/# Decision, Pattern, Warning, Methodology
-│   │   └── storage/   # MongoDB, Qdrant clients
-│   └── scripts/
-└── mcp-server/        # Real-time query server (READ)
-    └── src/
-        ├── tools/     # MCP tools (search, get_decisions, etc.)
-        └── middleware/# Rate limiting, auth
-```
+**All extractions are from diverse sources across the knowledge base, providing comprehensive AI engineering reference material.**
 
 ## Available MCP Tools
 
@@ -194,27 +186,34 @@ packages/
 | `get_warnings` | Anti-patterns and pitfalls to avoid |
 | `list_sources` | List all knowledge sources |
 
-## Knowledge Resource Categories
+## Extraction Process
 
-The following categories of AI engineering literature will be ingested to ground the workflow:
+### How to Run Extractions
 
-| Category | Content Type | Purpose in Workflow |
-|----------|--------------|---------------------|
-| **MLOps/LLMOps Methodology** | Maturity models, lifecycle stages | Structure workflow phases |
-| **RAG Architecture** | Chunking, retrieval, reranking patterns | Design retrieval systems |
-| **Agent Patterns** | ReAct, multi-agent, tool use | Build agentic features |
-| **Evaluation Frameworks** | Metrics, benchmarks, LLM-as-judge | Quality assurance steps |
-| **Fine-tuning Decision Trees** | When to customize vs prompt vs RAG | Model selection guidance |
-| **Production Infrastructure** | Serving, caching, scaling | Deployment decisions |
-| **Data Engineering** | Pipelines, versioning, quality | Data preparation steps |
-| **Safety & Governance** | Compliance, bias, guardrails | Risk management |
+All 7 extractors are defined in:
+- `packages/pipeline/src/extractors/` - Base and specific extractor classes
+- `packages/pipeline/src/extractors/prompts/` - LLM prompts for each extraction type
 
-### Key Source Materials
+**Extraction script locations:**
+- `packages/pipeline/extract_llms_book.py` - Script for batch extraction from sources
+- Run via: `.venv/bin/python extract_llms_book.py`
 
-- **Books:** "Designing ML Systems", "LLM Engineer's Handbook", "Building LLM Apps", "Practical MLOps"
-- **Papers:** RAG surveys, agent architecture papers, evaluation benchmarks
-- **Guides:** Anthropic cookbook, framework documentation (LangChain, LlamaIndex)
-- **Standards:** NIST AI RMF, ML Model Cards
+### Extraction Method
+1. **Input:** Document chunks from MongoDB (`knowledge-pipeline_chunks`)
+2. **Processing:** Each chunk passed through extractor with context
+3. **LLM Call:** Claude 3 Haiku generates structured JSON for each chunk
+4. **Validation:** Pydantic models validate extraction structure
+5. **Storage:** Valid extractions saved to `knowledge-pipeline_extractions` with:
+   - `type`: extraction type (decision, pattern, warning, etc.)
+   - `source_id`: reference to source document
+   - `chunk_id`: which chunk generated it
+   - `topics`: auto-tagged categories (rag, evaluation, llm, training, etc.)
+   - `extracted_at`: timestamp
+
+**Key Implementation Files:**
+- `src/extractors/base.py:ExtractorRegistry` - Manages all extractors
+- `src/extractors/llm_client.py:LLMClient` - Handles Claude API calls
+- Each extractor inherits from `BaseExtractor` and implements custom extraction logic
 
 ## Known Issues
 
@@ -222,6 +221,7 @@ See `_bmad-output/docs/known-issues.md` for documented bugs and workarounds, inc
 
 - **Docling PDF parsing failure** with FrameMaker PDFs (hierarchical page tree bug)
   - Workaround: Use `pdftotext` to extract, then ingest the text file
+- **MongoDB collection confusion** - Always use `knowledge-pipeline_extractions`, NOT `ai_engineering_extractions`
 
 ---
 

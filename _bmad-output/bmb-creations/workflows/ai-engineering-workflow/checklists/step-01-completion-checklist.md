@@ -1,0 +1,170 @@
+# Step 1: Business Analyst Completion Checklist
+
+**Project:** {{PROJECT_NAME}}
+**Date:** {{DATE}}
+**Analyst:** AI Engineering Workflow - Business Analyst
+
+---
+
+## Purpose
+
+This checklist validates that all business requirements have been properly elicited before proceeding to Step 2 (FTI Architect). All 8 criteria must be satisfied before the architecture decision phase can begin.
+
+---
+
+## Completion Criteria
+
+### 1. Stakeholder Identification
+| Item | Status | Evidence |
+|------|--------|----------|
+| [ ] Primary stakeholders identified | | Names/roles documented |
+| [ ] Secondary stakeholders identified | | Impact documented |
+| [ ] Technical stakeholders identified | | Responsibilities documented |
+| [ ] Stakeholder map created | | `stakeholder-map.md` exists |
+
+**Evidence:** `{output_folder}/{project_name}/phase-0-scoping/stakeholder-map.md`
+
+---
+
+### 2. Use Case Documentation
+| Item | Status | Evidence |
+|------|--------|----------|
+| [ ] At least one primary use case fully documented | | Inputs, outputs, criteria defined |
+| [ ] Use case flow documented | | Trigger → Process → Output |
+| [ ] Edge cases identified | | Failure modes documented |
+| [ ] Use case priorities assigned | | High/Medium/Low |
+
+**Evidence:** `{output_folder}/{project_name}/phase-0-scoping/use-cases.md`
+
+---
+
+### 3. Success Metrics Definition
+| Item | Status | Evidence |
+|------|--------|----------|
+| [ ] Operational metrics defined | | Latency, throughput, availability |
+| [ ] Quality metrics defined | | Accuracy, relevance, hallucination rate |
+| [ ] Business metrics defined | | ROI, user satisfaction, etc. |
+| [ ] Measurable targets set | | Numeric thresholds assigned |
+
+**Evidence:** `{output_folder}/{project_name}/phase-0-scoping/success-criteria.md`
+
+---
+
+### 4. Data Landscape Understanding
+| Item | Status | Evidence |
+|------|--------|----------|
+| [ ] Data sources identified | | Format, volume, frequency |
+| [ ] Data sensitivity assessed | | PII, compliance requirements |
+| [ ] Data quality issues noted | | Known problems documented |
+| [ ] Domain terminology captured | | Jargon, taxonomies |
+
+**Evidence:** Documented in `business-requirements.md` Data Profile section
+
+---
+
+### 5. Constraints Identification
+| Item | Status | Evidence |
+|------|--------|----------|
+| [ ] Technical constraints documented | | Required/forbidden tech |
+| [ ] Organizational constraints documented | | Timeline, team, process |
+| [ ] Regulatory constraints documented | | HIPAA, GDPR, SOC2, etc. |
+
+**Evidence:** Documented in `business-requirements.md` Constraints section
+
+---
+
+### 6. Risk Assessment
+| Item | Status | Evidence |
+|------|--------|----------|
+| [ ] Key risks identified | | At least top 3-5 |
+| [ ] Risk likelihood assessed | | Low/Medium/High |
+| [ ] Risk impact assessed | | Low/Medium/High |
+| [ ] Mitigation strategies proposed | | At least for high risks |
+
+**Evidence:** Documented in `business-requirements.md` Risks section
+
+---
+
+### 7. Artifacts Created
+| Artifact | Status | Location |
+|----------|--------|----------|
+| [ ] `project-spec.md` initialized | | `{output_folder}/{project_name}/` |
+| [ ] `business-requirements.md` complete | | `phase-0-scoping/` |
+| [ ] `stakeholder-map.md` created | | `phase-0-scoping/` |
+| [ ] `decision-log.md` initialized | | `{output_folder}/{project_name}/` |
+
+---
+
+### 8. User Confirmation
+| Item | Status | Evidence |
+|------|--------|----------|
+| [ ] User reviewed requirements summary | | Menu option [R] completed |
+| [ ] User confirmed completeness | | Explicit confirmation |
+| [ ] User ready to proceed | | Selected [C] Continue |
+
+---
+
+## Summary
+
+| Category | Items | Passed | Failed |
+|----------|-------|--------|--------|
+| Stakeholder Identification | 4 | | |
+| Use Case Documentation | 4 | | |
+| Success Metrics | 4 | | |
+| Data Landscape | 4 | | |
+| Constraints | 3 | | |
+| Risk Assessment | 4 | | |
+| Artifacts | 4 | | |
+| User Confirmation | 3 | | |
+| **TOTAL** | **30** | | |
+
+---
+
+## Decision
+
+**Completion Status:**
+
+- [ ] **COMPLETE** - All criteria met, proceed to Step 2 (FTI Architect)
+- [ ] **INCOMPLETE** - Missing items must be addressed before proceeding
+
+### If INCOMPLETE:
+
+**Missing Items:**
+1.
+2.
+3.
+
+**Action Required:**
+- Return to relevant section in Step 1
+- Complete the missing documentation
+- Re-validate with this checklist
+
+---
+
+## Integration with Sidecar
+
+When this checklist passes, update `sidecar.yaml`:
+
+```yaml
+business_analysis:
+  stakeholders_identified: true
+  use_cases_defined: [list of use case names]
+  primary_use_case: "[name]"
+  success_metrics:
+    latency_target_ms: [value]
+    accuracy_target_percent: [value]
+    cost_budget_monthly: [value]
+  constraints: [list]
+  data_sources: [list]
+  risks_identified: [count]
+  checklist_validated: true
+  validated_at: "{date}"
+
+stepsCompleted:
+  - 0  # Init
+  - 1  # Business Analyst
+```
+
+---
+
+*Generated by AI Engineering Workflow v1.0*

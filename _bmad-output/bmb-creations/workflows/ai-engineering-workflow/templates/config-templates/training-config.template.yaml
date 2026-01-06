@@ -1,0 +1,309 @@
+# ============================================================
+# Training Configuration Template
+# AI Engineering Workflow - Phase 2: Training Pipeline
+# ============================================================
+#
+# Decision Reference: See decision-log.md for training rationale
+#
+# This template defines fine-tuning configuration for SFT, DPO,
+# or combined training approaches.
+#
+# ============================================================
+
+# Base Model Configuration
+model:
+  # Model identifier (Hugging Face model ID or local path)
+  name: "{{BASE_MODEL}}"
+
+  # Model revision for reproducibility
+  revision: "{{MODEL_REVISION}}"
+
+  # Model type
+  # Options: "causal_lm" | "seq2seq"
+  type: "causal_lm"
+
+  # Quantization for memory efficiency
+  # Options: "none" | "4bit" | "8bit"
+  quantization: "{{QUANTIZATION}}"
+
+  # BitsAndBytes config (if using quantization)
+  bnb_config:
+    load_in_4bit: {{LOAD_4BIT}}
+    bnb_4bit_quant_type: "nf4"
+    bnb_4bit_compute_dtype: "bfloat16"
+    bnb_4bit_use_double_quant: true
+
+  # Trust remote code (for custom models)
+  trust_remote_code: {{TRUST_REMOTE_CODE}}
+
+  # Attention implementation
+  # Options: "eager" | "flash_attention_2" | "sdpa"
+  attn_implementation: "{{ATTN_IMPLEMENTATION}}"
+
+# LoRA/PEFT Configuration
+peft:
+  # PEFT method
+  # Options: "lora" | "qlora" | "prefix_tuning" | "full"
+  method: "{{PEFT_METHOD}}"
+
+  # LoRA rank (dimensionality of update matrices)
+  # Higher = more capacity, more memory
+  # Typical: 8-64
+  r: {{LORA_RANK}}
+
+  # LoRA alpha (scaling factor)
+  # Typical: 2 * r
+  lora_alpha: {{LORA_ALPHA}}
+
+  # LoRA dropout (regularization)
+  # Typical: 0.05-0.1
+  lora_dropout: {{LORA_DROPOUT}}
+
+  # Target modules for LoRA
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+  # Bias handling
+  # Options: "none" | "all" | "lora_only"
+  bias: "none"
+
+  # Task type
+  task_type: "CAUSAL_LM"
+
+# Training Approach
+training:
+  # Primary approach
+  # Options: "sft" | "dpo" | "combined"
+  approach: "{{TRAINING_APPROACH}}"
+
+  # For combined: SFT epochs before DPO
+  sft_epochs_before_dpo: {{SFT_EPOCHS_BEFORE_DPO}}
+
+# SFT Configuration
+sft:
+  # Number of training epochs
+  num_epochs: {{SFT_EPOCHS}}
+
+  # Learning rate
+  learning_rate: {{SFT_LEARNING_RATE}}
+
+  # Learning rate scheduler
+  # Options: "linear" | "cosine" | "constant" | "constant_with_warmup"
+  lr_scheduler_type: "{{LR_SCHEDULER}}"
+
+  # Warmup ratio (fraction of steps)
+  warmup_ratio: {{WARMUP_RATIO}}
+
+  # Batch sizes
+  per_device_train_batch_size: {{TRAIN_BATCH_SIZE}}
+  per_device_eval_batch_size: {{EVAL_BATCH_SIZE}}
+
+  # Gradient accumulation (effective batch = batch_size * grad_accum)
+  gradient_accumulation_steps: {{GRADIENT_ACCUMULATION}}
+
+  # Gradient checkpointing (saves memory, slower)
+  gradient_checkpointing: {{GRADIENT_CHECKPOINTING}}
+
+  # Maximum gradient norm (for clipping)
+  max_grad_norm: {{MAX_GRAD_NORM}}
+
+  # Weight decay (L2 regularization)
+  weight_decay: {{WEIGHT_DECAY}}
+
+  # Optimizer
+  # Options: "adamw_torch" | "adamw_8bit" | "paged_adamw_8bit"
+  optim: "{{OPTIMIZER}}"
+
+  # Mixed precision
+  # Options: "no" | "fp16" | "bf16"
+  bf16: {{USE_BF16}}
+  fp16: {{USE_FP16}}
+
+  # Logging
+  logging_steps: {{LOGGING_STEPS}}
+
+  # Evaluation
+  eval_strategy: "{{EVAL_STRATEGY}}"
+  eval_steps: {{EVAL_STEPS}}
+
+  # Save strategy
+  save_strategy: "{{SAVE_STRATEGY}}"
+  save_steps: {{SAVE_STEPS}}
+  save_total_limit: {{SAVE_TOTAL_LIMIT}}
+
+  # Load best model at end
+  load_best_model_at_end: {{LOAD_BEST_MODEL}}
+
+  # Metric for best model
+  metric_for_best_model: "{{BEST_MODEL_METRIC}}"
+
+# DPO Configuration
+dpo:
+  # Number of DPO epochs
+  num_epochs: {{DPO_EPOCHS}}
+
+  # DPO beta (KL penalty coefficient)
+  # Higher = more conservative updates
+  # Typical: 0.1
+  beta: {{DPO_BETA}}
+
+  # Learning rate (typically lower than SFT)
+  learning_rate: {{DPO_LEARNING_RATE}}
+
+  # Loss type
+  # Options: "sigmoid" | "hinge" | "ipo" | "kto_pair"
+  loss_type: "{{DPO_LOSS_TYPE}}"
+
+  # Reference model
+  # true = use separate reference model
+  # false = use implicit reference (more memory efficient)
+  reference_free: {{DPO_REFERENCE_FREE}}
+
+  # Label smoothing
+  label_smoothing: {{DPO_LABEL_SMOOTHING}}
+
+  # Batch sizes
+  per_device_train_batch_size: {{DPO_TRAIN_BATCH_SIZE}}
+  per_device_eval_batch_size: {{DPO_EVAL_BATCH_SIZE}}
+
+  # Other training params (can reuse SFT defaults)
+  gradient_accumulation_steps: {{GRADIENT_ACCUMULATION}}
+  warmup_ratio: {{WARMUP_RATIO}}
+  weight_decay: {{WEIGHT_DECAY}}
+
+# Data Configuration
+data:
+  # Training data path
+  train_path: "{{TRAIN_DATA_PATH}}"
+
+  # Evaluation data path
+  eval_path: "{{EVAL_DATA_PATH}}"
+
+  # Data format
+  # Options: "json" | "jsonl" | "parquet" | "csv"
+  format: "{{DATA_FORMAT}}"
+
+  # Column mapping for SFT
+  sft_columns:
+    instruction: "{{INSTRUCTION_COLUMN}}"
+    input: "{{INPUT_COLUMN}}"
+    output: "{{OUTPUT_COLUMN}}"
+
+  # Column mapping for DPO
+  dpo_columns:
+    prompt: "{{PROMPT_COLUMN}}"
+    chosen: "{{CHOSEN_COLUMN}}"
+    rejected: "{{REJECTED_COLUMN}}"
+
+  # Maximum sequence length
+  max_length: {{MAX_LENGTH}}
+
+  # Truncation strategy
+  truncation: true
+
+  # Packing (combine multiple examples)
+  packing: {{USE_PACKING}}
+
+  # Shuffle training data
+  shuffle: true
+
+  # Data preprocessing workers
+  num_workers: {{DATA_NUM_WORKERS}}
+
+# Output Configuration
+output:
+  # Output directory
+  output_dir: "{{OUTPUT_DIR}}"
+
+  # Run name (for tracking)
+  run_name: "{{RUN_NAME}}"
+
+  # Push to Hugging Face Hub
+  push_to_hub: {{PUSH_TO_HUB}}
+  hub_model_id: "{{HUB_MODEL_ID}}"
+
+# Infrastructure
+infrastructure:
+  # Training platform
+  # Options: "local" | "sagemaker" | "runpod" | "lambda_labs"
+  platform: "{{PLATFORM}}"
+
+  # Instance type (if cloud)
+  instance_type: "{{INSTANCE_TYPE}}"
+
+  # Use spot instances (cheaper, may interrupt)
+  spot_instances: {{USE_SPOT}}
+
+  # Distributed training
+  distributed:
+    enabled: {{DISTRIBUTED_ENABLED}}
+    strategy: "{{DISTRIBUTED_STRATEGY}}"  # "ddp" | "fsdp" | "deepspeed"
+
+  # DeepSpeed config (if using)
+  deepspeed_config: "{{DEEPSPEED_CONFIG}}"
+
+# Experiment Tracking
+tracking:
+  # Tracking tool
+  # Options: "wandb" | "mlflow" | "comet" | "tensorboard" | "none"
+  tool: "{{TRACKING_TOOL}}"
+
+  # Project name
+  project: "{{TRACKING_PROJECT}}"
+
+  # Experiment name
+  experiment: "{{EXPERIMENT_NAME}}"
+
+  # Additional tags
+  tags:
+    - "{{PROJECT_NAME}}"
+    - "{{TRAINING_APPROACH}}"
+
+  # Log model checkpoints
+  log_checkpoints: {{LOG_CHECKPOINTS}}
+
+# Reproducibility
+reproducibility:
+  # Random seed
+  seed: {{RANDOM_SEED}}
+
+  # Deterministic operations (slower but reproducible)
+  deterministic: {{DETERMINISTIC}}
+
+# ============================================================
+# Example Configurations
+# ============================================================
+#
+# SFT with QLoRA on Llama 2 7B:
+#   model:
+#     name: "meta-llama/Llama-2-7b-hf"
+#     quantization: "4bit"
+#   peft:
+#     method: "qlora"
+#     r: 16
+#     lora_alpha: 32
+#   sft:
+#     num_epochs: 3
+#     learning_rate: 2e-4
+#     per_device_train_batch_size: 4
+#     gradient_accumulation_steps: 4
+#
+# DPO on Mistral 7B:
+#   model:
+#     name: "mistralai/Mistral-7B-Instruct-v0.2"
+#     quantization: "none"
+#   peft:
+#     method: "lora"
+#     r: 32
+#   dpo:
+#     num_epochs: 2
+#     beta: 0.1
+#     learning_rate: 5e-6
+#
+# ============================================================

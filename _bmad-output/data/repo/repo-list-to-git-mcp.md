@@ -9,3 +9,9 @@ https://github.com/harvard-edge/cs249r_book
 
 # Awesome LLMOps
 https://github.com/tensorchord/Awesome-LLMOps?tab=readme-ov-file
+
+# Prompt-Engineering-Guide
+https://github.com/dair-ai/Prompt-Engineering-Guide
+
+# Prompt_Engineering
+https://github.com/NirDiamant/Prompt_Engineering?tab=readme-ov-file

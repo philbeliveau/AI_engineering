@@ -1,0 +1,376 @@
+# ============================================================
+# Deployment Configuration Template
+# AI Engineering Workflow - Phase 3: Inference Pipeline
+# ============================================================
+#
+# Decision Reference: See decision-log.md for deployment rationale
+#
+# This template defines how the AI system is deployed and served
+# including RAG configuration, model serving, and API settings.
+#
+# ============================================================
+
+# Service Identity
+service:
+  name: "{{SERVICE_NAME}}"
+  version: "{{SERVICE_VERSION}}"
+  environment: "{{ENVIRONMENT}}"  # development | staging | production
+
+# ============================================================
+# MODEL SERVING
+# ============================================================
+
+model:
+  # Model provider
+  # Options: "openai" | "anthropic" | "self_hosted" | "sagemaker"
+  provider: "{{MODEL_PROVIDER}}"
+
+  # Model identifier
+  name: "{{MODEL_NAME}}"
+
+  # API provider settings
+  api:
+    # API key environment variable
+    api_key_env: "{{API_KEY_ENV}}"
+
+    # Base URL (for custom endpoints)
+    base_url: "{{API_BASE_URL}}"
+
+    # Organization (if applicable)
+    organization: "{{API_ORG}}"
+
+  # Self-hosted settings
+  self_hosted:
+    # Container image
+    image: "{{MODEL_IMAGE}}"
+
+    # Model path (if loading from disk)
+    model_path: "{{MODEL_PATH}}"
+
+    # Quantization
+    quantization: "{{INFERENCE_QUANTIZATION}}"
+
+    # GPU memory allocation
+    gpu_memory_gb: {{GPU_MEMORY_GB}}
+
+    # Serving framework
+    # Options: "vllm" | "tgi" | "ollama" | "llama_cpp"
+    framework: "{{SERVING_FRAMEWORK}}"
+
+    # vLLM specific settings
+    vllm:
+      tensor_parallel_size: {{TENSOR_PARALLEL}}
+      max_model_len: {{MAX_MODEL_LEN}}
+      gpu_memory_utilization: {{GPU_MEM_UTIL}}
+
+  # SageMaker settings
+  sagemaker:
+    endpoint_name: "{{SAGEMAKER_ENDPOINT}}"
+    region: "{{AWS_REGION}}"
+
+# Generation Parameters
+generation:
+  # Default temperature
+  temperature: {{DEFAULT_TEMPERATURE}}
+
+  # Default max tokens
+  max_tokens: {{DEFAULT_MAX_TOKENS}}
+
+  # Top-p sampling
+  top_p: {{TOP_P}}
+
+  # Frequency penalty
+  frequency_penalty: {{FREQUENCY_PENALTY}}
+
+  # Presence penalty
+  presence_penalty: {{PRESENCE_PENALTY}}
+
+  # Stop sequences
+  stop_sequences: {{STOP_SEQUENCES}}
+
+# ============================================================
+# RAG CONFIGURATION
+# ============================================================
+
+rag:
+  # Enable RAG
+  enabled: {{RAG_ENABLED}}
+
+  # Retrieval settings
+  retrieval:
+    # Number of documents to retrieve
+    top_k: {{TOP_K}}
+
+    # Similarity threshold (filter low-quality matches)
+    similarity_threshold: {{SIMILARITY_THRESHOLD}}
+
+    # Retrieval method
+    # Options: "dense" | "sparse" | "hybrid"
+    method: "{{RETRIEVAL_METHOD}}"
+
+    # Hybrid search settings
+    hybrid:
+      # Weight for dense vs sparse (0-1, 1 = all dense)
+      alpha: {{HYBRID_ALPHA}}
+
+      # BM25 parameters
+      bm25_k1: {{BM25_K1}}
+      bm25_b: {{BM25_B}}
+
+  # Reranking
+  reranking:
+    enabled: {{RERANKING_ENABLED}}
+
+    # Reranker model
+    model: "{{RERANKER_MODEL}}"
+
+    # Number of docs to keep after reranking
+    top_n: {{RERANK_TOP_N}}
+
+  # Context assembly
+  context:
+    # Assembly strategy
+    # Options: "concatenate" | "relevance_ordered" | "hierarchical"
+    strategy: "{{CONTEXT_STRATEGY}}"
+
+    # Maximum context tokens
+    max_tokens: {{MAX_CONTEXT_TOKENS}}
+
+    # Separator between documents
+    separator: "{{CONTEXT_SEPARATOR}}"
+
+    # Include source metadata
+    include_sources: {{INCLUDE_SOURCES}}
+
+    # Document template
+    document_template: |
+      {{DOCUMENT_TEMPLATE}}
+
+# Vector Database
+vector_db:
+  # Provider
+  # Options: "qdrant" | "pinecone" | "weaviate" | "chroma" | "pgvector"
+  provider: "{{VECTOR_DB_PROVIDER}}"
+
+  # Connection settings
+  host: "{{VECTOR_DB_HOST}}"
+  port: {{VECTOR_DB_PORT}}
+  api_key_env: "{{VECTOR_DB_API_KEY_ENV}}"
+
+  # Collection/index name
+  collection: "{{COLLECTION_NAME}}"
+
+  # Connection pool
+  pool_size: {{VECTOR_POOL_SIZE}}
+
+  # Qdrant-specific settings
+  qdrant:
+    grpc: {{USE_GRPC}}
+    prefer_grpc: {{PREFER_GRPC}}
+
+# ============================================================
+# PROMPT CONFIGURATION
+# ============================================================
+
+prompts:
+  # System prompt
+  system: |
+    {{SYSTEM_PROMPT}}
+
+  # User prompt template (with context)
+  user_template: |
+    {{USER_PROMPT_TEMPLATE}}
+
+  # User prompt template (without context / no retrieval)
+  user_template_no_context: |
+    {{USER_PROMPT_NO_CONTEXT}}
+
+# ============================================================
+# CACHING
+# ============================================================
+
+cache:
+  # Redis connection
+  redis:
+    url: "{{REDIS_URL}}"
+    password_env: "{{REDIS_PASSWORD_ENV}}"
+
+  # Embedding cache
+  embedding:
+    enabled: {{EMBEDDING_CACHE_ENABLED}}
+    ttl_hours: {{EMBEDDING_CACHE_TTL}}
+    prefix: "emb:"
+
+  # Retrieval cache
+  retrieval:
+    enabled: {{RETRIEVAL_CACHE_ENABLED}}
+    ttl_minutes: {{RETRIEVAL_CACHE_TTL}}
+    prefix: "ret:"
+
+  # Semantic cache (similar queries → cached response)
+  semantic:
+    enabled: {{SEMANTIC_CACHE_ENABLED}}
+    similarity_threshold: {{SEMANTIC_CACHE_THRESHOLD}}
+    ttl_minutes: {{SEMANTIC_CACHE_TTL}}
+    prefix: "sem:"
+
+  # Response cache (exact match)
+  response:
+    enabled: {{RESPONSE_CACHE_ENABLED}}
+    ttl_minutes: {{RESPONSE_CACHE_TTL}}
+    prefix: "res:"
+
+# ============================================================
+# API CONFIGURATION
+# ============================================================
+
+api:
+  # Server settings
+  host: "{{API_HOST}}"
+  port: {{API_PORT}}
+
+  # Workers
+  workers: {{API_WORKERS}}
+
+  # Request limits
+  max_request_size_mb: {{MAX_REQUEST_SIZE}}
+
+  # Timeout
+  timeout_seconds: {{REQUEST_TIMEOUT}}
+
+  # CORS
+  cors:
+    enabled: {{CORS_ENABLED}}
+    origins: {{CORS_ORIGINS}}
+
+  # Authentication
+  auth:
+    enabled: {{AUTH_ENABLED}}
+
+    # Authentication method
+    # Options: "api_key" | "jwt" | "oauth2"
+    method: "{{AUTH_METHOD}}"
+
+    # API key settings
+    api_key:
+      header: "{{API_KEY_HEADER}}"
+      env_var: "{{API_KEYS_ENV}}"
+
+  # Rate limiting
+  rate_limit:
+    enabled: {{RATE_LIMIT_ENABLED}}
+
+    # Requests per minute per key
+    requests_per_minute: {{RATE_LIMIT_RPM}}
+
+    # Tokens per day per key
+    tokens_per_day: {{RATE_LIMIT_TOKENS}}
+
+  # Streaming
+  streaming:
+    enabled: {{STREAMING_ENABLED}}
+    chunk_size: {{STREAM_CHUNK_SIZE}}
+
+# ============================================================
+# DEPLOYMENT
+# ============================================================
+
+deployment:
+  # Platform
+  # Options: "docker" | "kubernetes" | "ecs" | "lambda" | "railway"
+  platform: "{{DEPLOYMENT_PLATFORM}}"
+
+  # Replicas
+  replicas: {{REPLICAS}}
+
+  # Auto-scaling
+  autoscaling:
+    enabled: {{AUTOSCALING_ENABLED}}
+    min_replicas: {{MIN_REPLICAS}}
+    max_replicas: {{MAX_REPLICAS}}
+    target_cpu_percent: {{TARGET_CPU}}
+    target_memory_percent: {{TARGET_MEMORY}}
+
+  # Resources
+  resources:
+    cpu_request: "{{CPU_REQUEST}}"
+    cpu_limit: "{{CPU_LIMIT}}"
+    memory_request: "{{MEMORY_REQUEST}}"
+    memory_limit: "{{MEMORY_LIMIT}}"
+    gpu_count: {{GPU_COUNT}}
+
+  # Health checks
+  health:
+    path: "/health"
+    interval_seconds: {{HEALTH_INTERVAL}}
+    timeout_seconds: {{HEALTH_TIMEOUT}}
+    failure_threshold: {{HEALTH_FAILURES}}
+
+  # Readiness probe
+  readiness:
+    path: "/ready"
+    initial_delay_seconds: {{READINESS_DELAY}}
+
+# ============================================================
+# MONITORING
+# ============================================================
+
+monitoring:
+  # Metrics
+  metrics:
+    enabled: {{METRICS_ENABLED}}
+    path: "/metrics"
+    port: {{METRICS_PORT}}
+
+  # Tracing
+  tracing:
+    enabled: {{TRACING_ENABLED}}
+    provider: "{{TRACING_PROVIDER}}"  # jaeger | zipkin | otlp
+    endpoint: "{{TRACING_ENDPOINT}}"
+    sample_rate: {{TRACE_SAMPLE_RATE}}
+
+  # Logging
+  logging:
+    level: "{{LOG_LEVEL}}"  # DEBUG | INFO | WARNING | ERROR
+    format: "{{LOG_FORMAT}}"  # json | text
+    include_request_body: {{LOG_REQUEST_BODY}}
+    include_response_body: {{LOG_RESPONSE_BODY}}
+
+  # LLM-specific monitoring (Opik, etc.)
+  llm_monitoring:
+    enabled: {{LLM_MONITORING_ENABLED}}
+    provider: "{{LLM_MONITORING_PROVIDER}}"
+    api_key_env: "{{LLM_MONITORING_KEY_ENV}}"
+
+# ============================================================
+# Example Configurations
+# ============================================================
+#
+# RAG with OpenAI:
+#   model:
+#     provider: "openai"
+#     name: "gpt-4-turbo"
+#   rag:
+#     enabled: true
+#     retrieval:
+#       top_k: 5
+#       method: "hybrid"
+#     reranking:
+#       enabled: true
+#   deployment:
+#     platform: "kubernetes"
+#     replicas: 3
+#
+# Self-hosted with vLLM:
+#   model:
+#     provider: "self_hosted"
+#     self_hosted:
+#       framework: "vllm"
+#       image: "vllm/vllm-openai:latest"
+#       gpu_memory_gb: 24
+#   deployment:
+#     platform: "kubernetes"
+#     resources:
+#       gpu_count: 1
+#
+# ============================================================

@@ -1,0 +1,478 @@
+# ============================================================
+# Alerts Configuration Template
+# AI Engineering Workflow - Phase 5: Operations
+# ============================================================
+#
+# Decision Reference: See decision-log.md for alerting rationale
+#
+# This template defines monitoring alerts for production operations
+# including availability, performance, quality, and cost alerts.
+#
+# ============================================================
+
+# Alert Defaults
+defaults:
+  # Notification channels by severity
+  channels:
+    critical:
+      - type: "pagerduty"
+        service_key_env: "{{PAGERDUTY_KEY}}"
+      - type: "slack"
+        webhook_env: "{{SLACK_CRITICAL_WEBHOOK}}"
+
+    high:
+      - type: "slack"
+        webhook_env: "{{SLACK_ALERTS_WEBHOOK}}"
+      - type: "email"
+        recipients: {{HIGH_ALERT_EMAILS}}
+
+    medium:
+      - type: "slack"
+        webhook_env: "{{SLACK_ALERTS_WEBHOOK}}"
+
+    low:
+      - type: "slack"
+        webhook_env: "{{SLACK_INFO_WEBHOOK}}"
+
+  # Alert behavior
+  evaluation_interval: "{{EVAL_INTERVAL}}"  # How often to check conditions
+  notification_cooldown: "{{NOTIFICATION_COOLDOWN}}"  # Min time between notifications
+
+  # Runbook base URL
+  runbook_base_url: "{{RUNBOOK_URL}}"
+
+# ============================================================
+# AVAILABILITY ALERTS
+# ============================================================
+
+availability:
+  - name: "Service Down"
+    description: "API service is not responding"
+    condition:
+      metric: "up"
+      operator: "=="
+      threshold: 0
+    duration: "1m"
+    severity: "critical"
+    runbook: "#service-down"
+    labels:
+      category: "availability"
+      component: "api"
+
+  - name: "High Error Rate"
+    description: "Error rate exceeds threshold"
+    condition:
+      metric: "http_requests_total{status=~\"5..\"} / http_requests_total"
+      operator: ">"
+      threshold: {{ERROR_RATE_THRESHOLD}}
+    duration: "5m"
+    severity: "critical"
+    runbook: "#error-rate-high"
+    labels:
+      category: "availability"
+      component: "api"
+
+  - name: "Health Check Failures"
+    description: "Health check endpoint failing"
+    condition:
+      metric: "health_check_status"
+      operator: "=="
+      threshold: 0
+    duration: "2m"
+    severity: "high"
+    runbook: "#health-check-failing"
+    labels:
+      category: "availability"
+      component: "api"
+
+  - name: "Vector DB Unavailable"
+    description: "Cannot connect to vector database"
+    condition:
+      metric: "vector_db_connection_status"
+      operator: "=="
+      threshold: 0
+    duration: "1m"
+    severity: "critical"
+    runbook: "#vector-db-issues"
+    labels:
+      category: "availability"
+      component: "vector_db"
+
+  - name: "LLM Provider Errors"
+    description: "High rate of LLM API errors"
+    condition:
+      metric: "llm_api_errors_total / llm_api_requests_total"
+      operator: ">"
+      threshold: {{LLM_ERROR_THRESHOLD}}
+    duration: "5m"
+    severity: "high"
+    runbook: "#llm-provider-errors"
+    labels:
+      category: "availability"
+      component: "llm"
+
+# ============================================================
+# PERFORMANCE ALERTS
+# ============================================================
+
+performance:
+  - name: "Latency P50 High"
+    description: "Median latency exceeds target"
+    condition:
+      metric: "request_latency_seconds{quantile=\"0.5\"}"
+      operator: ">"
+      threshold: {{LATENCY_P50_THRESHOLD}}
+    duration: "10m"
+    severity: "medium"
+    runbook: "#latency-high"
+    labels:
+      category: "performance"
+      component: "api"
+
+  - name: "Latency P99 High"
+    description: "99th percentile latency exceeds SLA"
+    condition:
+      metric: "request_latency_seconds{quantile=\"0.99\"}"
+      operator: ">"
+      threshold: {{LATENCY_P99_THRESHOLD}}
+    duration: "5m"
+    severity: "high"
+    runbook: "#latency-high"
+    labels:
+      category: "performance"
+      component: "api"
+
+  - name: "Retrieval Latency High"
+    description: "Vector search taking too long"
+    condition:
+      metric: "retrieval_latency_seconds{quantile=\"0.99\"}"
+      operator: ">"
+      threshold: {{RETRIEVAL_LATENCY_THRESHOLD}}
+    duration: "5m"
+    severity: "high"
+    runbook: "#retrieval-slow"
+    labels:
+      category: "performance"
+      component: "rag"
+
+  - name: "Throughput Drop"
+    description: "Request throughput below expected"
+    condition:
+      metric: "rate(http_requests_total[5m])"
+      operator: "<"
+      threshold: {{MIN_THROUGHPUT}}
+    duration: "15m"
+    severity: "medium"
+    runbook: "#throughput-low"
+    labels:
+      category: "performance"
+      component: "api"
+
+  - name: "Cache Hit Rate Low"
+    description: "Cache effectiveness degraded"
+    condition:
+      metric: "cache_hits_total / (cache_hits_total + cache_misses_total)"
+      operator: "<"
+      threshold: {{CACHE_HIT_THRESHOLD}}
+    duration: "30m"
+    severity: "low"
+    runbook: "#cache-ineffective"
+    labels:
+      category: "performance"
+      component: "cache"
+
+  - name: "Memory Usage High"
+    description: "Service memory usage approaching limit"
+    condition:
+      metric: "container_memory_usage_bytes / container_memory_limit_bytes"
+      operator: ">"
+      threshold: {{MEMORY_THRESHOLD}}
+    duration: "10m"
+    severity: "high"
+    runbook: "#memory-high"
+    labels:
+      category: "performance"
+      component: "infrastructure"
+
+  - name: "CPU Usage High"
+    description: "Service CPU usage elevated"
+    condition:
+      metric: "container_cpu_usage_seconds_total"
+      operator: ">"
+      threshold: {{CPU_THRESHOLD}}
+    duration: "15m"
+    severity: "medium"
+    runbook: "#cpu-high"
+    labels:
+      category: "performance"
+      component: "infrastructure"
+
+# ============================================================
+# QUALITY ALERTS
+# ============================================================
+
+quality:
+  - name: "Data Drift Detected"
+    description: "Input distribution has shifted"
+    condition:
+      metric: "data_drift_score"
+      operator: ">"
+      threshold: {{DRIFT_THRESHOLD}}
+    duration: "1h"
+    severity: "medium"
+    runbook: "#drift-detected"
+    labels:
+      category: "quality"
+      component: "monitoring"
+
+  - name: "Quality Score Drop"
+    description: "Response quality metrics degrading"
+    condition:
+      metric: "quality_score_avg"
+      operator: "<"
+      threshold: {{MIN_QUALITY_SCORE}}
+    duration: "2h"
+    severity: "high"
+    runbook: "#quality-drop"
+    labels:
+      category: "quality"
+      component: "model"
+
+  - name: "Empty Retrieval Rate High"
+    description: "Too many queries returning no results"
+    condition:
+      metric: "empty_retrieval_rate"
+      operator: ">"
+      threshold: {{EMPTY_RETRIEVAL_THRESHOLD}}
+    duration: "30m"
+    severity: "medium"
+    runbook: "#empty-retrieval"
+    labels:
+      category: "quality"
+      component: "rag"
+
+  - name: "Hallucination Rate High"
+    description: "Increased unsupported claims in responses"
+    condition:
+      metric: "hallucination_rate"
+      operator: ">"
+      threshold: {{HALLUCINATION_THRESHOLD}}
+    duration: "1h"
+    severity: "high"
+    runbook: "#hallucination-high"
+    labels:
+      category: "quality"
+      component: "model"
+
+  - name: "User Feedback Negative Trend"
+    description: "Increase in negative user feedback"
+    condition:
+      metric: "negative_feedback_rate"
+      operator: ">"
+      threshold: {{NEGATIVE_FEEDBACK_THRESHOLD}}
+    duration: "4h"
+    severity: "medium"
+    runbook: "#feedback-negative"
+    labels:
+      category: "quality"
+      component: "monitoring"
+
+# ============================================================
+# COST ALERTS
+# ============================================================
+
+cost:
+  - name: "Daily Token Budget Warning"
+    description: "Approaching daily token limit"
+    condition:
+      metric: "daily_tokens_used"
+      operator: ">"
+      threshold: {{TOKEN_WARNING_THRESHOLD}}
+    duration: "30m"
+    severity: "medium"
+    runbook: "#cost-warning"
+    labels:
+      category: "cost"
+      component: "llm"
+
+  - name: "Daily Token Budget Critical"
+    description: "Exceeded daily token budget"
+    condition:
+      metric: "daily_tokens_used"
+      operator: ">"
+      threshold: {{TOKEN_CRITICAL_THRESHOLD}}
+    duration: "10m"
+    severity: "high"
+    runbook: "#cost-critical"
+    labels:
+      category: "cost"
+      component: "llm"
+
+  - name: "Monthly Cost Projection High"
+    description: "Projected monthly cost exceeds budget"
+    condition:
+      metric: "projected_monthly_cost"
+      operator: ">"
+      threshold: {{MONTHLY_BUDGET}}
+    duration: "1h"
+    severity: "medium"
+    runbook: "#cost-projection"
+    labels:
+      category: "cost"
+      component: "billing"
+
+  - name: "Unusual API Usage Spike"
+    description: "Sudden increase in API usage"
+    condition:
+      metric: "rate(api_requests_total[1h]) / rate(api_requests_total[24h] offset 1h)"
+      operator: ">"
+      threshold: {{USAGE_SPIKE_THRESHOLD}}
+    duration: "15m"
+    severity: "medium"
+    runbook: "#usage-spike"
+    labels:
+      category: "cost"
+      component: "api"
+
+# ============================================================
+# SECURITY ALERTS
+# ============================================================
+
+security:
+  - name: "Authentication Failures High"
+    description: "High rate of auth failures"
+    condition:
+      metric: "auth_failures_total"
+      operator: ">"
+      threshold: {{AUTH_FAILURE_THRESHOLD}}
+    duration: "5m"
+    severity: "high"
+    runbook: "#auth-failures"
+    labels:
+      category: "security"
+      component: "auth"
+
+  - name: "Rate Limit Violations"
+    description: "Multiple rate limit violations"
+    condition:
+      metric: "rate_limit_violations_total"
+      operator: ">"
+      threshold: {{RATE_LIMIT_VIOLATION_THRESHOLD}}
+    duration: "10m"
+    severity: "medium"
+    runbook: "#rate-limit-abuse"
+    labels:
+      category: "security"
+      component: "api"
+
+  - name: "Unusual Access Pattern"
+    description: "Anomalous API access detected"
+    condition:
+      metric: "access_anomaly_score"
+      operator: ">"
+      threshold: {{ANOMALY_THRESHOLD}}
+    duration: "15m"
+    severity: "high"
+    runbook: "#unusual-access"
+    labels:
+      category: "security"
+      component: "monitoring"
+
+# ============================================================
+# INFRASTRUCTURE ALERTS
+# ============================================================
+
+infrastructure:
+  - name: "Disk Usage High"
+    description: "Disk space running low"
+    condition:
+      metric: "disk_usage_percent"
+      operator: ">"
+      threshold: {{DISK_THRESHOLD}}
+    duration: "30m"
+    severity: "high"
+    runbook: "#disk-full"
+    labels:
+      category: "infrastructure"
+      component: "storage"
+
+  - name: "Redis Connection Issues"
+    description: "Cache connection problems"
+    condition:
+      metric: "redis_connection_errors_total"
+      operator: ">"
+      threshold: {{REDIS_ERROR_THRESHOLD}}
+    duration: "5m"
+    severity: "high"
+    runbook: "#redis-issues"
+    labels:
+      category: "infrastructure"
+      component: "cache"
+
+  - name: "Pod Restart Loop"
+    description: "Service restarting frequently"
+    condition:
+      metric: "kube_pod_container_status_restarts_total"
+      operator: ">"
+      threshold: {{RESTART_THRESHOLD}}
+    duration: "15m"
+    severity: "high"
+    runbook: "#restart-loop"
+    labels:
+      category: "infrastructure"
+      component: "kubernetes"
+
+# ============================================================
+# ALERT ROUTING RULES
+# ============================================================
+
+routing:
+  # Route by severity
+  - match:
+      severity: "critical"
+    receiver: "critical-alerts"
+    continue: false
+
+  - match:
+      severity: "high"
+    receiver: "high-alerts"
+    continue: false
+
+  - match:
+      severity: "medium"
+    receiver: "medium-alerts"
+    continue: false
+
+  - match:
+      severity: "low"
+    receiver: "low-alerts"
+    continue: false
+
+  # Business hours routing (optional)
+  - match:
+      category: "quality"
+    receiver: "quality-team"
+    active_time_intervals:
+      - business_hours
+
+# ============================================================
+# SILENCING RULES
+# ============================================================
+
+silences:
+  # Maintenance windows
+  - name: "scheduled-maintenance"
+    matchers:
+      - name: "alertname"
+        operator: "=~"
+        value: ".*"
+    comment: "Scheduled maintenance window"
+    # Set start/end times when scheduling
+
+  # Known issues
+  - name: "known-cache-issue"
+    matchers:
+      - name: "alertname"
+        value: "Cache Hit Rate Low"
+    comment: "Known issue, fix in progress - Ticket #123"
+    ends_at: "{{SILENCE_END_TIME}}"

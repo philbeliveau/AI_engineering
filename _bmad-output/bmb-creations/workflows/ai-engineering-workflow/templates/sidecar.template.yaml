@@ -1,0 +1,182 @@
+# AI Engineering Project Sidecar
+# This file tracks project state across workflow sessions
+# Template Version: 1.0
+
+# ============================================================
+# PROJECT IDENTITY
+# ============================================================
+
+project_name: "{{PROJECT_NAME}}"
+created: "{{DATE}}"
+user_name: "{{USER_NAME}}"
+
+# ============================================================
+# WORKFLOW STATE
+# ============================================================
+
+# Architecture decision from Phase 0
+# Values: null | "rag-only" | "fine-tuning" | "hybrid"
+architecture: null
+
+# Workflow status
+# Values: "in_progress" | "complete" | "blocked"
+workflow_status: "in_progress"
+
+# Completion timestamp (set when workflow finishes)
+completed_date: null
+
+# Last continuation timestamp (set when resuming)
+lastContinued: null
+
+# ============================================================
+# DECISIONS LOG (Summary)
+# ============================================================
+
+# Full details in decision-log.md
+# This is a quick reference for workflow logic
+
+decisions: []
+# Example entry:
+# - id: "arch-001"
+#   choice: "rag-only"
+#   rationale: "Knowledge QA use case, frequent updates"
+#   knowledge_ref: "get_decisions:rag-vs-fine-tuning"
+#   phase: 0
+#   date: "2024-01-15"
+
+# ============================================================
+# QUALITY GATE
+# ============================================================
+
+quality_gate:
+  # Values: null | "passed" | "blocked" | "conditional"
+  decision: null
+  date: null
+  # Conditions to address (if conditional)
+  conditions: []
+  # Issues blocking deployment (if blocked)
+  blockers: []
+
+# ============================================================
+# WARNINGS ACKNOWLEDGED
+# ============================================================
+
+# Track which knowledge warnings the user has acknowledged
+warnings_acknowledged: []
+# Example:
+# - warning_id: "llm-judge-bias"
+#   acknowledged_date: "2024-01-15"
+#   mitigation: "Using different model for evaluation"
+
+# ============================================================
+# STEP STATUS (10-Step Model)
+# ============================================================
+
+# Current step number (0-10)
+currentStep: 0
+
+# Steps completed (array of step numbers)
+# Example: [1, 2, 3, 4, 6, 7] means steps 1-4 and 6-7 complete (5 skipped)
+stepsCompleted: []
+
+steps:
+  # Values for each: "pending" | "in_progress" | "complete" | "skipped"
+  step_1_business_analyst: "pending"
+  step_2_fti_architect: "pending"
+  step_3_data_engineer: "pending"
+  step_4_embeddings_engineer: "pending"
+  step_5_fine_tuning_specialist: "pending"  # "skipped" if RAG-only
+  step_6_rag_specialist: "pending"
+  step_7_prompt_engineer: "pending"
+  step_8_llm_evaluator: "pending"
+  step_9_mlops_engineer: "pending"
+  step_10_tech_lead: "pending"
+
+# ============================================================
+# PHASE STATUS (FTI Phases)
+# ============================================================
+
+phases:
+  # Values for each: "pending" | "in_progress" | "complete" | "skipped"
+  phase_0_scoping: "pending"       # Steps 1-2
+  phase_1_feature: "pending"       # Steps 3-4
+  phase_2_training: "pending"      # Step 5 - "skipped" if RAG-only
+  phase_3_inference: "pending"     # Steps 6-7
+  phase_4_evaluation: "pending"    # Step 8
+  phase_5_operations: "pending"    # Step 9
+  integration_review: "pending"    # Step 10
+
+# ============================================================
+# IMPLEMENTATION STORIES (Accumulated from Steps)
+# ============================================================
+
+# Each step generates implementation stories
+# Stories are used by Tech Lead (Step 10) for final review
+# And by developers for implementation backlog
+
+stories:
+  step_2_architect: []
+  # Example:
+  # - id: "ARCH-S01"
+  #   title: "Set up project repository structure"
+  #   description: "Create standard folder structure for RAG project"
+  #   acceptance_criteria:
+  #     - "Repository initialized with .gitignore"
+  #     - "Folder structure follows FTI pattern"
+
+  step_3_data: []
+  # Data pipeline stories (DATA-S*)
+
+  step_4_embeddings: []
+  # Embeddings pipeline stories (EMB-S*)
+
+  step_5_training: []
+  # Training stories (TRAIN-S*) - empty if RAG-only
+
+  step_6_rag: []
+  # RAG pipeline stories (RAG-S*)
+
+  step_7_prompts: []
+  # Prompt engineering stories (PROMPT-S*)
+
+  step_8_evaluation: []
+  # Evaluation stories (EVAL-S*)
+
+  step_9_operations: []
+  # Operations stories (OPS-S*)
+
+  step_10_integration: []
+  # Integration stories (INTEG-S*) - if gaps found
+
+# ============================================================
+# PHASE OUTPUTS TRACKING
+# ============================================================
+
+outputs:
+  phase_0:
+    architecture_decision: null    # Path to architecture-decision.md
+  phase_1:
+    spec: null                     # Path to feature spec.md
+    chunking_config: null          # Path to chunking config
+    embedding_config: null         # Path to embedding config
+  phase_2:
+    spec: null                     # Path to training spec.md (or "SKIPPED")
+    training_config: null          # Path to training config
+  phase_3:
+    spec: null                     # Path to inference spec.md
+    deployment_config: null        # Path to deployment config
+  phase_4:
+    report: null                   # Path to evaluation report.md
+    quality_gate_checklist: null   # Path to checklist
+  phase_5:
+    runbook: null                  # Path to runbook.md
+    alerts_config: null            # Path to alerts config
+
+# ============================================================
+# METADATA
+# ============================================================
+
+metadata:
+  workflow_version: "1.0"
+  template_version: "1.0"
+  knowledge_mcp_endpoint: "https://knowledge-mcp-production.up.railway.app"
