@@ -58,22 +58,24 @@ def get_mongodb_client() -> MongoDBClient | None:
     return _mongodb_client
 
 
-def _payload_to_methodology_result(
+def _map_methodology_from_mongodb(
     point_id: str,
+    extraction: dict[str, Any],
     payload: dict[str, Any],
     source_title: str,
 ) -> MethodologyResult | None:
-    """Convert Qdrant payload to MethodologyResult.
+    """Convert MongoDB extraction to MethodologyResult.
 
     Args:
         point_id: Qdrant point ID
-        payload: Qdrant point payload
-        source_title: Human-readable source title (from MongoDB or payload)
+        extraction: Full extraction document from MongoDB
+        payload: Qdrant point payload (for fallback metadata)
+        source_title: Human-readable source title
 
     Returns:
-        MethodologyResult or None if payload is invalid
+        MethodologyResult with full content from MongoDB, or None if invalid
     """
-    content = payload.get("content", {})
+    content = extraction.get("content", {})
     if not isinstance(content, dict):
         logger.warning(
             "methodology_invalid_content_format",
@@ -100,6 +102,46 @@ def _payload_to_methodology_result(
         steps=steps,
         prerequisites=content.get("prerequisites"),
         outputs=content.get("outputs"),
+        topics=extraction.get("topics", payload.get("topics", [])),
+        source_title=source_title,
+        source_id=extraction.get("source_id", payload.get("source_id", "")),
+        chunk_id=extraction.get("chunk_id", payload.get("chunk_id")),
+    )
+
+
+def _payload_to_methodology_result(
+    point_id: str,
+    payload: dict[str, Any],
+    source_title: str,
+) -> MethodologyResult | None:
+    """Convert Qdrant payload to MethodologyResult (fallback when MongoDB unavailable).
+
+    Args:
+        point_id: Qdrant point ID
+        payload: Qdrant point payload
+        source_title: Human-readable source title (from MongoDB or payload)
+
+    Returns:
+        MethodologyResult with partial data, or None if invalid
+    """
+    # Fallback returns minimal data since content is not in Qdrant payload
+    name = payload.get("extraction_title", "")
+
+    if not name:
+        logger.warning(
+            "methodology_missing_required_fields",
+            point_id=point_id,
+            has_name=False,
+            has_steps=False,
+        )
+        return None
+
+    return MethodologyResult(
+        id=point_id,
+        name=name,
+        steps=[],  # Content not available in Qdrant payload
+        prerequisites=None,
+        outputs=None,
         topics=payload.get("topics", []),
         source_title=source_title,
         source_id=payload.get("source_id", ""),
@@ -216,6 +258,7 @@ async def get_methodologies(
         point_id = item["id"]
         payload = item.get("payload", {})
         source_id = payload.get("source_id", "")
+        extraction_id = payload.get("extraction_id")
 
         # Get source title from MongoDB or payload
         source_title = payload.get("source_title", "Unknown Source")
@@ -226,8 +269,22 @@ async def get_methodologies(
             if source_data:
                 source_title = source_data.get("title", "Unknown Source")
 
-        # Convert payload to result model
-        methodology = _payload_to_methodology_result(point_id, payload, source_title)
+        # Try to get full content from MongoDB
+        methodology = None
+        if mongodb and extraction_id:
+            try:
+                extraction = await mongodb.get_extraction_by_id(extraction_id)
+                if extraction:
+                    methodology = _map_methodology_from_mongodb(point_id, extraction, payload, source_title)
+                else:
+                    logger.debug("methodology_mongodb_not_found", extraction_id=extraction_id)
+                    methodology = _payload_to_methodology_result(point_id, payload, source_title)
+            except Exception as e:
+                logger.warning("methodology_mongodb_lookup_failed", extraction_id=extraction_id, error=str(e))
+                methodology = _payload_to_methodology_result(point_id, payload, source_title)
+        else:
+            methodology = _payload_to_methodology_result(point_id, payload, source_title)
+
         if methodology:
             results.append(methodology)
             sources_cited.add(source_title)

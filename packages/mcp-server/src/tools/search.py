@@ -120,13 +120,27 @@ async def _enrich_result(
     if result_type == "chunk":
         content = payload.get("content", "")
     else:
-        # For extractions, content might be a dict
-        content_data = payload.get("content", {})
-        if isinstance(content_data, dict):
-            # Convert dict to readable string
-            content = str(content_data)
+        # For extractions, fetch full content from MongoDB using extraction_id
+        extraction_id = payload.get("extraction_id")
+        content = ""
+        if extraction_id:
+            try:
+                extraction = await mongodb.get_extraction_by_id(extraction_id)
+                if extraction:
+                    content_data = extraction.get("content", {})
+                    if isinstance(content_data, dict):
+                        # Format extraction content for readability
+                        content = _format_extraction_content(content_data, payload.get("extraction_type", ""))
+                    else:
+                        content = str(content_data)
+                else:
+                    logger.debug("search_extraction_mongodb_not_found", extraction_id=extraction_id)
+                    content = payload.get("extraction_title", "")
+            except Exception as e:
+                logger.warning("search_extraction_mongodb_lookup_failed", extraction_id=extraction_id, error=str(e))
+                content = payload.get("extraction_title", "")
         else:
-            content = str(content_data)
+            content = payload.get("extraction_title", "")
 
     return SearchResult(
         id=hit["id"],
@@ -135,6 +149,75 @@ async def _enrich_result(
         content=content,
         source=source,
     )
+
+
+def _format_extraction_content(content: dict[str, Any], extraction_type: str) -> str:
+    """Format extraction content dict to readable string.
+
+    Args:
+        content: Content dict from MongoDB extraction
+        extraction_type: Type of extraction (decision, pattern, warning, methodology)
+
+    Returns:
+        Formatted string representation of the content
+    """
+    parts = []
+
+    # Handle different extraction types
+    if extraction_type == "decision":
+        if content.get("question"):
+            parts.append(f"Question: {content['question']}")
+        if content.get("options"):
+            parts.append(f"Options: {', '.join(str(o) for o in content['options'])}")
+        if content.get("considerations"):
+            parts.append(f"Considerations: {', '.join(str(c) for c in content['considerations'])}")
+        if content.get("recommended_approach"):
+            parts.append(f"Recommended: {content['recommended_approach']}")
+    elif extraction_type == "pattern":
+        if content.get("name"):
+            parts.append(f"Pattern: {content['name']}")
+        if content.get("problem"):
+            parts.append(f"Problem: {content['problem']}")
+        if content.get("solution"):
+            parts.append(f"Solution: {content['solution']}")
+        if content.get("code_example"):
+            parts.append(f"Code: {str(content['code_example'])[:500]}")
+    elif extraction_type == "warning":
+        if content.get("title"):
+            parts.append(f"Warning: {content['title']}")
+        if content.get("description"):
+            parts.append(f"Description: {content['description']}")
+        if content.get("prevention"):
+            parts.append(f"Prevention: {content['prevention']}")
+    elif extraction_type == "methodology":
+        if content.get("name"):
+            parts.append(f"Methodology: {content['name']}")
+        if content.get("steps"):
+            # Steps can be list of dicts with title/description or list of strings
+            steps = content["steps"][:5]
+            step_strs = []
+            for step in steps:
+                if isinstance(step, dict):
+                    title = step.get("title", step.get("description", str(step)))
+                    step_strs.append(str(title))
+                else:
+                    step_strs.append(str(step))
+            parts.append(f"Steps: {'; '.join(step_strs)}")
+    else:
+        # Generic handling for other extraction types
+        for key, value in content.items():
+            if value and key not in ["_id", "context_level", "context_id", "chunk_ids"]:
+                if isinstance(value, list):
+                    if value and isinstance(value[0], dict):
+                        # List of dicts - extract main field
+                        items = [str(v.get("title", v.get("name", str(v)))) for v in value[:3]]
+                        parts.append(f"{key}: {', '.join(items)}")
+                    else:
+                        parts.append(f"{key}: {', '.join(str(v) for v in value[:5])}")
+                else:
+                    parts.append(f"{key}: {str(value)[:200]}")
+
+    return " | ".join(parts) if parts else str(content)
 
 
 @router.post(

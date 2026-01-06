@@ -12,6 +12,8 @@ from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 import structlog
+from bson import ObjectId
+from bson.errors import InvalidId
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
@@ -126,7 +128,7 @@ class MongoDBClient:
         """Retrieve a source by ID.
 
         Args:
-            source_id: The source document ID
+            source_id: The source document ID (hex string)
 
         Returns:
             Source document or None if not found
@@ -135,7 +137,15 @@ class MongoDBClient:
 
         def _query_sync() -> dict[str, Any] | None:
             collection = self._get_collection(self._settings.sources_collection)
-            result = collection.find_one({"_id": source_id})
+
+            # Try to convert to ObjectId first (sources use ObjectId as _id)
+            try:
+                object_id = ObjectId(source_id)
+                result = collection.find_one({"_id": object_id})
+            except InvalidId:
+                # Fall back to string lookup if not a valid ObjectId
+                result = collection.find_one({"_id": source_id})
+
             if result:
                 # Convert ObjectId to string for API responses
                 result["id"] = str(result.pop("_id"))
@@ -254,11 +264,10 @@ class MongoDBClient:
         """Retrieve a single extraction by ID.
 
         Used for enriching search results with full extraction content.
-        Note: Currently unused by search_knowledge (content comes from Qdrant payload).
-        Retained for future use cases like get_extraction_details tool.
+        Extractions are stored with ObjectId as _id, so we convert the string ID.
 
         Args:
-            extraction_id: The extraction document ID
+            extraction_id: The extraction document ID (hex string from Qdrant payload)
 
         Returns:
             Extraction document or None if not found
@@ -267,7 +276,15 @@ class MongoDBClient:
 
         def _query_sync() -> dict[str, Any] | None:
             collection = self._get_collection(self._settings.extractions_collection)
-            result = collection.find_one({"_id": extraction_id})
+
+            # Try to convert to ObjectId first (extractions use ObjectId as _id)
+            try:
+                object_id = ObjectId(extraction_id)
+                result = collection.find_one({"_id": object_id})
+            except InvalidId:
+                # Fall back to string lookup if not a valid ObjectId
+                result = collection.find_one({"_id": extraction_id})
+
             if result:
                 # Convert ObjectId to string for API responses
                 result["id"] = str(result.pop("_id"))

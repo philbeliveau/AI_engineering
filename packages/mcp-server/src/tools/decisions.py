@@ -18,6 +18,7 @@ from src.models.responses import (
     DecisionsResponse,
     ExtractionMetadata,
 )
+from src.storage.mongodb import MongoDBClient
 from src.storage.qdrant import QdrantStorageClient
 from src.tools.base import get_qdrant_client as _get_shared_client
 
@@ -25,19 +26,29 @@ logger = structlog.get_logger()
 
 router = APIRouter()
 
-# Module-level client reference - can be overridden for testing
+# Module-level client references - can be overridden for testing
 _qdrant_client: QdrantStorageClient | None = None
+_mongodb_client: MongoDBClient | None = None
 
 
-def set_qdrant_client(qdrant: QdrantStorageClient | None) -> None:
-    """Set the module-level Qdrant client.
+def set_clients(
+    qdrant: QdrantStorageClient | None, mongodb: MongoDBClient | None
+) -> None:
+    """Set the module-level storage clients.
 
     Called by server.py during application startup.
-    Also sets the shared client in base module for consistency.
 
     Args:
         qdrant: QdrantStorageClient instance
+        mongodb: MongoDBClient instance
     """
+    global _qdrant_client, _mongodb_client
+    _qdrant_client = qdrant
+    _mongodb_client = mongodb
+
+
+def set_qdrant_client(qdrant: QdrantStorageClient | None) -> None:
+    """Set the module-level Qdrant client (legacy, use set_clients instead)."""
     global _qdrant_client
     _qdrant_client = qdrant
 
@@ -47,20 +58,26 @@ def get_qdrant_client() -> QdrantStorageClient | None:
     return _qdrant_client or _get_shared_client()
 
 
-def _map_decision_payload(extraction_id: str, payload: dict[str, Any]) -> DecisionResult:
-    """Map Qdrant payload to DecisionResult model.
+def get_mongodb_client() -> MongoDBClient | None:
+    """Get the MongoDB client."""
+    return _mongodb_client
+
+
+def _map_decision_from_mongodb(
+    extraction_id: str, extraction: dict[str, Any], payload: dict[str, Any]
+) -> DecisionResult:
+    """Map MongoDB extraction to DecisionResult model.
 
     Args:
-        extraction_id: The extraction ID from Qdrant
-        payload: The payload dict from Qdrant scroll result
+        extraction_id: The extraction ID
+        extraction: Full extraction document from MongoDB
+        payload: The payload dict from Qdrant (for fallback metadata)
 
     Returns:
-        DecisionResult with mapped fields
+        DecisionResult with full content from MongoDB
     """
-    # Extract content - may be nested dict or flat
-    content = payload.get("content", {})
+    content = extraction.get("content", {})
     if isinstance(content, str):
-        # If content is a string, treat it as the question
         content = {"question": content}
 
     return DecisionResult(
@@ -69,6 +86,29 @@ def _map_decision_payload(extraction_id: str, payload: dict[str, Any]) -> Decisi
         options=content.get("options", []),
         considerations=content.get("considerations", []),
         recommended_approach=content.get("recommended_approach"),
+        topics=extraction.get("topics", payload.get("topics", [])),
+        source_title=payload.get("source_title", "Unknown"),
+        source_id=extraction.get("source_id", payload.get("source_id", "")),
+        chunk_id=extraction.get("chunk_id", payload.get("chunk_id")),
+    )
+
+
+def _map_decision_payload(extraction_id: str, payload: dict[str, Any]) -> DecisionResult:
+    """Map Qdrant payload to DecisionResult model (fallback when MongoDB unavailable).
+
+    Args:
+        extraction_id: The extraction ID from Qdrant
+        payload: The payload dict from Qdrant scroll result
+
+    Returns:
+        DecisionResult with partial data from Qdrant payload
+    """
+    return DecisionResult(
+        id=extraction_id,
+        question=payload.get("extraction_title", ""),
+        options=[],
+        considerations=[],
+        recommended_approach=None,
         topics=payload.get("topics", []),
         source_title=payload.get("source_title", "Unknown"),
         source_id=payload.get("source_id", ""),
@@ -180,13 +220,30 @@ async def get_decisions(
             details={"error_type": type(e).__name__},
         ) from e
 
-    # Map results to response models
+    # Map results to response models with MongoDB enrichment
     results: list[DecisionResult] = []
     sources_cited: set[str] = set()
+    mongodb = get_mongodb_client()
 
     for item in raw_results:
         payload = item.get("payload", {})
-        decision = _map_decision_payload(item["id"], payload)
+        extraction_id = payload.get("extraction_id")
+
+        # Try to get full content from MongoDB
+        if mongodb and extraction_id:
+            try:
+                extraction = await mongodb.get_extraction_by_id(extraction_id)
+                if extraction:
+                    decision = _map_decision_from_mongodb(item["id"], extraction, payload)
+                else:
+                    logger.debug("decision_mongodb_not_found", extraction_id=extraction_id)
+                    decision = _map_decision_payload(item["id"], payload)
+            except Exception as e:
+                logger.warning("decision_mongodb_lookup_failed", extraction_id=extraction_id, error=str(e))
+                decision = _map_decision_payload(item["id"], payload)
+        else:
+            decision = _map_decision_payload(item["id"], payload)
+
         results.append(decision)
         if decision.source_title and decision.source_title != "Unknown":
             sources_cited.add(decision.source_title)

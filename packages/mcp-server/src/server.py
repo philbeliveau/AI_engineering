@@ -42,10 +42,10 @@ from src.storage import validate_environment
 from src.storage.mongodb import MongoDBClient
 from src.storage.qdrant import QdrantStorageClient
 from src.tools.health import health_check as check_health
-from src.tools.search import router as search_router, set_clients
-from src.tools.decisions import router as decisions_router, set_qdrant_client as set_decisions_client
-from src.tools.patterns import router as patterns_router, set_qdrant_client as set_patterns_client
-from src.tools.warnings import router as warnings_router, set_qdrant_client as set_warnings_client
+from src.tools.search import router as search_router, set_clients as set_search_clients
+from src.tools.decisions import router as decisions_router, set_clients as set_decisions_clients
+from src.tools.patterns import router as patterns_router, set_clients as set_patterns_clients
+from src.tools.warnings import router as warnings_router, set_clients as set_warnings_clients
 from src.tools.methodologies import router as methodologies_router, set_clients as set_methodologies_clients
 from src.tools.sources import router as sources_router, set_clients as set_sources_clients
 
@@ -157,18 +157,13 @@ async def lifespan(app: FastAPI):
         logger.error("qdrant_connection_failed", error=str(e))
         qdrant_client = None
 
-    # Set clients for search module
-    set_clients(qdrant=qdrant_client, mongodb=mongodb_client)
-
-    # Set Qdrant client for extraction query tools (Story 4.3)
-    set_decisions_client(qdrant_client)
-    set_patterns_client(qdrant_client)
-    set_warnings_client(qdrant_client)
-
-    # Set clients for methodologies tool (Story 4.4)
+    # Set clients for all tool modules (MongoDB + Qdrant)
+    # All tools need both clients to fetch extraction content from MongoDB
+    set_search_clients(qdrant=qdrant_client, mongodb=mongodb_client)
+    set_decisions_clients(qdrant=qdrant_client, mongodb=mongodb_client)
+    set_patterns_clients(qdrant=qdrant_client, mongodb=mongodb_client)
+    set_warnings_clients(qdrant=qdrant_client, mongodb=mongodb_client)
     set_methodologies_clients(qdrant=qdrant_client, mongodb=mongodb_client)
-
-    # Set clients for sources tools (Story 4.5)
     set_sources_clients(qdrant=qdrant_client, mongodb=mongodb_client)
 
     logger.info(
@@ -233,6 +228,19 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_error_handler)  # Story 
 app.add_exception_handler(KnowledgeError, knowledge_error_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
+
+# Debug endpoint to verify configuration (temporary for troubleshooting)
+@app.get("/debug/config", operation_id="debug_config", tags=["infrastructure"])
+async def debug_config() -> dict[str, Any]:
+    """Debug endpoint to verify configuration."""
+    return {
+        "project_id": settings.project_id,
+        "mongodb_database": settings.mongodb_database,
+        "sources_collection": settings.sources_collection,
+        "extractions_collection": settings.extractions_collection,
+        "environment": settings.environment,
+    }
+
 
 # Define health endpoint BEFORE MCP mount so it can be explicitly excluded
 # Health is infrastructure, not a knowledge query tool

@@ -65,38 +65,39 @@ def get_mongodb_client() -> MongoDBClient | None:
     return _mongodb_client
 
 
-def _extract_title_from_payload(payload: dict[str, Any]) -> str:
-    """Extract a title or name from extraction payload.
+def _extract_title_from_content(content: dict[str, Any], payload: dict[str, Any]) -> str:
+    """Extract a title or name from extraction content.
 
     Tries various common fields to find an appropriate title.
 
     Args:
-        payload: Extraction payload from Qdrant
+        content: Extraction content from MongoDB
+        payload: Qdrant payload (for fallback to extraction_title)
 
     Returns:
         Extracted title or fallback
     """
-    content = payload.get("content", {})
     if isinstance(content, dict):
         # Try common fields
         for field in ["name", "title", "question"]:
             if field in content and content[field]:
                 return str(content[field])
-    return "Untitled extraction"
+    # Fallback to extraction_title from Qdrant payload
+    return payload.get("extraction_title", "Untitled extraction")
 
 
-def _extract_summary_from_payload(payload: dict[str, Any]) -> str:
-    """Extract a summary from extraction payload.
+def _extract_summary_from_content(content: dict[str, Any], extraction_type: str) -> str:
+    """Extract a summary from extraction content.
 
     Creates a brief summary from the extraction content.
 
     Args:
-        payload: Extraction payload from Qdrant
+        content: Extraction content from MongoDB
+        extraction_type: Type of extraction for type-specific handling
 
     Returns:
         Brief summary string
     """
-    content = payload.get("content", {})
     if isinstance(content, dict):
         # Try common summary fields
         for field in ["summary", "description", "problem", "solution"]:
@@ -108,7 +109,15 @@ def _extract_summary_from_payload(payload: dict[str, Any]) -> str:
                 return text
         # For methodologies, show first step
         if "steps" in content and content["steps"]:
-            return f"Step 1: {content['steps'][0]}"
+            first_step = content["steps"][0]
+            return f"Step 1: {first_step[:150]}" if len(str(first_step)) > 150 else f"Step 1: {first_step}"
+        # For decisions, show options
+        if "options" in content and content["options"]:
+            options = content["options"][:3]
+            return f"Options: {', '.join(options)}"
+        # For warnings, show consequences
+        if "consequences" in content and content["consequences"]:
+            return f"Consequences: {content['consequences'][:150]}"
     return "No summary available"
 
 
@@ -371,17 +380,29 @@ async def compare_sources(
         source_title = source.get("title", "Unknown Source")
         sources_cited.append(source_title)
 
-        # Convert extractions to summaries
+        # Convert extractions to summaries with MongoDB lookup
         extraction_summaries: list[ExtractionSummary] = []
-        for extraction in extractions_by_source.get(source_id, []):
-            payload = extraction.get("payload", {})
+        for extraction_item in extractions_by_source.get(source_id, []):
+            payload = extraction_item.get("payload", {})
+            extraction_id = payload.get("extraction_id")
+            extraction_type = payload.get("extraction_type", "unknown")
+
+            # Fetch full content from MongoDB
+            content: dict[str, Any] = {}
+            if mongodb and extraction_id:
+                try:
+                    extraction_doc = await mongodb.get_extraction_by_id(extraction_id)
+                    if extraction_doc:
+                        content = extraction_doc.get("content", {})
+                except Exception as e:
+                    logger.warning("compare_sources_mongodb_lookup_failed", extraction_id=extraction_id, error=str(e))
 
             extraction_summaries.append(
                 ExtractionSummary(
-                    id=extraction.get("id", ""),
-                    type=payload.get("extraction_type", "unknown"),
-                    title=_extract_title_from_payload(payload),
-                    summary=_extract_summary_from_payload(payload),
+                    id=extraction_item.get("id", ""),
+                    type=extraction_type,
+                    title=_extract_title_from_content(content, payload),
+                    summary=_extract_summary_from_content(content, extraction_type),
                     topics=payload.get("topics", []),
                 )
             )
