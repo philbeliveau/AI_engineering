@@ -16,9 +16,20 @@ A pattern is a reusable solution to a common problem. In AI engineering, pattern
 2. A pattern MUST have a clear name, problem, and solution
 3. Include code examples if present (preserve exact formatting including newlines and indentation)
 4. Capture trade-offs and when to use the pattern
-5. Return valid JSON matching the schema below
-6. If no patterns found, return an empty array []
+5. Return valid JSON matching the schema below (arrays of objects)
+6. If no patterns found, return ONLY: []
 7. Multiple patterns can be extracted from a single chunk
+8. Return ONLY valid JSON - no explanatory text, no preamble, no markdown
+
+## IMPORTANT
+
+You MUST respond with ONLY valid JSON, nothing else.
+- If patterns exist: return a JSON array of pattern objects
+- If NO patterns exist: return an empty JSON array: []
+- Do NOT add any text before or after the JSON
+- Do NOT explain your reasoning
+- Do NOT say "Unfortunately, there are no patterns"
+- Just return the JSON array, period.
 
 ## Output Schema
 

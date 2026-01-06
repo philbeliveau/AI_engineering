@@ -18,8 +18,19 @@ A warning captures things that can go wrong in AI engineering:
 3. Include symptoms (how to recognize the problem is occurring)
 4. Include consequences (what happens if the warning is ignored)
 5. Include prevention (how to avoid or mitigate the issue)
-6. Return valid JSON matching the schema below
-7. If no warnings found, return an empty array []
+6. Return valid JSON matching the schema below (arrays of objects)
+7. If no warnings found, return ONLY: []
+8. Return ONLY valid JSON - no explanatory text, no preamble, no markdown
+
+## IMPORTANT
+
+You MUST respond with ONLY valid JSON, nothing else.
+- If warnings exist: return a JSON array of warning objects
+- If NO warnings exist: return an empty JSON array: []
+- Do NOT add any text before or after the JSON
+- Do NOT explain your reasoning
+- Do NOT say "Unfortunately, there are no warnings"
+- Just return the JSON array, period.
 
 ## Output Schema
 

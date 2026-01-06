@@ -18,7 +18,16 @@ A methodology is a structured process with ordered steps. In AI engineering, met
 4. Capture prerequisites (what must be done/known before starting)
 5. Capture outputs (what the methodology produces)
 6. Return valid JSON matching the schema below
-7. If no methodologies found, return an empty array []
+7. If no methodologies found, return ONLY: []
+
+## IMPORTANT
+
+You MUST respond with ONLY valid JSON, nothing else.
+- If methodologies exist: return a JSON array of methodology objects
+- If NO methodologies exist: return an empty JSON array: []
+- Do NOT add any text before or after the JSON
+- Do NOT explain your reasoning
+- Just return the JSON array, period.
 
 ## Schema
 

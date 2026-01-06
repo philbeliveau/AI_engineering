@@ -18,7 +18,16 @@ A checklist is a list of items to verify or complete. In AI engineering, checkli
 4. Mark items as required (true) or optional (false)
 5. Include context about when to use the checklist
 6. Return valid JSON matching the schema below
-7. If no checklists found, return an empty array []
+7. If no checklists found, return ONLY: []
+
+## IMPORTANT
+
+You MUST respond with ONLY valid JSON, nothing else.
+- If checklists exist: return a JSON array of checklist objects
+- If NO checklists exist: return an empty JSON array: []
+- Do NOT add any text before or after the JSON
+- Do NOT explain your reasoning
+- Just return the JSON array, period.
 
 ## Schema
 

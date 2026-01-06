@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5]
+stepsCompleted: [1, 2, 3, 4, 5, 6]
 ---
 
 # Workflow Creation Plan: ai-engineering-workflow
@@ -201,7 +201,7 @@ project-output/
 │       ├── chunking-config.template.yaml
 │       └── embedding-config.template.yaml
 │
-├── phase-2-training/               ← (empty if RAG-only)
+├── phase-2-training/               ← (SKIPPED output if RAG-only)
 │   ├── spec.md
 │   └── templates/
 │       └── training-config.template.yaml
@@ -263,6 +263,98 @@ chunking:
   # Decision reference: See decision-log.md#chunking-strategy
 ```
 
+**Conditional Skip Output:** When Phase 2 is skipped (RAG-only):
+```markdown
+## Phase 2: Training Pipeline
+**Status:** SKIPPED (RAG-only architecture selected in Phase 0)
+**Reason:** No fine-tuning required for this use case.
+```
+
+---
+
+## Workflow Step Design
+
+### Step Structure (7 Steps)
+
+```
+step-01-init
+    │
+    ├─── (existing project?) ───▶ step-01b-continue
+    │
+    ▼
+step-02-scoping (Phase 0)
+    │
+    ▼
+step-03-feature-pipeline (Phase 1)
+    │
+    ├─── IF RAG-only ──────────────────┐
+    ▼                                  │
+step-04-training-pipeline (Phase 2)    │
+    │   [or SKIPPED output]            │
+    ▼◄─────────────────────────────────┘
+step-05-inference-pipeline (Phase 3)
+    │
+    ▼
+step-06-evaluation-and-gate (Phase 4 + Quality Gate)
+    │
+    ▼
+step-07-operations-and-complete (Phase 5 + Finalize)
+```
+
+### Step Details
+
+| Step | File | Purpose | Knowledge Queries | Menu |
+|------|------|---------|-------------------|------|
+| 01 | `step-01-init.md` | Create project folder, sidecar, detect continuation | - | Auto-proceed |
+| 01b | `step-01b-continue.md` | Resume existing project, jump to last step | - | Jump menu |
+| 02 | `step-02-scoping.md` | RAG vs FT decision, use case analysis, constraints | `get_decisions` | A/P/C |
+| 03 | `step-03-feature-pipeline.md` | Data sources, chunking strategy, embedding config | `get_patterns`, `get_warnings` | A/P/C |
+| 04 | `step-04-training-pipeline.md` | SFT/DPO setup, hyperparams (CONDITIONAL) | `get_methodologies`, `get_patterns` | A/P/C or SKIP |
+| 05 | `step-05-inference-pipeline.md` | RAG setup, deployment pattern, scaling | `get_patterns`, `get_decisions` | A/P/C |
+| 06 | `step-06-evaluation-and-gate.md` | Test plan, benchmarks, quality gate checklist | `get_warnings` | A/P/C + Gate |
+| 07 | `step-07-operations-and-complete.md` | Monitoring, drift, runbook, finalize | `get_methodologies` | Complete |
+
+### Continuation Support
+
+- `step-01-init.md` checks for existing `sidecar.yaml`
+- `step-01b-continue.md` reads state and jumps to appropriate step
+- Every step updates `currentPhase` and `stepsCompleted` in sidecar
+
+### Sidecar Schema
+
+```yaml
+# sidecar.yaml
+project_name: "{{PROJECT_NAME}}"
+created: "{{DATE}}"
+architecture: "rag-only" | "fine-tuning" | "hybrid"
+currentPhase: 0-5
+stepsCompleted: [1, 2, 3...]
+decisions:
+  - id: "rag-vs-ft"
+    choice: "rag-only"
+    rationale: "..."
+    knowledge_ref: "get_decisions:rag-vs-fine-tuning"
+warnings_acknowledged: []
+```
+
+### Interaction Patterns
+
+| Step | Interaction Style |
+|------|-------------------|
+| 01/01b | Automated (setup/resume) |
+| 02 | High collaboration (critical decision) + Advanced Elicitation |
+| 03-05 | Guided design with knowledge queries |
+| 06 | Checklist-driven + quality gate decision |
+| 07 | Summary review + completion |
+
+### Role Definition
+
+**AI Role:** AI Engineering Architect
+- Expertise in FTI pipeline design, RAG systems, fine-tuning
+- Queries Knowledge MCP to ground recommendations
+- Collaborative tone, surfaces trade-offs clearly
+- Proactively warns about anti-patterns
+
 ---
 
 ## Refinements Applied
@@ -273,9 +365,44 @@ chunking:
 4. ✅ **Gap acknowledgment** - Phase 4 marked as evolving (weak knowledge coverage)
 5. ✅ **Tiered output model** - Docs + templates for v1, code gen deferred
 6. ✅ **Structured folder output** - Organized by phase with consistent structure
+7. ✅ **7-step design** - Merged eval+gate, operations+finalize for efficiency
+8. ✅ **Explicit SKIPPED output** - Conditional phases produce clear skip documentation
+9. ✅ **Continuation support** - Multi-session via sidecar state tracking
+
+---
+
+## Files to Create
+
+### Workflow Files
+```
+ai-engineering-workflow/
+├── workflow.md                      ← Main workflow config
+├── steps/
+│   ├── step-01-init.md
+│   ├── step-01b-continue.md
+│   ├── step-02-scoping.md
+│   ├── step-03-feature-pipeline.md
+│   ├── step-04-training-pipeline.md
+│   ├── step-05-inference-pipeline.md
+│   ├── step-06-evaluation-and-gate.md
+│   └── step-07-operations-and-complete.md
+├── templates/
+│   ├── sidecar.template.yaml
+│   ├── project-spec.template.md
+│   ├── decision-log.template.md
+│   ├── phase-spec.template.md
+│   └── config-templates/
+│       ├── chunking-config.template.yaml
+│       ├── embedding-config.template.yaml
+│       ├── training-config.template.yaml
+│       ├── deployment-config.template.yaml
+│       └── alerts-config.template.yaml
+└── checklists/
+    └── quality-gate-checklist.md
+```
 
 ---
 
 ## Next Steps
 
-Proceed to workflow step design - define the detailed steps within each phase.
+Proceed to build phase - create the actual workflow files.

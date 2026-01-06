@@ -18,7 +18,16 @@ A persona is a role definition that can be used to create AI agents. In AI engin
 4. Include expertise areas (what they know)
 5. Include communication style if described
 6. Return valid JSON matching the schema below
-7. If no personas found, return an empty array []
+7. If no personas found, return ONLY: []
+
+## IMPORTANT
+
+You MUST respond with ONLY valid JSON, nothing else.
+- If personas exist: return a JSON array of persona objects
+- If NO personas exist: return an empty JSON array: []
+- Do NOT add any text before or after the JSON
+- Do NOT explain your reasoning
+- Just return the JSON array, period.
 
 ## Schema
 

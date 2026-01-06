@@ -31,4 +31,13 @@ Extract decision points from the text - places where developers need to make cho
 3. **Actionable considerations** - Trade-offs that help the reader decide
 4. **Context** - When/where this decision applies
 
+## IMPORTANT
+
+You MUST respond with ONLY valid JSON, nothing else.
+- If decisions exist: return a JSON array of decision objects
+- If NO decisions exist: return an empty JSON array: []
+- Do NOT add any text before or after the JSON
+- Do NOT explain your reasoning
+- Just return the JSON array, period.
+
 Return a JSON array of decision extractions.

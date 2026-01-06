@@ -17,7 +17,16 @@ A workflow is a sequence of steps triggered by an event. In AI engineering, work
 3. Each step has order, action, and optional outputs
 4. Identify decision points in the workflow
 5. Return valid JSON matching the schema below
-6. If no workflows found, return an empty array []
+6. If no workflows found, return ONLY: []
+
+## IMPORTANT
+
+You MUST respond with ONLY valid JSON, nothing else.
+- If workflows exist: return a JSON array of workflow objects
+- If NO workflows exist: return an empty JSON array: []
+- Do NOT add any text before or after the JSON
+- Do NOT explain your reasoning
+- Just return the JSON array, period.
 
 ## Schema
 
