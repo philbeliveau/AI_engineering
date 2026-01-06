@@ -197,7 +197,21 @@ async def list_sources(
         )
 
     # Get all sources from MongoDB
-    sources = await mongodb.list_sources(limit=limit)
+    try:
+        sources = await mongodb.list_sources(limit=limit)
+    except Exception as e:
+        logger.error("mongodb_list_sources_failed", error=str(e), error_type=type(e).__name__)
+        latency_ms = int((time.time() - start_time) * 1000)
+        return SourceListResponse(
+            results=[],
+            metadata=SourceListMetadata(
+                query="all",
+                sources_cited=[],
+                result_count=0,
+                search_type="list",
+                latency_ms=latency_ms,
+            ),
+        )
 
     # Batch fetch extraction counts from Qdrant (avoids N+1 queries)
     source_ids = [s.get("id", "") for s in sources if s.get("id")]
