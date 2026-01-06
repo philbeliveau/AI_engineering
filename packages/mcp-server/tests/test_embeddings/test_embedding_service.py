@@ -1,6 +1,6 @@
 """Tests for EmbeddingService.
 
-Tests embedding generation using sentence-transformers with nomic-embed-text-v1.5 model.
+Tests embedding generation using FastEmbed (ONNX) with nomic-embed-text-v1.5 model.
 Produces 768-dimensional vectors with 8K token context.
 """
 
@@ -69,13 +69,13 @@ class TestGetEmbeddingModel:
         assert callable(get_embedding_model)
 
     def test_get_embedding_model_returns_model(self):
-        """Test that get_embedding_model returns a SentenceTransformer model."""
-        from sentence_transformers import SentenceTransformer
+        """Test that get_embedding_model returns a TextEmbedding model."""
+        from fastembed import TextEmbedding
 
         from src.embeddings.embedding_service import get_embedding_model
 
         model = get_embedding_model()
-        assert isinstance(model, SentenceTransformer)
+        assert isinstance(model, TextEmbedding)
 
     def test_get_embedding_model_is_singleton(self):
         """Test that get_embedding_model returns the same instance."""

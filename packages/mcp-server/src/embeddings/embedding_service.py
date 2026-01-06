@@ -1,18 +1,21 @@
 """Embedding service for Knowledge MCP Server.
 
-Provides embedding generation using sentence-transformers with nomic-embed-text-v1.5 model.
+Provides embedding generation using FastEmbed (ONNX Runtime) with nomic-embed-text-v1.5 model.
 This model produces 768-dimensional embeddings with 8K token context.
 
 Uses instruction prefixes for optimal retrieval:
 - search_query: for search queries (used by MCP server)
 - search_document: for documents (used by pipeline during ingestion)
 
+FastEmbed uses ONNX Runtime instead of PyTorch, reducing Docker image size from ~7.8GB to ~800MB
+while producing identical embeddings (verified via compatibility test).
+
 Follows project-context.md:33-36 (embedding configuration) and
 project-context.md:54-57 (CPU-bound helpers can be sync).
 """
 
 import structlog
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 logger = structlog.get_logger()
 
@@ -22,29 +25,27 @@ EMBEDDING_VECTOR_SIZE = 768
 QUERY_PREFIX = "search_query: "
 
 # Singleton embedding model instance
-_embedding_model: SentenceTransformer | None = None
+_embedding_model: TextEmbedding | None = None
 
 
-def get_embedding_model() -> SentenceTransformer:
+def get_embedding_model() -> TextEmbedding:
     """Get or create the embedding model singleton.
 
-    Returns the singleton SentenceTransformer instance, creating it on first call.
+    Returns the singleton TextEmbedding instance, creating it on first call.
     Uses nomic-embed-text-v1.5 model which produces 768-dimensional embeddings.
 
     Returns:
-        SentenceTransformer model instance
+        TextEmbedding model instance (FastEmbed/ONNX)
     """
     global _embedding_model
     if _embedding_model is None:
-        logger.info("embedding_model_loading", model=EMBEDDING_MODEL_ID)
-        _embedding_model = SentenceTransformer(
-            EMBEDDING_MODEL_ID,
-            trust_remote_code=True,
-        )
+        logger.info("embedding_model_loading", model=EMBEDDING_MODEL_ID, runtime="onnx")
+        _embedding_model = TextEmbedding(model_name=EMBEDDING_MODEL_ID)
         logger.info(
             "embedding_model_loaded",
             model=EMBEDDING_MODEL_ID,
             vector_size=EMBEDDING_VECTOR_SIZE,
+            runtime="onnx",
         )
     return _embedding_model
 
@@ -65,8 +66,9 @@ def embed_query(text: str) -> list[float]:
     model = get_embedding_model()
     # Apply query prefix for search
     prefixed_text = QUERY_PREFIX + text
-    embedding = model.encode(prefixed_text, normalize_embeddings=True)
-    return embedding.tolist()
+    # FastEmbed returns a generator, convert to list and get first result
+    embeddings = list(model.embed([prefixed_text]))
+    return embeddings[0].tolist()
 
 
 class EmbeddingService:

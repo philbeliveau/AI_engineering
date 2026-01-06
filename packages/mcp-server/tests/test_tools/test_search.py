@@ -30,7 +30,7 @@ class TestSearchKnowledgeEndpoint:
         from src.tools.search import search_knowledge
 
         # Mock dependencies
-        mock_embedding = [0.1] * 384
+        mock_embedding = [0.1] * 768
 
         with patch("src.tools.search.asyncio.to_thread", return_value=mock_embedding):
             with patch("src.tools.search.get_qdrant_client") as mock_get_qdrant:
@@ -55,7 +55,7 @@ class TestSearchKnowledgeEndpoint:
         """Test search_knowledge with actual results."""
         from src.tools.search import search_knowledge
 
-        mock_embedding = [0.1] * 384
+        mock_embedding = [0.1] * 768
         mock_chunk_results = [
             {
                 "id": "chunk-1",
@@ -98,7 +98,7 @@ class TestSearchKnowledgeEndpoint:
         """Test that chunks and extractions are merged and sorted by score."""
         from src.tools.search import search_knowledge
 
-        mock_embedding = [0.1] * 384
+        mock_embedding = [0.1] * 768
         mock_chunk_results = [
             {
                 "id": "chunk-1",
@@ -148,7 +148,7 @@ class TestSearchKnowledgeEndpoint:
         """Test search_knowledge with no results."""
         from src.tools.search import search_knowledge
 
-        mock_embedding = [0.1] * 384
+        mock_embedding = [0.1] * 768
 
         with patch("src.tools.search.asyncio.to_thread", return_value=mock_embedding):
             with patch("src.tools.search.get_qdrant_client") as mock_get_qdrant:
@@ -172,7 +172,7 @@ class TestSearchKnowledgeEndpoint:
         """Test that search_knowledge respects the limit parameter."""
         from src.tools.search import search_knowledge
 
-        mock_embedding = [0.1] * 384
+        mock_embedding = [0.1] * 768
         # Create 20 mock results
         mock_results = [
             {
@@ -206,7 +206,7 @@ class TestSearchKnowledgeEndpoint:
         """Test that results include proper source attribution."""
         from src.tools.search import search_knowledge
 
-        mock_embedding = [0.1] * 384
+        mock_embedding = [0.1] * 768
         mock_chunk_results = [
             {
                 "id": "chunk-1",
@@ -290,7 +290,7 @@ class TestSearchPerformance:
 
         from src.tools.search import search_knowledge
 
-        mock_embedding = [0.1] * 384
+        mock_embedding = [0.1] * 768
 
         with patch("src.tools.search.asyncio.to_thread", return_value=mock_embedding):
             with patch("src.tools.search.get_qdrant_client") as mock_get_qdrant:
@@ -361,7 +361,7 @@ class TestSearchErrorHandling:
         """Test that search works gracefully when Qdrant is unavailable."""
         from src.tools.search import search_knowledge
 
-        mock_embedding = [0.1] * 384
+        mock_embedding = [0.1] * 768
 
         with patch("src.tools.search.asyncio.to_thread", return_value=mock_embedding):
             with patch("src.tools.search.get_qdrant_client", return_value=None):
@@ -377,7 +377,7 @@ class TestSearchErrorHandling:
         """Test that results with missing source_id are skipped gracefully."""
         from src.tools.search import search_knowledge
 
-        mock_embedding = [0.1] * 384
+        mock_embedding = [0.1] * 768
         # Result with missing source_id
         mock_chunk_results = [
             {
@@ -409,7 +409,7 @@ class TestSearchErrorHandling:
         """Test that search works when MongoDB is unavailable (minimal results)."""
         from src.tools.search import search_knowledge
 
-        mock_embedding = [0.1] * 384
+        mock_embedding = [0.1] * 768
         mock_chunk_results = [
             {
                 "id": "chunk-1",
@@ -445,7 +445,7 @@ class TestSearchIntegration:
         """
         from src.tools.search import search_knowledge
 
-        mock_embedding = [0.1] * 384
+        mock_embedding = [0.1] * 768
 
         # Simulate realistic search results
         mock_chunk_results = [

@@ -96,21 +96,21 @@ class TestQdrantStorageClient:
 class TestVectorDimensionValidation:
     """Test cases for vector dimension validation."""
 
-    def test_vector_dimensions_constant_is_384(self):
-        """Test that VECTOR_DIMENSIONS constant is 384 per project-context.md."""
+    def test_vector_dimensions_constant_is_768(self):
+        """Test that VECTOR_DIMENSIONS constant is 768 for nomic-embed-text-v1.5."""
         from src.storage.qdrant import VECTOR_DIMENSIONS
 
-        assert VECTOR_DIMENSIONS == 384
+        assert VECTOR_DIMENSIONS == 768
 
-    def test_validate_vector_accepts_384_dimensions(self):
-        """Test that _validate_vector accepts correct 384-dimensional vectors."""
+    def test_validate_vector_accepts_768_dimensions(self):
+        """Test that _validate_vector accepts correct 768-dimensional vectors."""
         from src.config import Settings
         from src.storage.qdrant import QdrantStorageClient
 
         settings = Settings()
         client = QdrantStorageClient(settings)
         # Should not raise for correct dimensions
-        vector = [0.1] * 384
+        vector = [0.1] * 768
         client._validate_vector(vector)  # Should not raise
 
     def test_validate_vector_rejects_wrong_dimensions(self):
@@ -127,7 +127,7 @@ class TestVectorDimensionValidation:
         with pytest.raises(ValidationError) as exc_info:
             client._validate_vector(vector_100)
         assert exc_info.value.code == "VALIDATION_ERROR"
-        assert exc_info.value.details["expected_dimensions"] == 384
+        assert exc_info.value.details["expected_dimensions"] == 768
         assert exc_info.value.details["actual_dimensions"] == 100
 
     def test_validate_vector_rejects_too_many_dimensions(self):
@@ -139,12 +139,12 @@ class TestVectorDimensionValidation:
         settings = Settings()
         client = QdrantStorageClient(settings)
 
-        # Test with 512 dimensions (too many)
-        vector_512 = [0.1] * 512
+        # Test with 1024 dimensions (too many)
+        vector_1024 = [0.1] * 1024
         with pytest.raises(ValidationError) as exc_info:
-            client._validate_vector(vector_512)
-        assert exc_info.value.details["expected_dimensions"] == 384
-        assert exc_info.value.details["actual_dimensions"] == 512
+            client._validate_vector(vector_1024)
+        assert exc_info.value.details["expected_dimensions"] == 768
+        assert exc_info.value.details["actual_dimensions"] == 1024
 
     def test_validate_vector_rejects_empty_vector(self):
         """Test that _validate_vector raises ValidationError for empty vector."""

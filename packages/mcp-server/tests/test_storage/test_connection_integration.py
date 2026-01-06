@@ -102,8 +102,8 @@ class TestQdrantCloudIntegration:
 
         await client.connect()
 
-        # Create a test query vector (384 dimensions)
-        test_vector = [0.0] * 384
+        # Create a test query vector (768 dimensions for nomic-embed-text-v1.5)
+        test_vector = [0.0] * 768
 
         # Search should work (may return empty results)
         results = await client.search_knowledge(
