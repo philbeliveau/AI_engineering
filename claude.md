@@ -6,6 +6,71 @@ Building an AI engineering knowledge system that extracts structured knowledge f
 
 **Core Philosophy:** Extractions are for NAVIGATION, Claude is for SYNTHESIS.
 
+## The Two-Layer Architecture
+
+This project serves a dual purpose that is critical to understand:
+
+### Layer 1: Workflow Authoring (Build Time)
+The knowledge pipeline enables authoring a comprehensive BMAD AI engineering workflow grounded in best practices from literature. The pipeline had to exist FIRST to build a workflow that follows documented methodologies.
+
+### Layer 2: Workflow Execution (Run Time)
+Users run the pre-built workflow. Agents WITHIN the workflow query the knowledge base contextually, with queries conditioned on context accumulated from previous steps.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    BUILD TIME (Author, now)                         │
+│  Knowledge DB ──► Author ONE comprehensive BMAD AI-Eng Workflow     │
+│                   (structure, agents, steps grounded in literature) │
+└─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    RUN TIME (Users, later)                          │
+│                                                                     │
+│  Step 1: Gather Requirements ──► Agent queries knowledge with       │
+│          (context: chatbot)       current project context           │
+│                │                                                    │
+│                ▼                                                    │
+│  Step 2: Design RAG ──────────► Agent queries: "chunking strategy   │
+│          (context: chatbot +      for [doc type] with [constraints]"│
+│           eval requirements)                                        │
+│                │                                                    │
+│                ▼                                                    │
+│  Step 3: Select Stack ────────► Agent queries conditioned on ALL    │
+│          (context: accumulated)   previous decisions                │
+│                                                                     │
+│  Each agent's query is CONDITIONAL on accumulated context           │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Why This Architecture Works
+
+| Factor | Explanation |
+|--------|-------------|
+| **Structure is fixed** | BMAD provides the skeleton - knowledge fills in best practices |
+| **Context accumulates** | Each step knows what came before - queries are targeted |
+| **One workflow, deep** | Iterate and refine ONE workflow until excellent |
+| **Knowledge as augmentation** | Agents surface relevant info at the right moment |
+| **Human-authored structure** | Human expertise structures flow; knowledge grounds details |
+
+### The Chicken-and-Egg Problem Solved
+
+```
+Problem:
+  "I need a workflow to build AI systems"
+    └── But workflows should follow best practices
+        └── But best practices are scattered across books
+            └── But I can't read everything → STUCK
+
+Solution:
+  1. Build pipeline to extract best practices (Epic 1-4) ✅
+  2. Use extracted knowledge to author workflow (Epic 6+)
+  3. Embed knowledge access INTO the workflow agents
+  4. Workflow becomes self-documenting AND contextually intelligent
+```
+
+**The pipeline is not overhead - it's the prerequisite for building a knowledge-grounded workflow.**
+
 ## Cost Model Clarification
 
 **One-time extraction (Epic 2 & 3):** Uses `LLMClient` with Anthropic API to extract structured knowledge from raw chunks. This incurs API costs during database population.
@@ -42,9 +107,17 @@ Add to your Claude config (`claude_desktop_config.json`):
 
 ## Current Status
 
-**Phase:** Epic 5 - Production Deployment
+**Phase:** Epic 5 - Production Deployment (Pipeline Complete)
+**Next Phase:** Epic 6 - AI Engineering Workflow Authoring
 **Deployed:** MCP Server live on Railway
 **Completed:** Epics 1-4, Stories 5.2-5.5
+
+### Upcoming: Knowledge Ingestion & Workflow Creation
+
+With the pipeline infrastructure complete, the next phase involves:
+1. **Ingesting AI engineering literature** - MLOps books, RAG papers, agent patterns, evaluation frameworks
+2. **Authoring the BMAD AI-Eng workflow** - Using extracted knowledge to ground each step
+3. **Embedding MCP queries into workflow agents** - Contextual knowledge access at runtime
 
 ## Key Artifacts
 
@@ -121,7 +194,37 @@ packages/
 | `get_warnings` | Anti-patterns and pitfalls to avoid |
 | `list_sources` | List all knowledge sources |
 
+## Knowledge Resource Categories
+
+The following categories of AI engineering literature will be ingested to ground the workflow:
+
+| Category | Content Type | Purpose in Workflow |
+|----------|--------------|---------------------|
+| **MLOps/LLMOps Methodology** | Maturity models, lifecycle stages | Structure workflow phases |
+| **RAG Architecture** | Chunking, retrieval, reranking patterns | Design retrieval systems |
+| **Agent Patterns** | ReAct, multi-agent, tool use | Build agentic features |
+| **Evaluation Frameworks** | Metrics, benchmarks, LLM-as-judge | Quality assurance steps |
+| **Fine-tuning Decision Trees** | When to customize vs prompt vs RAG | Model selection guidance |
+| **Production Infrastructure** | Serving, caching, scaling | Deployment decisions |
+| **Data Engineering** | Pipelines, versioning, quality | Data preparation steps |
+| **Safety & Governance** | Compliance, bias, guardrails | Risk management |
+
+### Key Source Materials
+
+- **Books:** "Designing ML Systems", "LLM Engineer's Handbook", "Building LLM Apps", "Practical MLOps"
+- **Papers:** RAG surveys, agent architecture papers, evaluation benchmarks
+- **Guides:** Anthropic cookbook, framework documentation (LangChain, LlamaIndex)
+- **Standards:** NIST AI RMF, ML Model Cards
+
+## Known Issues
+
+See `_bmad-output/docs/known-issues.md` for documented bugs and workarounds, including:
+
+- **Docling PDF parsing failure** with FrameMaker PDFs (hierarchical page tree bug)
+  - Workaround: Use `pdftotext` to extract, then ingest the text file
+
 ---
 
 **Full architecture:** `_bmad-output/architecture.md`
 **Implementation rules:** `_bmad-output/project-context.md`
+**Known issues:** `_bmad-output/docs/known-issues.md`

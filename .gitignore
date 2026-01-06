@@ -32,3 +32,5 @@ data/embeddings/
 # OS
 .DS_Store
 Thumbs.db
+
+newcode
