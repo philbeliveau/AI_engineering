@@ -53,6 +53,14 @@ Load and fully embody the agent persona from `{workflow_path}/agents/fine-tuning
 **File:** `{output_folder}/{project_name}/decision-log.md`
 **Read:** Previous decisions (ARCH-001, DATA-*, EMB-* decisions)
 
+### 6. Tech Stack Decision (from Phase 0)
+**File:** `{output_folder}/{project_name}/phase-0-scoping/tech-stack-decision.md`
+**Read:**
+- Training infrastructure preferences
+- Compute constraints (GPU type, budget)
+- Experiment tracking tool choice
+- MLOps platform selection
+
 **Validation:** Confirm architecture is "fine-tuning" or "hybrid" - if "rag-only", this step should be skipped.
 
 ---
@@ -169,40 +177,59 @@ Let's start with the data - tell me about what you have."
 
 ### 2. Query Knowledge MCP for Methodologies
 
-**MANDATORY QUERIES** - Execute and synthesize:
+**Context Variables to Use:**
+- `{architecture}` from sidecar.yaml (must be "fine-tuning" or "hybrid")
+- `{use_case}` from business-requirements.md
+- `{data_volume}` from data-pipeline-spec.md (if exists) or user input
+- `{compute_constraints}` from tech-stack-decision.md
 
-**Query 1: Fine-tuning Methodologies**
+**MANDATORY QUERIES** - Execute and synthesize (contextualized):
+
+**Query 1: Fine-tuning Methodologies (Contextualized)**
 ```
 Endpoint: search_knowledge
-Query: "QLoRA LoRA fine-tuning rank alpha configuration"
+Query: "fine-tuning {task_type} {data_volume} {compute_constraint}"
+Examples:
+  - "fine-tuning instruction-following 5000-examples single-gpu"
+  - "fine-tuning code-generation 50000-examples multi-gpu"
+  - "fine-tuning domain-adaptation limited-data QLoRA"
 ```
 
-**Query 2: Training Approach Decision**
+**Query 2: Training Approach Decision (Contextualized)**
 ```
 Endpoint: get_decisions
-Topic: "SFT vs DPO"
+Topic: "SFT vs DPO {use_case} {data_availability}"
+Examples:
+  - "SFT vs DPO chatbot preference-data-available"
+  - "SFT vs DPO instruction-following SFT-data-only"
 ```
 
-**Query 3: Training Warnings**
+**Query 3: Training Warnings (Contextualized)**
 ```
 Endpoint: get_warnings
-Topic: "fine-tuning"
+Topic: "fine-tuning {task_type} {model_size}"
+Examples:
+  - "fine-tuning instruction-following 7B"
+  - "fine-tuning code-generation 13B overfitting"
 ```
 
-**Query 4: Dataset Creation**
+**Query 4: Dataset Creation (Contextualized)**
 ```
 Endpoint: search_knowledge
-Query: "instruction dataset creation training data quality"
+Query: "instruction dataset creation {domain} {data_source_type}"
+Examples:
+  - "instruction dataset creation medical expert-annotation"
+  - "instruction dataset creation code synthetic-generation"
 ```
 
 **Synthesis Approach:**
-1. Extract **LoRA/QLoRA configuration patterns** (rank, alpha, target modules)
-2. Understand **SFT vs DPO decision criteria**
-3. Surface **dataset quality requirements** (this is often the hardest part)
-4. Note **common fine-tuning mistakes** to avoid
+1. Extract **LoRA/QLoRA configuration patterns** specific to your model size and task
+2. Understand **SFT vs DPO decision criteria** given your data availability
+3. Surface **dataset quality requirements** for your domain
+4. Note **common fine-tuning mistakes** relevant to your constraints
 
 Present synthesized insights:
-"Here's what the knowledge base tells us about fine-tuning approaches..."
+"Based on your {architecture} architecture with {data_volume} examples for {use_case}, here's what the knowledge base recommends..."
 
 **Critical Warning to Surface:**
 > Creating instruction datasets is often the most difficult part of fine-tuning. Natural instruction-answer pairs are rare - data must be transformed and quality-checked extensively.
@@ -251,27 +278,57 @@ If data is insufficient:
 | Factor | Consideration |
 |--------|---------------|
 | **Size** | 7B, 13B, 70B - trade-off between capability and cost |
-| **License** | Commercial use allowed? (Llama 2, Mistral, Falcon) |
+| **License** | Commercial use allowed? |
 | **Architecture** | Decoder-only (GPT-like) vs Encoder-decoder |
 | **Pre-training Data** | Domain relevance of base knowledge |
 | **Instruction Tuning** | Already instruction-tuned or base? |
 | **Context Length** | Maximum tokens per input |
 
-**B. Recommended Models**
+**B. Query Knowledge MCP for Model Recommendations (Contextualized)**
 
-| Model | Size | License | Strengths |
-|-------|------|---------|-----------|
-| **Llama 2/3** | 7B-70B | Meta license | Strong general capability |
-| **Mistral** | 7B | Apache 2.0 | Efficient, good quality |
-| **Qwen** | 7B-72B | Apache 2.0 | Strong reasoning |
-| **Falcon** | 7B-180B | Apache 2.0 | Large pre-training corpus |
-| **CodeLlama** | 7B-34B | Meta license | Code-specialized |
+Based on your requirements from loaded context:
+- Use case: `{use_case}` from business-requirements.md
+- Compute: `{gpu_constraints}` from tech-stack-decision.md
+- License needs: `{license_requirement}` from business-requirements.md
+- Domain: `{domain}` from business-requirements.md
+
+**Query 1: Base Model Selection**
+```
+Endpoint: get_decisions
+Topic: "base model selection {size_constraint} {license_requirement} {domain}"
+Examples:
+  - "base model selection 7B Apache-2.0 code-generation"
+  - "base model selection 13B commercial-license medical-domain"
+  - "base model selection edge-device permissive-license chatbot"
+```
+
+**Query 2: Model Selection Patterns**
+```
+Endpoint: get_patterns
+Topic: "LLM model selection fine-tuning {task_type}"
+```
+
+**Synthesis Approach:**
+1. Extract model recommendations specific to your constraints
+2. Present trade-offs between capability, cost, and licensing
+3. Surface any domain-specific considerations
+4. Note community support and fine-tuning ecosystem maturity
+
+**Present to user:** "Based on your constraints ({size}, {license}, {domain}), the knowledge base recommends... Let me explain the trade-offs."
 
 Ask: "What base model constraints do you have? (Size limits, licensing, domain requirements)"
 
 ### 5. Training Approach Selection
 
-**A. SFT (Supervised Fine-Tuning)**
+**Conditional Path Based on Data Assessment:**
+
+Based on the data availability check from Section 3, follow the appropriate path:
+
+---
+
+**IF sufficient SFT data (>1000 instruction pairs):**
+
+**A. SFT (Supervised Fine-Tuning) - PRIMARY PATH**
 
 "SFT teaches the model to follow instructions using example pairs."
 
@@ -280,12 +337,25 @@ Input: "Summarize this document: [doc]"
 Output: "[summary]"
 ```
 
+**Query Knowledge MCP:**
+```
+Endpoint: search_knowledge
+Query: "SFT training {data_volume} {domain}"
+Example: "SFT training 5000-examples customer-support"
+```
+
 **When to use:**
 - You have high-quality instruction-response pairs
 - Task is well-defined (classification, extraction, generation)
 - Need consistent output format
 
-**B. DPO (Direct Preference Optimization)**
+Proceed with SFT design in Section 6.
+
+---
+
+**IF preference data available (chosen/rejected pairs):**
+
+**B. DPO (Direct Preference Optimization) - ALIGNMENT PATH**
 
 "DPO aligns the model using preference data (chosen vs rejected)."
 
@@ -295,18 +365,75 @@ Chosen: [Good, helpful response]
 Rejected: [Poor, unhelpful response]
 ```
 
+**Query Knowledge MCP:**
+```
+Endpoint: search_knowledge
+Query: "DPO training {preference_data_volume} {alignment_goal}"
+Example: "DPO training 3000-pairs helpfulness-alignment"
+```
+
+**Query Warnings:**
+```
+Endpoint: get_warnings
+Topic: "DPO training preference data quality"
+```
+
 **When to use:**
 - You have preference data or can generate it
 - Need subtle behavior alignment
 - Want to reduce harmful outputs
 
-**C. Combined Approach**
+Consider combined approach (SFT + DPO) if both data types exist.
+
+---
+
+**IF data insufficient (<1000 examples):**
+
+**C. DATA INSUFFICIENT PATH - CRITICAL DECISION**
+
+**Query Knowledge MCP for Warning:**
+```
+Endpoint: get_warnings
+Topic: "fine-tuning insufficient data small dataset"
+```
+
+**Present to user:** "Your current data volume ({data_volume}) may be insufficient for effective fine-tuning. The knowledge base warns about overfitting and poor generalization with small datasets."
+
+**Options to Discuss:**
+
+1. **Data Augmentation Strategy**
+   - Query: `search_knowledge` with "synthetic data generation fine-tuning {domain}"
+   - Generate synthetic examples using larger models
+   - Use paraphrasing and back-translation
+
+2. **Human Annotation Investment**
+   - Estimate cost and time for annotation
+   - Define quality criteria
+   - Consider active learning approach
+
+3. **RAG-First, Fine-Tune Later**
+   - Start with RAG architecture (Step 6 becomes primary)
+   - Collect user interactions as training data
+   - Return to fine-tuning when data threshold met
+   - Query: `get_patterns` with "RAG to fine-tuning transition"
+
+Ask: "Given your data situation, which path makes sense for your timeline and budget?"
+
+---
+
+**D. Combined Approach (If Both SFT + Preference Data Available)**
 
 "SFT first for capability, then DPO for alignment."
 
 ```
 Stage 1: SFT → Task capability
 Stage 2: DPO → Behavior refinement
+```
+
+**Query Knowledge MCP:**
+```
+Endpoint: get_patterns
+Topic: "SFT DPO combined training pipeline"
 ```
 
 Ask: "Based on your data and goals, which approach fits best?"
@@ -321,29 +448,49 @@ Ask: "Based on your data and goals, which approach fits best?"
 | **LoRA** | Low | Fast | Training speed priority, sufficient VRAM |
 | **QLoRA** | Very Low | Medium | Memory constraints primary concern |
 
-**B. LoRA Configuration**
+**B. Query Knowledge MCP for PEFT Configuration (Contextualized)**
 
-| Parameter | Starting Point | Guidance |
-|-----------|---------------|----------|
-| **rank (r)** | 4-16 | Increase for complex tasks (up to 256) |
-| **alpha (α)** | 2 × rank | Common heuristic: if r=8, then α=16 |
-| **dropout** | 0 to 0.1 | Optional regularization |
+Based on your model and task:
+- Model size: `{model_size}` from base model selection
+- Task type: `{task_type}` from business-requirements.md
+- Compute: `{gpu_type}` and `{vram_available}` from tech-stack-decision.md
 
-**Target Modules:**
+**Query 1: LoRA/QLoRA Configuration Patterns**
+```
+Endpoint: get_patterns
+Topic: "LoRA QLoRA configuration {model_size} {task_type}"
+Examples:
+  - "LoRA QLoRA configuration 7B instruction-following"
+  - "LoRA QLoRA configuration 13B code-generation"
+  - "QLoRA configuration 70B single-gpu"
+```
+
+**Query 2: PEFT Decisions**
+```
+Endpoint: get_decisions
+Topic: "LoRA vs QLoRA vs full fine-tuning {compute_constraint}"
+```
+
+**Query 3: PEFT Warnings**
+```
+Endpoint: get_warnings
+Topic: "LoRA fine-tuning pitfalls"
+```
+
+**Key Patterns from Knowledge Base:**
+> LoRA rank and alpha should be tuned based on task complexity. The knowledge base recommends starting with r=8, alpha=16 for simple tasks, scaling up for complex adaptations. Target modules selection depends on model architecture.
+
+**Synthesis Approach:**
+1. Match PEFT method to your compute constraints
+2. Determine optimal rank/alpha based on task complexity
+3. Identify target modules for your model architecture
+4. Surface any warnings about common configuration mistakes
+
+**Discuss with user:** "Given your {task_type} and {model_size} on {gpu_type}, let's determine the right PEFT configuration. The knowledge base suggests..."
+
+**Target Modules (architecture-dependent):**
 - **Attention layers**: q_proj, v_proj, k_proj, o_proj (standard)
 - **MLP layers**: gate_proj, up_proj, down_proj (extended adaptation)
-
-```yaml
-lora_config:
-  r: 8
-  alpha: 16
-  dropout: 0.05
-  target_modules:
-    - q_proj
-    - v_proj
-    - k_proj
-    - o_proj
-```
 
 Ask: "What compute resources do you have? This determines our PEFT approach."
 
@@ -569,7 +716,7 @@ stories:
 
 ### 11. Present MENU OPTIONS
 
-Display: **Step 5 Complete - Select an Option:** [A] Analyze training decisions further [P] View progress [C] Continue to Step 6 (RAG Specialist)
+Display: **Step 5 Complete - Select an Option:** [A] Analyze training decisions further [Q] Re-query Knowledge MCP with different constraints [P] View progress [C] Continue to Step 6 (RAG Specialist)
 
 #### EXECUTION RULES:
 
@@ -580,6 +727,16 @@ Display: **Step 5 Complete - Select an Option:** [A] Analyze training decisions 
 #### Menu Handling Logic:
 
 - IF A: Revisit training decisions, allow refinement, then redisplay menu
+- IF Q: **Re-query with Modified Constraints**
+  1. Ask user which constraints to modify:
+     - Compute budget (GPU type, training time)
+     - Data volume assumptions
+     - Quality vs speed trade-offs
+     - Model size constraints
+  2. Re-run Knowledge MCP queries with updated constraints
+  3. Present updated recommendations with explanation of what changed
+  4. Allow user to revise training decisions based on new insights
+  5. Redisplay menu
 - IF P: Show training-spec.md and decision-log.md summaries, then redisplay menu
 - IF C:
   1. Verify sidecar is updated with training decisions and stories

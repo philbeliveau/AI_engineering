@@ -47,6 +47,14 @@ Load and fully embody the agent persona from `{workflow_path}/agents/embeddings-
 **File:** `{output_folder}/{project_name}/decision-log.md`
 **Read:** Previous decisions (ARCH-001, DATA-* decisions)
 
+### 5. Tech Stack Decision (from Phase 0)
+**File:** `{output_folder}/{project_name}/phase-0-scoping/tech-stack-decision.md`
+**Read:**
+- Vector database selection (already decided!)
+- Orchestration tool choice
+- Embedding model preferences (if specified)
+- Infrastructure constraints
+
 **Validation:** Confirm data pipeline spec is complete before designing embeddings strategy.
 
 ---
@@ -123,79 +131,102 @@ Let's start with chunking - the most underrated part of RAG systems."
 
 ### 2. Query Knowledge MCP for Embedding Patterns
 
-**MANDATORY QUERIES** - Execute before gathering requirements:
+**MANDATORY QUERIES** - Execute with project context:
 
-**Query 1: Chunking Strategies**
+**Context Variables to Use:**
+- `{architecture}` from sidecar.yaml (rag-only, fine-tuning, hybrid)
+- `{document_types}` from data-pipeline-spec.md (e.g., technical-docs, code, legal)
+- `{vector_db}` from tech-stack-decision.md (if already chosen)
+- `{privacy_requirement}` gathered from user (on-premise, cloud-ok)
+- `{budget_tier}` gathered from user (low, medium, high)
+- `{latency_requirement}` gathered from user (real-time, batch)
+
+**Query 1: Chunking Strategies (Contextualized)**
 ```
 Endpoint: get_patterns
-Topic: "chunking"
+Topic: "chunking {document_type} {architecture}"
+Example: "chunking technical-documentation rag-only"
+Example: "chunking code-files hybrid"
 ```
 
-**Query 2: Embedding Models**
+**Query 2: Embedding Models (Contextualized)**
 ```
 Endpoint: search_knowledge
-Query: "embedding model selection comparison"
+Query: "embedding model {use_case} {privacy_requirement} {budget_tier}"
+Example: "embedding model enterprise-search on-premise medium-budget"
+Example: "embedding model multilingual cloud-ok high-quality"
 ```
 
-**Query 3: Embedding Warnings**
+**Query 3: Embedding Warnings (Contextualized)**
 ```
 Endpoint: get_warnings
-Topic: "embeddings"
+Topic: "embeddings {architecture} {document_type}"
+Example: "embeddings rag-only technical-docs"
 ```
 
-**Query 4: Vector Database Patterns**
+**Query 4: Vector Database Patterns (Contextualized)**
 ```
 Endpoint: get_patterns
-Topic: "vector database"
+Topic: "vector database {scale} {query_pattern}"
+Example: "vector database high-scale filtered-search"
+Example: "vector database low-latency hybrid-search"
 ```
 
 **Synthesis Approach:**
-1. Extract **chunking method options** (fixed, recursive, semantic)
-2. Identify **embedding model trade-offs** (quality vs speed vs cost)
-3. Surface **critical warnings** about embedding pitfalls
-4. Note **vector DB considerations** for scale and performance
+1. Extract **chunking method options** specific to {document_types}
+2. Identify **embedding model trade-offs** given {privacy_requirement} and {budget_tier}
+3. Surface **critical warnings** about embedding pitfalls for {architecture}
+4. Note **vector DB considerations** aligned with tech-stack-decision.md
 
 Present synthesized insights:
-"Here's what the knowledge base tells us about embeddings..."
+"Based on your {architecture} architecture with {document_types} documents, here's what the knowledge base recommends..."
 
-**Key Pattern to Surface:**
+**Key Pattern to Surface (Example - will vary by context):**
 > Recursive chunking splits documents using multiple separators (paragraphs, sentences, words) to maintain semantic boundaries. This outperforms fixed-size chunking for most document types.
 
-**Key Warning to Surface:**
+**Key Warning to Surface (Example - will vary by context):**
 > Embedding model migration is expensive - changing models invalidates your entire vector database. Plan for versioning from the start.
 
 ### 3. Chunking Strategy Design
 
 **A. Chunking Method Selection**
 
-"Let's choose your chunking approach:"
+**Query Knowledge MCP (Contextualized):**
+Based on your document types and constraints:
+- Document types: `{document_types}` from data-pipeline-spec.md
+- Architecture: `{architecture}` from sidecar.yaml
+- Update frequency: `{update_frequency}` from data-pipeline-spec.md
 
-| Method | Description | Best For |
-|--------|-------------|----------|
-| **Fixed-size** | Split at character/token count | Simple documents, code |
-| **Recursive** | Split by separators hierarchically | General documents |
-| **Semantic** | Split by meaning boundaries | Complex narratives |
-| **Document-aware** | Respect document structure | PDFs, HTML with headers |
-| **Sentence-based** | Split at sentence boundaries | Legal, technical docs |
+```
+Query: get_patterns with topic: "chunking {document_type} {architecture}"
+Example: "chunking technical-documentation rag-only"
+```
+
+The knowledge base will return chunking patterns specific to your situation - methods may include fixed-size, recursive, semantic, document-aware, or sentence-based approaches.
+
+**Discuss with user:** "Based on your {document_types}, the knowledge base recommends [synthesized recommendation]. What are your priorities: precision, context preservation, or processing speed?"
 
 Ask: "What type of content are you chunking? How structured is it?"
 
 **B. Chunk Size Optimization**
 
-Present the trade-offs:
-
-| Chunk Size | Pros | Cons |
-|------------|------|------|
-| **Small (100-256 tokens)** | Precise retrieval, lower cost | May lose context |
-| **Medium (256-512 tokens)** | Good balance | Standard choice |
-| **Large (512-1024 tokens)** | More context | Lower precision, higher cost |
-
-**Overlap Considerations:**
+**Query Knowledge MCP for Size Recommendations:**
 ```
-Overlap = 10-20% of chunk size (typical)
-Too little: Miss context at boundaries
-Too much: Duplicate content, higher costs
+Query: get_decisions with topic: "chunk size {document_type} {use_case}"
+Query: get_warnings with topic: "chunk size {architecture}"
 ```
+
+Present trade-offs from knowledge base synthesis:
+- Smaller chunks (100-256 tokens): Better precision, may lose context
+- Medium chunks (256-512 tokens): Balanced approach
+- Larger chunks (512-1024 tokens): More context, lower precision
+
+**Query for Overlap Patterns:**
+```
+Query: get_patterns with topic: "chunk overlap semantic boundaries"
+```
+
+The knowledge base contains patterns for overlap strategies specific to different document types.
 
 Ask: "For your use case, is precision or context more important? What's your cost sensitivity?"
 
@@ -222,30 +253,45 @@ chunking:
 
 **A. Model Comparison**
 
-"Let's select your embedding model:"
+**Query Knowledge MCP (Contextualized):**
+Based on your constraints from gathered context:
+- Privacy requirement: `{privacy_requirement}` (on-premise vs cloud-ok)
+- Budget tier: `{budget_tier}` (low, medium, high)
+- Languages: `{languages}` from data-pipeline-spec.md
+- Domain: `{domain}` (general, code, legal, medical, etc.)
 
-| Model | Dimensions | Context | Speed | Cost | Quality |
-|-------|------------|---------|-------|------|---------|
-| **OpenAI text-embedding-3-small** | 1536 | 8K | Fast | $0.02/1M | Good |
-| **OpenAI text-embedding-3-large** | 3072 | 8K | Fast | $0.13/1M | Excellent |
-| **Cohere embed-v3** | 1024 | 512 | Fast | $0.10/1M | Excellent |
-| **Voyage AI voyage-large-2** | 1024 | 16K | Medium | $0.12/1M | Excellent |
-| **nomic-embed-text** | 768 | 8K | Fast | Free (local) | Good |
-| **BGE-large-en-v1.5** | 1024 | 512 | Medium | Free (local) | Good |
-| **E5-mistral-7b-instruct** | 4096 | 32K | Slow | Free (local) | Excellent |
+```
+Query: search_knowledge "embedding model {privacy_requirement} {budget_tier} {domain}"
+Example: "embedding model on-premise medium-budget technical-docs"
+Example: "embedding model cloud-ok low-budget multilingual"
+```
+
+```
+Query: get_decisions with topic: "embedding model selection {use_case}"
+Example: "embedding model selection enterprise-rag"
+```
+
+The knowledge base will return model recommendations with current benchmarks, costs, and trade-offs specific to your situation.
+
+**Discuss with user:** "Based on your {privacy_requirement} and {budget_tier} constraints, here are the top recommendations from the knowledge base: [synthesized list]. What are your priorities: quality, cost, latency, or data privacy?"
 
 Ask: "What are your priorities: quality, cost, latency, or data privacy (local models)?"
 
 **B. Model Selection Criteria**
 
-| Factor | Question | Impact |
-|--------|----------|--------|
-| **Domain** | Specialized terminology? | May need domain-specific model |
-| **Languages** | Multi-lingual content? | Need multilingual model |
-| **Context length** | Long documents? | Need large context window |
-| **Privacy** | Data can leave your infra? | Local vs API model |
-| **Scale** | How many embeddings? | Cost considerations |
-| **Latency** | Real-time embedding needed? | Local may be faster |
+**Query Knowledge MCP for Selection Framework:**
+```
+Query: get_patterns with topic: "embedding model selection criteria"
+Query: get_warnings with topic: "embedding model {domain}"
+```
+
+Key factors to discuss (synthesized from knowledge base):
+- **Domain:** Specialized terminology may need domain-specific model
+- **Languages:** Multi-lingual content needs multilingual model
+- **Context length:** Long documents need large context window
+- **Privacy:** Data sensitivity determines local vs API model
+- **Scale:** Volume affects cost considerations
+- **Latency:** Real-time needs may favor local models
 
 **C. Embedding Configuration**
 
@@ -266,29 +312,61 @@ embedding:
 
 ### 5. Vector Database Configuration
 
-**A. Vector DB Selection**
+**IMPORTANT:** Check tech-stack-decision.md first!
 
-"Let's choose your vector storage:"
+**IF vector_db already selected in Phase 0 (Step 02):**
+- Load the chosen database configuration from tech-stack-decision.md
+- Focus on INDEXING and OPTIMIZATION, not selection
+- Present: "Your tech stack decision selected {vector_db}. Let's optimize its configuration for your embedding dimensions and query patterns..."
+- Skip to Section B (Indexing Strategy)
 
-| Database | Type | Scalability | Features | Best For |
-|----------|------|-------------|----------|----------|
-| **Qdrant** | Dedicated | High | Filtering, payloads | Production RAG |
-| **Pinecone** | Managed | Very High | Serverless, namespaces | Scale + simplicity |
-| **Weaviate** | Dedicated | High | GraphQL, modules | Complex queries |
-| **Milvus** | Dedicated | Very High | GPU support | Large scale |
-| **Chroma** | Embedded | Low | Simple API | Prototyping |
-| **pgvector** | Extension | Medium | SQL integration | Existing Postgres |
+**IF vector_db NOT yet selected:**
+- Query Knowledge MCP for recommendations
+- Make selection collaboratively with user
+- Continue with Section A below
+
+**A. Vector DB Selection (Only if not already decided)**
+
+**Query Knowledge MCP (Contextualized):**
+Based on your constraints:
+- Scale: `{expected_volume}` from data-pipeline-spec.md
+- Hosting preference: `{hosting}` (managed vs self-hosted)
+- Query patterns: `{query_patterns}` (filtering, hybrid search, etc.)
+- Budget: `{budget_tier}` gathered from user
+
+```
+Query: get_patterns with topic: "vector database {scale} {hosting}"
+Example: "vector database high-scale managed"
+Example: "vector database medium-scale self-hosted"
+```
+
+```
+Query: get_decisions with topic: "vector database selection {use_case}"
+Query: get_warnings with topic: "vector database {scale}"
+```
+
+The knowledge base will return database recommendations specific to your scale and hosting requirements.
+
+**Discuss with user:** "Based on your scale requirements and hosting preference, here's what the knowledge base recommends: [synthesized recommendation]. What's your priority: scalability, cost, or feature richness?"
 
 Ask: "What scale do you anticipate? Do you need managed or self-hosted?"
 
 **B. Indexing Strategy**
 
-| Index Type | Speed | Recall | Memory | Best For |
-|------------|-------|--------|--------|----------|
-| **Flat (exact)** | Slow | 100% | High | <100K vectors |
-| **IVF** | Fast | ~95% | Medium | 100K-10M vectors |
-| **HNSW** | Very Fast | ~99% | High | Production |
-| **PQ (compressed)** | Fast | ~90% | Low | Cost-sensitive |
+**Query Knowledge MCP for Indexing Patterns:**
+```
+Query: get_patterns with topic: "vector index {vector_db} {scale}"
+Example: "vector index qdrant production-scale"
+Query: get_decisions with topic: "vector indexing {recall_requirement}"
+```
+
+Key indexing options (from knowledge base synthesis):
+- **Flat (exact):** 100% recall, slower, best for <100K vectors
+- **IVF:** ~95% recall, fast, best for 100K-10M vectors
+- **HNSW:** ~99% recall, very fast, best for production
+- **PQ (compressed):** ~90% recall, fast, best for cost-sensitive
+
+The knowledge base will return specific tuning parameters for your chosen {vector_db}.
 
 **C. Vector DB Configuration**
 
@@ -525,7 +603,7 @@ stories:
 - If RAG-only: Next = Step 6 (RAG Specialist) - Skip Step 5
 - If Fine-tuning or Hybrid: Next = Step 5 (Fine-Tuning Specialist)
 
-Display: **Step 4 Complete - Select an Option:** [A] Analyze embeddings further [P] View progress [C] Continue to Step {5 or 6}
+Display: **Step 4 Complete - Select an Option:** [A] Analyze embeddings further [Q] Re-query Knowledge MCP with different constraints [P] View progress [C] Continue to Step {5 or 6}
 
 #### EXECUTION RULES:
 
@@ -536,6 +614,7 @@ Display: **Step 4 Complete - Select an Option:** [A] Analyze embeddings further 
 #### Menu Handling Logic:
 
 - IF A: Revisit embedding decisions, allow refinement, then redisplay menu
+- IF Q: Ask user to modify constraints (document types, budget tier, privacy requirements, latency needs, scale expectations), then re-run Knowledge MCP queries with new parameters, present updated recommendations, then redisplay menu
 - IF P: Show embeddings-spec.md and decision-log.md summaries, then redisplay menu
 - IF C:
   1. Verify sidecar is updated with embedding decisions and stories

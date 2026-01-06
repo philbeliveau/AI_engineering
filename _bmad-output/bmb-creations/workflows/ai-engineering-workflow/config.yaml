@@ -54,14 +54,15 @@ architecture_options:
 # Phase Structure
 # ---------------
 # Each project creates these phase folders for organized outputs.
+# Note: Steps 2 and 3 are split (2A/2B, 3A/3B) for context management.
 phase_folders:
   - name: "phase-0-scoping"
     description: "Business requirements and architecture decisions"
-    steps: [1, 2]
+    steps: [1, "2a", "2b"]
 
   - name: "phase-1-feature"
     description: "Data pipeline, chunking, embeddings"
-    steps: [3, 4]
+    steps: ["3a", "3b", 4]
 
   - name: "phase-2-training"
     description: "Fine-tuning configuration (conditional)"
@@ -104,21 +105,43 @@ agents:
 # Step Sequence
 # -------------
 # Defines the step execution order and files.
+# Steps 2 and 3 are split for context management - each sub-step outputs
+# a file that the next sub-step reads, allowing context clearing between them.
 steps:
   1:
     file: "0-scoping/step-01-business-analyst.md"
     agent: "business-analyst.md"
     phase: "phase-0-scoping"
 
-  2:
-    file: "0-scoping/step-02-fti-architect.md"
+  "2a":
+    file: "0-scoping/step-02a-fti-architect.md"
     agent: "fti-architect.md"
     phase: "phase-0-scoping"
+    output: "architecture-decision.md"
+    context_clear_recommended: true
 
-  3:
-    file: "1-feature/step-03-data-engineer.md"
+  "2b":
+    file: "0-scoping/step-02b-tech-stack.md"
+    agent: "fti-architect.md"
+    phase: "phase-0-scoping"
+    reads_from: "architecture-decision.md"
+    output: "tech-stack-decision.md"
+    context_clear_recommended: true
+
+  "3a":
+    file: "1-feature/step-03a-data-requirements.md"
     agent: "data-engineer.md"
     phase: "phase-1-feature"
+    reads_from: ["architecture-decision.md", "tech-stack-decision.md"]
+    output: "data-requirements.md"
+    context_clear_recommended: true
+
+  "3b":
+    file: "1-feature/step-03b-data-pipeline.md"
+    agent: "data-engineer.md"
+    phase: "phase-1-feature"
+    reads_from: "data-requirements.md"
+    output: "data-pipeline-spec.md"
 
   4:
     file: "1-feature/step-04-embeddings-engineer.md"

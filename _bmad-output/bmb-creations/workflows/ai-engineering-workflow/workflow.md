@@ -55,9 +55,11 @@ version: '1.0.0'
 
 | Step | Agent | Icon | Focus | Agent File |
 |------|-------|------|-------|------------|
-| 1 | **Business Analyst** | 📋 | Project init + Stakeholders, use cases, business metrics, success criteria | `agents/business-analyst.md` |
-| 2 | **FTI Architect** | 🏗️ | RAG vs Fine-tuning decision, architecture design | `agents/fti-architect.md` |
-| 3 | **Data Engineer** | 🔧 | Data sources, ingestion, cleaning, quality | `agents/data-engineer.md` |
+| 1 | **Business Analyst** | 📋 | Project init + Stakeholders, use cases, business metrics | `agents/business-analyst.md` |
+| 2A | **FTI Architect** | 🏗️ | Build vs Buy, RAG vs Fine-tuning decision | `agents/fti-architect.md` |
+| 2B | **FTI Architect** | 🏗️ | Tech stack selection | `agents/fti-architect.md` |
+| 3A | **Data Engineer** | 🔧 | Data requirements, feasibility assessment | `agents/data-engineer.md` |
+| 3B | **Data Engineer** | 🔧 | Data pipeline design, ingestion, quality | `agents/data-engineer.md` |
 | 4 | **Embeddings Engineer** | 🧬 | Chunking strategy, embedding model, vector DB | `agents/embeddings-engineer.md` |
 | 5 | **Fine-Tuning Specialist** | 🎯 | SFT/DPO config, dataset prep (CONDITIONAL) | `agents/fine-tuning-specialist.md` |
 | 6 | **RAG Specialist** | 🔍 | RAG pipeline, retrieval, reranking, context | `agents/rag-specialist.md` |
@@ -66,6 +68,8 @@ version: '1.0.0'
 | 9 | **MLOps Engineer** | 🔄 | Monitoring, drift detection, alerting | `agents/mlops-engineer.md` |
 | 10 | **Tech Lead** | 👨‍💼 | Review all, validate, sequence stories, GO/REVISE | `agents/tech-lead.md` |
 | 11 | **Story Elaborator** | - | Transform stories to BMM format, add tasks/dev notes | (embedded) |
+
+**Note:** Steps 2 and 3 are split for context management. Each sub-step outputs a file that the next sub-step reads, allowing context to be cleared between them.
 
 ### Agents Folder Structure
 
@@ -127,13 +131,22 @@ ai-engineering-workflow/
 Each step file's frontmatter includes a `config` reference:
 ```yaml
 ---
-name: 'step-02-fti-architect'
-description: 'FTI Architect: RAG vs Fine-tuning decision'
+name: 'step-02a-fti-architect'
+description: 'FTI Architect Part A: Architecture decision'
 config: '../../config.yaml'
-nextStep: '1-feature/step-03-data-engineer.md'
+nextStep: '0-scoping/step-02b-tech-stack.md'
 outputPhase: 'phase-0-scoping'
 ---
 ```
+
+**Split Steps for Context Management:**
+Steps 2 and 3 are split into sub-steps to optimize context usage:
+- Step 2A: Build vs Buy + Architecture Decision → outputs `architecture-decision.md`
+- Step 2B: Tech Stack Selection → reads from 2A, outputs `tech-stack-decision.md`
+- Step 3A: Data Requirements + Feasibility → outputs `data-requirements.md`
+- Step 3B: Data Pipeline Design → reads from 3A, outputs `data-pipeline-spec.md`
+
+Each sub-step recommends clearing context before proceeding to the next, as all state is persisted to files.
 
 **Benefits:**
 - Single source of truth for paths and settings
@@ -152,14 +165,24 @@ Step 1: BUSINESS ANALYST ──────────────────�
     │   OUTPUT: Business requirements document
     │
     ▼
-Step 2: FTI ARCHITECT ─────────────────────────────────────────────────────────
-    │   HOW: RAG vs Fine-tuning decision, architecture design
-    │   OUTPUT: Architecture decision, technical design + stories
-    │
+Step 2A: FTI ARCHITECT (Architecture) ─────────────────────────────────────────
+    │   Build vs Buy decision, RAG vs Fine-tuning decision
+    │   OUTPUT: architecture-decision.md
+    │   💡 CONTEXT CLEAR RECOMMENDED
     ▼
-Step 3: DATA ENGINEER ─────────────────────────────────────────────────────────
+Step 2B: FTI ARCHITECT (Tech Stack) ───────────────────────────────────────────
+    │   Tech stack selection based on architecture
+    │   OUTPUT: tech-stack-decision.md + stories
+    │   💡 CONTEXT CLEAR RECOMMENDED
+    ▼
+Step 3A: DATA ENGINEER (Requirements) ─────────────────────────────────────────
+    │   Data requirements definition, feasibility assessment
+    │   OUTPUT: data-requirements.md (GO/NO-GO decision)
+    │   💡 CONTEXT CLEAR RECOMMENDED
+    ▼
+Step 3B: DATA ENGINEER (Pipeline) ─────────────────────────────────────────────
     │   Data sources, ingestion pipelines, cleaning, quality checks
-    │   OUTPUT: Data pipeline spec + stories
+    │   OUTPUT: data-pipeline-spec.md + stories
     │
     ▼
 Step 4: EMBEDDINGS ENGINEER ───────────────────────────────────────────────────

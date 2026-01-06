@@ -51,6 +51,14 @@ Load and fully embody the agent persona from `{workflow_path}/agents/rag-special
 **File:** `{output_folder}/{project_name}/decision-log.md`
 **Read:** Previous decisions (ARCH-001, DATA-*, EMB-* decisions)
 
+### 6. Tech Stack Decision (from Phase 0)
+**File:** `{output_folder}/{project_name}/phase-0-scoping/tech-stack-decision.md`
+**Read:**
+- Vector database selected (Qdrant, Pinecone, etc.)
+- Orchestration framework (LangChain, LlamaIndex, etc.)
+- Serving framework choice
+- Reranking model preferences
+
 **Validation:** Confirm embeddings spec is complete before designing RAG pipeline.
 
 ---
@@ -128,46 +136,91 @@ Let's start with understanding your query patterns."
 
 ### 2. Query Knowledge MCP for RAG Patterns
 
-**MANDATORY QUERIES** - Execute before gathering requirements:
+**Context Variables to Use:**
+- `{architecture}` from sidecar.yaml
+- `{vector_db}` from tech-stack-decision.md
+- `{embedding_model}` from embeddings-spec.md
+- `{latency_sla}` from business-requirements.md
+- `{query_patterns}` gathered from user
 
-**Query 1: RAG Pipeline Patterns**
+**MANDATORY QUERIES** - Execute with context before gathering requirements:
+
+**Query 1: RAG Pipeline Patterns (Contextualized)**
 ```
 Endpoint: get_patterns
-Topic: "rag"
+Topic: "rag pipeline {vector_db} {orchestration_tool}"
+Example: "rag pipeline qdrant langchain"
 ```
 
-**Query 2: Retrieval Strategies**
+**Query 2: Retrieval Strategies (Contextualized)**
 ```
 Endpoint: search_knowledge
-Query: "retrieval dense sparse hybrid search reranking"
+Query: "retrieval {query_complexity} {latency_requirement} {vector_db}"
+Example: "retrieval multi-hop-queries 200ms qdrant"
 ```
 
-**Query 3: RAG Warnings**
+**Query 3: RAG Warnings (Contextualized)**
 ```
 Endpoint: get_warnings
-Topic: "rag"
+Topic: "rag {architecture} {vector_db}"
+Example: "rag hybrid pinecone"
 ```
 
-**Query 4: Context Assembly**
+**Query 4: Context Assembly (Contextualized)**
 ```
 Endpoint: search_knowledge
-Query: "context window management assembly RAG"
+Query: "context window {llm_context_size} assembly {architecture}"
+Example: "context window 128k assembly rag-only"
 ```
 
 **Synthesis Approach:**
-1. Extract **retrieval architecture patterns** (dense, sparse, hybrid)
-2. Identify **reranking approaches** and when to use them
-3. Surface **common RAG failure modes**
-4. Note **context assembly best practices**
+1. Extract **retrieval architecture patterns** compatible with {vector_db}
+2. Identify **reranking approaches** that meet {latency_sla}
+3. Surface **common RAG failure modes** for {architecture} systems
+4. Note **context assembly best practices** for {llm_context_size}
 
 Present synthesized insights:
-"Here's what the knowledge base tells us about RAG design..."
+"Based on your **{architecture}** architecture with **{vector_db}** and **{latency_sla}** requirement, here's what the knowledge base recommends..."
 
-**Key Pattern to Surface:**
-> The RAG inference pipeline consists of three main parts: the retrieval module, prompt creation, and answer generation. The retrieval module is the most complex, containing the majority of the code and logic.
+**Key Pattern to Surface (from knowledge - will vary by context):**
+> Query patterns for RAG with {vector_db}: [dynamically retrieved]
 
-**Key Warning to Surface:**
-> Plain vector search can retrieve documents that are semantically similar but contextually irrelevant. Adding metadata filtering and reranking significantly improves relevance.
+**Key Warning to Surface (from knowledge - will vary by context):**
+> Common pitfall for {architecture} with {vector_db}: [dynamically retrieved]
+
+### 2.5 Architecture-Specific RAG Design
+
+**CRITICAL:** Route based on architecture decision from Phase 0.
+
+**IF architecture == "rag-only":**
+- Full RAG pipeline design is required
+- Retrieval is the primary intelligence source
+- Focus on retrieval quality, reranking, and context assembly
+- All sections (3-7) fully apply
+- Query: `get_patterns` with topic: "rag-only pipeline end-to-end"
+
+**IF architecture == "hybrid":**
+- RAG augments fine-tuned model
+- Focus on retrieval for factual grounding only
+- Fine-tuned model handles reasoning; RAG provides facts
+- Query: `search_knowledge` with: "hybrid rag fine-tuned-model integration"
+- Consider: When to retrieve vs. when to rely on model knowledge
+- Simpler context assembly (model already has domain knowledge)
+
+**IF architecture == "fine-tuning" (FT-only):**
+- Minimal RAG (for evaluation retrieval only)
+- May skip this step entirely if no retrieval needed
+- OR design lightweight retrieval for eval baselines only
+- Query: `get_patterns` with topic: "evaluation retrieval baseline"
+- Present option: "Skip to Step 7 if no retrieval component needed"
+
+**Routing Logic:**
+```
+IF architecture == "fine-tuning" AND user confirms no retrieval:
+  → Skip to Step 7 (update sidecar: step_6_skipped: true)
+ELSE:
+  → Continue with full RAG design (sections 3-9)
+```
 
 ### 3. Query Understanding Design
 
@@ -228,30 +281,51 @@ query_processing:
 
 **A. Retrieval Method Selection**
 
-"Choose your retrieval approach:"
+**Query Knowledge MCP (Contextualized):**
+Based on your RAG requirements:
+- Query patterns: {query_types from user discussion}
+- Vector DB: {vector_db from tech-stack-decision}
+- Latency SLA: {latency_requirement from business-requirements}
 
-| Method | How It Works | Best For |
-|--------|--------------|----------|
-| **Dense (Vector)** | Semantic similarity via embeddings | Conceptual queries |
-| **Sparse (BM25)** | Keyword matching | Exact term queries |
-| **Hybrid** | Combine dense + sparse | Best of both worlds |
+```
+Endpoint: get_patterns
+Topic: "retrieval strategy {vector_db} {query_complexity}"
+Example: "retrieval strategy qdrant multi-facet-queries"
+```
 
-**Hybrid Search Configuration:**
+```
+Endpoint: get_decisions
+Topic: "hybrid search dense sparse {vector_db}"
+Example: "hybrid search dense sparse pinecone"
+```
+
+**Synthesis:** Present retrieval options that are compatible with the chosen vector DB and meet latency requirements.
+
+"Based on your **{vector_db}** choice and **{latency_sla}** requirement, here are the retrieval strategies that apply:"
+
+| Method | Compatibility with {vector_db} | Trade-offs |
+|--------|-------------------------------|------------|
+| **Dense (Vector)** | Check native support | Query knowledge for latency characteristics |
+| **Sparse (BM25)** | Check if supported or needs external | Query knowledge for integration patterns |
+| **Hybrid** | Check fusion support | Query knowledge for RRF vs weighted patterns |
+
+**Configuration Template (adapt based on knowledge queries):**
 
 ```yaml
 retrieval:
-  method: "hybrid"
+  method: "[dense | sparse | hybrid]"  # From knowledge-grounded recommendation
+  vector_db: "{vector_db}"  # From tech-stack-decision
   dense:
-    weight: 0.7  # Adjust based on testing
-    top_k: 20
+    weight: "[from knowledge patterns]"
+    top_k: "[from knowledge patterns]"
   sparse:
-    weight: 0.3
-    top_k: 20
-    algorithm: "bm25"
-  fusion: "reciprocal_rank_fusion"  # or weighted_sum
+    weight: "[from knowledge patterns]"
+    top_k: "[from knowledge patterns]"
+    algorithm: "[from knowledge patterns]"
+  fusion: "[from knowledge patterns]"
 ```
 
-Ask: "Do your queries require exact keyword matching, semantic understanding, or both?"
+Ask: "Do your queries require exact keyword matching, semantic understanding, or both? Let me query the knowledge base for patterns specific to your {vector_db} choice."
 
 **B. Retrieval Parameters**
 
@@ -289,17 +363,42 @@ filters:
 
 **A. Reranking Method Selection**
 
-"Reranking improves relevance after initial retrieval:"
+**Query Knowledge MCP for Reranking (Contextualized):**
+```
+Endpoint: get_patterns
+Topic: "reranking {latency_budget} {quality_requirement}"
+Example: "reranking 100ms-budget high-precision"
+```
 
-| Method | Quality | Latency | Cost |
-|--------|---------|---------|------|
-| **None** | Baseline | 0ms | Free |
-| **Cross-encoder** | Excellent | 50-200ms | Moderate |
-| **Cohere Rerank** | Excellent | 100ms | API cost |
-| **LLM-based** | Best | 500ms+ | High |
-| **ColBERT** | Very Good | 20-50ms | Moderate |
+```
+Endpoint: get_warnings
+Topic: "reranking latency quality tradeoffs"
+```
 
-Ask: "What latency can you tolerate? Is reranking quality worth the cost?"
+```
+Endpoint: get_decisions
+Topic: "reranking cross-encoder cohere colbert"
+```
+
+**Conditional Logic:**
+- IF latency_budget < 50ms:
+  - Surface warning: "Reranking adds latency. Consider ColBERT or skip reranking."
+  - Query: "low-latency reranking alternatives colbert"
+- IF quality is paramount:
+  - Recommend cross-encoder or Cohere Rerank
+  - Query: "high-precision reranking cross-encoder cohere"
+- IF cost-sensitive:
+  - Recommend local cross-encoder models
+  - Query: "local reranking models self-hosted"
+
+**Synthesis:** Present reranking options based on:
+1. Your latency budget: {latency_sla from business-requirements}
+2. Quality requirements: {quality_tier from user discussion}
+3. Budget constraints: {budget from business-requirements}
+
+"Based on your **{latency_budget}ms** latency budget and **{quality_requirement}** priority, here are the reranking approaches from the knowledge base:"
+
+Ask: "What latency can you tolerate for reranking? Is reranking quality worth the cost? Let me query for patterns that match your constraints."
 
 **B. Reranking Configuration**
 
@@ -586,7 +685,7 @@ stories:
 
 ### 10. Present MENU OPTIONS
 
-Display: **Step 6 Complete - Select an Option:** [A] Analyze RAG pipeline further [P] View progress [C] Continue to Step 7 (Prompt Engineer)
+Display: **Step 6 Complete - Select an Option:** [A] Analyze RAG pipeline further [Q] Re-query Knowledge MCP with different constraints [P] View progress [C] Continue to Step 7 (Prompt Engineer)
 
 #### EXECUTION RULES:
 
@@ -597,6 +696,17 @@ Display: **Step 6 Complete - Select an Option:** [A] Analyze RAG pipeline furthe
 #### Menu Handling Logic:
 
 - IF A: Revisit RAG decisions, allow refinement, then redisplay menu
+- IF Q:
+  1. Ask user to modify constraints:
+     - "What constraints would you like to change?"
+     - Options: latency budget, quality priority, cost limits, vector DB, reranking preference
+  2. Re-run Knowledge MCP queries with new parameters:
+     - `get_patterns` with updated topic
+     - `get_decisions` with updated constraints
+     - `get_warnings` for new constraint combination
+  3. Present updated recommendations based on new query results
+  4. Allow user to update decisions if desired
+  5. Redisplay menu
 - IF P: Show rag-pipeline-spec.md and decision-log.md summaries, then redisplay menu
 - IF C:
   1. Verify sidecar is updated with RAG pipeline decisions and stories

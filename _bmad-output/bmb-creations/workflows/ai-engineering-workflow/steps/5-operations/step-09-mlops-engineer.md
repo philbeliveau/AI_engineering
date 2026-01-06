@@ -58,6 +58,15 @@ Load and fully embody the agent persona from `{workflow_path}/agents/mlops-engin
 **File:** `{output_folder}/{project_name}/decision-log.md`
 **Read:** All previous decisions for operational context
 
+### 7. Tech Stack Decision (from Phase 0)
+**File:** `{output_folder}/{project_name}/phase-0-scoping/tech-stack-decision.md`
+**Read:**
+- Monitoring tool selected (Datadog, Prometheus, etc.)
+- Orchestration platform (Kubernetes, serverless, etc.)
+- MLOps platform (MLflow, Weights & Biases, etc.)
+- CI/CD platform preferences
+- Cloud provider constraints
+
 **Validation:** Confirm evaluation framework is complete before designing operations.
 
 ---
@@ -130,40 +139,51 @@ Let's design for operational excellence."
 
 ### 2. Query Knowledge MCP for Methodologies
 
+**Context Variables to Use:**
+- `{architecture}` from sidecar.yaml
+- `{monitoring_tool}` from tech-stack-decision.md
+- `{orchestration_platform}` from tech-stack-decision.md
+- `{mlops_platform}` from tech-stack-decision.md
+- `{sla_requirements}` from business-requirements.md
+
 **MANDATORY QUERIES** - Execute and synthesize:
 
-**Query 1: Drift Detection Methodology**
+**Query 1: Drift Detection (Contextualized)**
 ```
 Endpoint: search_knowledge
-Query: "monitoring drift detection observability data drift concept drift"
+Query: "drift detection {architecture} {mlops_platform}"
+Example: "drift detection rag-only mlflow"
 ```
 
-**Query 2: Drift Detection Patterns**
+**Query 2: Drift Detection Patterns (Contextualized)**
 ```
 Endpoint: get_patterns
-Topic: "drift"
+Topic: "drift {architecture}"
+Example: "drift rag-only" or "drift fine-tuning"
 ```
 
-**Query 3: MLOps Patterns**
+**Query 3: MLOps Patterns (Contextualized)**
 ```
 Endpoint: get_methodologies
-Topic: "mlops"
+Topic: "mlops {orchestration_platform} {architecture}"
+Example: "mlops kubernetes rag-only"
 ```
 
-**Query 4: Monitoring Warnings**
+**Query 4: Monitoring Warnings (Contextualized)**
 ```
 Endpoint: get_warnings
-Topic: "monitoring"
+Topic: "monitoring {architecture}"
+Example: "monitoring rag-only" or "monitoring fine-tuning"
 ```
 
 **Synthesis Approach:**
-1. Extract **drift types** (data, target, concept) and detection methods
-2. Understand **reference vs test window** pattern
+1. Extract **drift types** (data, target, concept) and detection methods specific to {architecture}
+2. Understand **reference vs test window** pattern for your {mlops_platform}
 3. Surface **hypothesis testing methods** for drift detection
-4. Note **alerting threshold guidance**
+4. Note **alerting threshold guidance** adjusted for {sla_requirements}
 
 Present synthesized insights:
-"Here's what the knowledge base tells us about production monitoring..."
+"Based on your {architecture} architecture using {mlops_platform}, here's what the knowledge base tells us about production monitoring..."
 
 **Key Pattern to Surface:**
 > Drifts are proxy metrics that detect production model issues WITHOUT ground truth labels. Monitor changes in input distribution (data drift), output distribution (target drift), and input-output relationship (concept drift).
@@ -173,13 +193,28 @@ Present synthesized insights:
 
 ### 3. Monitoring Strategy
 
+**Query Knowledge MCP (Contextualized):**
+Based on your infrastructure:
+- Monitoring tool: {monitoring_tool from tech-stack-decision}
+- Cloud provider: {cloud_provider}
+- Architecture: {architecture from sidecar}
+
+Query: `get_patterns` with topic: "monitoring {monitoring_tool} {architecture}"
+Example: "monitoring datadog rag-only"
+
+**Synthesis:** Present monitoring setup specific to chosen tools. Don't suggest alternatives unless asked.
+
+**IF monitoring_tool already selected:**
+- Focus on configuration, not selection
+- "Your tech stack includes {monitoring_tool}. Here's how to configure it for LLM monitoring..."
+
 **A. Observability Pillars**
 
-| Pillar | What to Capture | Tools |
-|--------|-----------------|-------|
-| **Metrics** | Latency, throughput, errors | Prometheus, CloudWatch, Datadog |
-| **Logs** | Requests, responses, errors | ELK, CloudWatch Logs, Loki |
-| **Traces** | Request flow through system | Jaeger, X-Ray, Tempo |
+| Pillar | What to Capture | Configuration |
+|--------|-----------------|---------------|
+| **Metrics** | Latency, throughput, errors | Configure in {monitoring_tool} per knowledge base patterns |
+| **Logs** | Requests, responses, errors | Use {cloud_provider} native or chosen log aggregator |
+| **Traces** | Request flow through system | Configure distributed tracing per {orchestration_platform} |
 
 **B. LLM-Specific Monitoring**
 
@@ -292,18 +327,57 @@ drift_detection:
       - investigate: "manual"
 ```
 
+### 4B. Architecture-Specific Operations
+
+**IF architecture == "rag-only":**
+- Monitor retrieval pipeline health
+- Track embedding freshness
+- Query: "rag operations monitoring retrieval-health"
+- Key metrics: retrieval latency, empty retrieval rate, context utilization
+
+**IF architecture == "fine-tuning":**
+- Monitor model performance drift
+- Track training data distribution
+- Query: "fine-tuned model operations monitoring"
+- Key metrics: output distribution, response quality degradation
+
+**IF architecture == "hybrid":**
+- Monitor both RAG and model components
+- Track interaction between retrieval and generation
+- Query: "hybrid rag fine-tuned operations"
+- Key metrics: combined latency, retrieval-generation alignment
+
+**IF build_vs_buy == "buy":**
+- Focus on API monitoring (rate limits, costs, availability)
+- Query: "external api monitoring cost-tracking"
+- Key metrics: API availability, rate limit usage, cost per request, provider SLA compliance
+
 ### 5. Alerting Configuration
 
-**A. Alert Severity Levels**
+**Query Knowledge MCP for Alert Thresholds:**
+```
+Endpoint: search_knowledge
+Query: "alerting thresholds {architecture} {sla_requirements}"
+```
+
+**Present as recommendations:**
+> Knowledge base suggests for {domain} with {sla_requirements}:
+> - Error rate alert: >{error_threshold}% (adjust based on user traffic patterns)
+> - Latency alert: >{latency_sla * 1.5}ms (based on your SLA)
+> - Cost alert: >{daily_budget * 1.5} (based on your budget)
+
+Allow user to customize thresholds based on their specific situation.
+
+**A. Alert Severity Levels (Contextual)**
 
 | Level | Examples | Response Time | Notification |
 |-------|----------|---------------|--------------|
-| **Critical** | System down, data breach | Immediate | PagerDuty + Slack |
-| **High** | Latency > 2x SLA, error > 5% | 15 min | Slack + Email |
-| **Medium** | Drift detected, cost spike | 1 hour | Slack |
-| **Low** | Performance degradation | Next day | Email digest |
+| **Critical** | System down, data breach | Immediate (per {sla_requirements}) | Primary channel + escalation |
+| **High** | Latency > 2x SLA, error > threshold | Per SLA response time | Team notification channel |
+| **Medium** | Drift detected, cost spike | Business hours | Monitoring channel |
+| **Low** | Performance degradation | Next day | Digest |
 
-**B. Alert Configuration**
+**B. Alert Configuration (Knowledge-Grounded)**
 
 ```yaml
 alerting:
@@ -347,13 +421,27 @@ alerting:
 
 ### 6. Deployment Pipeline
 
-**A. Deployment Strategy**
+**Query Knowledge MCP for Deployment (Contextualized):**
+```
+Endpoint: get_patterns
+Topic: "deployment {orchestration_platform} {risk_tolerance}"
+Example: "deployment kubernetes low-risk-tolerance"
+```
 
-| Strategy | Description | Best For |
-|----------|-------------|----------|
-| **Blue-Green** | Two environments, instant switch | Zero-downtime updates |
-| **Canary** | Gradual rollout with monitoring | Risk mitigation |
-| **Rolling** | Incremental instance updates | Resource efficient |
+**Conditional Logic:**
+IF orchestration_platform == "kubernetes":
+- Suggest Helm charts, ArgoCD patterns
+- Query: "deployment kubernetes gitops"
+IF orchestration_platform == "serverless":
+- Suggest Lambda/Cloud Functions patterns
+- Query: "deployment serverless {cloud_provider}"
+IF orchestration_platform == "docker-compose":
+- Suggest simpler deployment strategies
+- Query: "deployment docker-compose simple"
+
+**A. Deployment Strategy (Knowledge-Grounded)**
+
+Based on your `{orchestration_platform}` and `{risk_tolerance}` from business requirements, query the knowledge base for appropriate deployment patterns. Present as recommendations, not prescriptions.
 
 **B. CI/CD Pipeline**
 
@@ -622,7 +710,7 @@ stories:
 
 ### 10. Present MENU OPTIONS
 
-Display: **Step 9 Complete - Select an Option:** [A] Analyze operations further [P] View progress [C] Continue to Step 10 (Tech Lead Review)
+Display: **Step 9 Complete - Select an Option:** [A] Analyze operations further [Q] Re-query Knowledge MCP with different constraints [P] View progress [C] Continue to Step 10 (Tech Lead Review)
 
 #### EXECUTION RULES:
 
@@ -633,6 +721,7 @@ Display: **Step 9 Complete - Select an Option:** [A] Analyze operations further 
 #### Menu Handling Logic:
 
 - IF A: Revisit operations decisions, allow refinement, then redisplay menu
+- IF Q: Ask user to modify constraints (SLA, cost, complexity tolerance), re-run queries with new constraints, present updated recommendations, redisplay menu
 - IF P: Show operations-spec.md, runbook.md, and decision-log.md summaries, then redisplay menu
 - IF C:
   1. Verify sidecar is updated with operations decisions and stories

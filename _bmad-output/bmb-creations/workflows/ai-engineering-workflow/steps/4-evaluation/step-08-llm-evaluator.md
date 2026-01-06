@@ -57,6 +57,14 @@ Load and fully embody the agent persona from `{workflow_path}/agents/llm-evaluat
 **File:** `{output_folder}/{project_name}/decision-log.md`
 **Read:** All previous decisions for evaluation context
 
+### 7. Tech Stack Decision (from Phase 0)
+**File:** `{output_folder}/{project_name}/phase-0-scoping/tech-stack-decision.md`
+**Read:**
+- Evaluation framework selected (if any)
+- Experiment tracking tool
+- LLM model (affects judge model selection)
+- Budget for evaluation (API costs)
+
 **Validation:** Confirm inference pipeline (RAG + prompts) is complete before designing evaluation framework.
 
 ---
@@ -127,45 +135,56 @@ Let's start by defining what success looks like."
 
 ### 2. Query Knowledge MCP for Evaluation Guidance
 
+**Context Variables to Use:**
+- `{architecture}` from sidecar.yaml
+- `{build_vs_buy}` from architecture-decision.md
+- `{use_case}` from business-requirements.md
+- `{quality_targets}` from business-requirements.md
+- `{eval_budget}` gathered from user
+
 **MANDATORY QUERIES** - Execute and synthesize:
 
-**Query 1: Evaluation Warnings**
+**Query 1: Evaluation Warnings (Contextualized)**
 ```
 Endpoint: get_warnings
-Topic: "evaluation"
+Topic: "evaluation {architecture} {evaluation_method}"
+Example: "evaluation rag-only llm-as-judge"
 ```
 
-**Query 2: LLM Judge Patterns**
-```
-Endpoint: search_knowledge
-Query: "LLM judge evaluation bias pitfalls"
-```
-
-**Query 3: Evaluation Methodologies**
+**Query 2: Evaluation Methodologies (Contextualized)**
 ```
 Endpoint: get_methodologies
-Topic: "evaluation"
+Topic: "evaluation {architecture} {use_case}"
+Example: "evaluation hybrid enterprise-search"
 ```
 
-**Query 4: Benchmark Patterns**
+**Query 3: LLM Judge Patterns**
 ```
 Endpoint: search_knowledge
-Query: "model evaluation metrics benchmark testing RAG"
+Query: "LLM judge evaluation bias pitfalls {architecture}"
+Example: "LLM judge evaluation bias pitfalls rag-only"
+```
+
+**Query 4: Benchmark Patterns (Architecture-Specific)**
+```
+Endpoint: search_knowledge
+Query: "evaluation metrics benchmark {architecture} {domain}"
+Example: "evaluation metrics benchmark rag customer-support"
 ```
 
 **Synthesis Approach:**
-1. Surface **evaluation anti-patterns** to avoid
+1. Surface **evaluation anti-patterns** relevant to your architecture
 2. Identify **LLM-as-judge limitations** if using automated evaluation
-3. Extract **recommended metrics** from knowledge base
-4. Note **production readiness criteria**
+3. Extract **recommended metrics** appropriate for {architecture} and {use_case}
+4. Note **production readiness criteria** from knowledge base
 
 Present synthesized insights:
-"Here's what the knowledge base tells us about evaluation best practices..."
+"Here's what the knowledge base tells us about evaluation best practices for {architecture} systems..."
 
-**Critical Warnings to Surface:**
+**Critical Warnings to Surface (Examples - Query for Current):**
 > - LLM-as-judge can have position bias, verbosity bias, self-preference bias
 > - Avoid using LLM-generated test data to evaluate LLM systems (circular bias)
-> - Production criteria targets: latency <500ms, error rate <1%
+> - Production readiness thresholds vary by architecture and risk tolerance
 
 ### 3. Define Evaluation Criteria
 
@@ -226,15 +245,25 @@ Ask: "Do you have existing test data, or do we need to plan data collection?"
 
 ### 5. Evaluation Methodologies
 
-**A. Automated Evaluation Methods**
+**Query Knowledge MCP (Contextualized):**
 
-| Method | Use Case | Limitations |
-|--------|----------|-------------|
-| **Exact Match** | Factual QA | Too strict for generation |
-| **ROUGE/BLEU** | Summarization | Doesn't capture meaning |
-| **Embedding Similarity** | Semantic matching | Misses nuance |
-| **LLM-as-Judge** | General quality | Bias risk |
-| **Custom Rubrics** | Domain-specific | Requires design effort |
+Based on your evaluation needs:
+- Architecture: {architecture from sidecar}
+- Use case: {use_case from business-requirements}
+- Budget: {eval_budget from constraints}
+- Quality targets: {quality_thresholds}
+
+```
+Endpoint: get_methodologies
+Topic: "evaluation {architecture} {use_case}"
+Example: "evaluation rag-only customer-support"
+```
+
+**Synthesis:** Present evaluation methods appropriate for your architecture and budget. RAG systems need retrieval + generation metrics. FT systems need different benchmarks. API-only systems focus on output quality assessment.
+
+**A. Automated Evaluation Methods (Query Results)**
+
+Present methods from knowledge base as recommendations, not fixed options. Allow user to adjust based on their evaluation budget and quality requirements.
 
 **B. LLM-as-Judge Configuration**
 
@@ -270,43 +299,76 @@ llm_judge:
 
 Ask: "What evaluation methods fit your resources and requirements?"
 
-### 6. RAG-Specific Evaluation (If Applicable)
+### 6. Architecture-Specific Evaluation
 
-**A. Retrieval Metrics**
+**CONDITIONAL SECTION - Based on architecture from sidecar.yaml:**
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| **Recall@K** | Relevant docs in top K | >80% |
-| **Precision@K** | Relevant docs / K | >60% |
-| **MRR** | Mean Reciprocal Rank | >0.5 |
-| **NDCG** | Normalized DCG | >0.7 |
+---
 
-**B. Generation Metrics (with Retrieved Context)**
+**IF architecture == "rag-only" or "hybrid":**
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| **Faithfulness** | Answer grounded in context | >90% |
-| **Relevance** | Answer addresses query | >85% |
-| **Groundedness** | No hallucination | >95% |
-| **Citation Accuracy** | Sources correct | >90% |
+Load and execute RAG-specific evaluation (retrieval metrics + generation metrics).
 
-**C. RAG Evaluation Framework**
+```
+Endpoint: get_patterns
+Topic: "rag evaluation metrics retrieval generation"
+```
+
+**RAG Evaluation Framework (from knowledge base):**
+- Retrieval metrics: Recall@K, Precision@K, MRR, NDCG
+- Generation metrics: Faithfulness, Relevance, Groundedness, Citation Accuracy
+- Query knowledge base for current recommended thresholds (not hardcoded)
 
 ```yaml
 rag_evaluation:
   retrieval:
     metrics: [recall_at_5, precision_at_5, mrr]
     golden_passages: "eval/golden_passages.json"
+    # Thresholds from knowledge base query
 
   generation:
     metrics: [faithfulness, relevance, groundedness]
-    judge_model: "[model]"
+    judge_model: "[model - different from system model]"
     rubric: "eval/generation_rubric.md"
 
   end_to_end:
     golden_qa_pairs: "eval/golden_qa.json"
     human_eval_sample: 50
 ```
+
+---
+
+**IF architecture == "fine-tuning":**
+
+Load and execute fine-tuning evaluation (training metrics + inference quality).
+
+```
+Endpoint: get_patterns
+Topic: "fine-tuning evaluation {training_objective}"
+Example: "fine-tuning evaluation instruction-following"
+```
+
+**Fine-Tuning Evaluation Framework:**
+- Training metrics: Loss convergence, validation perplexity
+- Inference metrics: Task-specific benchmarks, generation quality
+- Compare against base model performance
+
+---
+
+**IF build_vs_buy == "buy" (API-only):**
+
+Focus on API output quality, not training metrics.
+
+```
+Endpoint: get_patterns
+Topic: "api evaluation external-llm quality-assessment"
+```
+
+**API Evaluation Framework:**
+- Output quality assessment
+- Provider reliability metrics
+- Cost-per-quality tradeoffs
+- Comparison across providers (if evaluating multiple)
 
 ### 7. Quality Gate Design
 
@@ -328,6 +390,23 @@ Work through each category with the user, filling in:
 - **Status** column with pass/fail
 - **Notes** column with evidence or issues
 - **Target values** for metrics (latency, accuracy, etc.)
+
+**Query Knowledge MCP for Quality Gate Thresholds:**
+
+```
+Endpoint: search_knowledge
+Query: "quality gate thresholds {architecture} {domain} production-readiness"
+Example: "quality gate thresholds rag-only customer-support production-readiness"
+```
+
+**Synthesis:** Present thresholds as "recommendations from knowledge base" not fixed values. Allow user to adjust based on their risk tolerance.
+
+**Example Dynamic Threshold (from knowledge base):**
+> Knowledge base recommendation for {domain} {architecture} systems:
+> - Retrieval recall@5: >80% (adjust based on coverage requirements)
+> - Generation faithfulness: >90% (critical for factual accuracy)
+> - Latency P99: <{latency_sla from business-requirements}
+> - Error rate: <{error_threshold based on risk tolerance}
 
 **B. Gate Decision Options**
 
@@ -505,7 +584,7 @@ This decision will be finalized after evaluation execution."
 
 ### 11. Present MENU OPTIONS
 
-Display: **Step 8 Complete - Select an Option:** [A] Analyze evaluation further [P] View progress [C] Continue to Step 9 (MLOps Engineer)
+Display: **Step 8 Complete - Select an Option:** [A] Analyze evaluation further [Q] Re-query Knowledge MCP with different constraints [P] View progress [C] Continue to Step 9 (MLOps Engineer)
 
 #### EXECUTION RULES:
 
@@ -516,6 +595,7 @@ Display: **Step 8 Complete - Select an Option:** [A] Analyze evaluation further 
 #### Menu Handling Logic:
 
 - IF A: Revisit evaluation decisions, allow refinement, then redisplay menu
+- IF Q: Ask user to modify evaluation constraints (budget, quality thresholds, methods), re-run Knowledge MCP queries with new constraints, present updated recommendations, redisplay menu
 - IF P: Show evaluation-spec.md and decision-log.md summaries, then redisplay menu
 - IF C:
   1. Verify quality gate decision is made

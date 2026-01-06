@@ -8,7 +8,7 @@ description: 'Business Analyst: Project initialization and requirements elicitat
 config: '../../config.yaml'
 
 # Step Navigation
-nextStep: '../0-scoping/step-02-fti-architect.md'
+nextStep: '0-scoping/step-02a-fti-architect.md'
 outputPhase: 'phase-0-scoping'
 ---
 
@@ -552,7 +552,7 @@ Enter your choice (R/A/C):
 2. **If all conditions met:**
    - Update sidecar.yaml: mark step 1 as complete, add completion_timestamp
    - Display: "Excellent! I'm loading the FTI Architect..."
-   - Load and execute: `{workflow_path}/steps/0-scoping/step-02-fti-architect.md`
+   - Load and execute: `{workflow_path}/steps/0-scoping/step-02a-fti-architect.md`
 
 #### IF User Enters Invalid Option
 - Respond: "I didn't recognize that. Please enter [R], [A], or [C]"

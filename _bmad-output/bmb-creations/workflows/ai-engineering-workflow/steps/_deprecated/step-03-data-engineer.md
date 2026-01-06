@@ -144,7 +144,315 @@ Based on your **{architecture}** architecture, here's what we need to design:
 
 Let's start by understanding your data landscape."
 
-### 2. Query Knowledge MCP for Data Patterns (ARCHITECTURE-AWARE)
+---
+
+## PART A: REQUIREMENTS DEFINITION (Before Pipeline Design)
+
+### 2. Query Knowledge MCP for Requirements Elicitation (NEW)
+
+**First, ground this conversation in knowledge-based best practices.**
+
+**MANDATORY QUERIES** - Execute before gathering requirements:
+
+**Query 1: Data Requirements Definition Framework**
+```
+Endpoint: search_knowledge
+Query: "data requirements definition assessment framework AI/ML {architecture}"
+Example: "data requirements definition assessment framework RAG systems"
+Purpose: Surface systematic approaches to requirements discovery
+```
+
+**Query 2: Data Profiling & Assessment Methodology**
+```
+Endpoint: search_knowledge
+Query: "data profiling assessment checklist quality validation {architecture}"
+Example: "data profiling quality validation RAG pipelines"
+Purpose: Understand what to assess before committing to pipeline design
+```
+
+**Query 3: Data Feasibility Decision Criteria**
+```
+Endpoint: get_decisions
+Topic: "data requirements feasibility"
+Purpose: Understand decision criteria for "go/no-go" on data approach
+```
+
+**Query 4: Data Requirements Anti-Patterns**
+```
+Endpoint: get_warnings
+Topic: "data requirements gathering discovery"
+Purpose: Surface common mistakes in gathering requirements early
+```
+
+**Synthesis Approach:**
+
+1. **Extract** requirements definition methodologies from KB
+2. **Identify** assessment frameworks for data profiling
+3. **Surface** feasibility decision criteria
+4. **Note** common anti-patterns in requirements gathering
+
+Present synthesized approach:
+"Before we design the pipeline, we need to deeply understand your data requirements. Here's what the knowledge base tells us about gathering requirements systematically..."
+
+**Key Principle to Surface:**
+> Jumping to pipeline design without deep requirements understanding is the #1 reason data projects fail. We need to validate that your data situation actually supports your architecture choice BEFORE designing complex pipelines.
+
+---
+
+### 3. Deep Data Requirements Definition (NEW)
+
+**Probe what THIS project actually needs from data - not generic requirements.**
+
+#### **A. Use Case Alignment**
+
+"Let's align data requirements with your actual use case. Tell me:"
+
+**If RAG:**
+```
+1. What questions should your data help answer?
+2. Who will search/retrieve from this data? (Internal? End users?)
+3. What makes a retrieval result "good" in your domain?
+4. Do users need to know where information came from? (Source attribution critical?)
+5. How will retrieval quality be validated?
+```
+
+**If Fine-tuning:**
+```
+1. What specific behavior or style are you training for?
+2. What are the "correct" examples vs "incorrect" ones in your domain?
+3. How will you know if the fine-tuned model is working?
+4. What edge cases or rare behaviors matter most?
+5. How stable is this task? (Will requirements change?)
+```
+
+**If Hybrid:**
+```
+1. Which use cases need retrieval? Which need specialized behavior?
+2. How should they interact? (Sequence? Combination?)
+3. What's the priority if they conflict?
+4. How will you validate each path independently?
+5. How will you measure combined performance?
+```
+
+Document their answers verbatim. Then ask: "Is this how you think about success for this data?"
+
+#### **B. Data Characteristics Assessment**
+
+"Now let's get specific about what your data actually looks like:"
+
+**For RAG:**
+```
+Document Characteristics:
+1. What types of documents? (PDFs, HTML, Markdown, databases, APIs?)
+2. How are documents structured? (Free text? Sections? Metadata?)
+3. How current does information need to be? (Annual? Daily? Real-time?)
+4. Are documents versioned? (Old versions important or can they be replaced?)
+5. What metadata do you have? (Timestamps, authors, categories, confidence?)
+6. Are there documents you can't include? (Confidential? Wrong domain?)
+
+Data Quality Reality:
+1. Who created this data? (How reliable is the source?)
+2. Is it clean or messy? (Known issues? OCR errors? Duplicates?)
+3. How complete is it? (Missing sections? Gaps over time?)
+4. Is it consistent? (Formatting? Terminology? Structure?)
+5. Have you validated it before? (Quality checks existing?)
+```
+
+**For Fine-tuning:**
+```
+Example Characteristics:
+1. What's your current data? (Existing logs? Customer examples? Synthetic?)
+2. How many high-quality examples do you have? (Order of magnitude?)
+3. Are examples labeled/annotated? (By whom? How consistent?)
+4. What's the format? (Input-output pairs? Conversations? Instructions?)
+5. Do you have ground truth? (Correct answers verified?)
+6. What's your ratio of positive/negative examples? (Balanced?)
+
+Data Diversity:
+1. Do examples cover your full use case? (Edge cases? Rare scenarios?)
+2. Are there obvious gaps? (Missing use cases? Customer segments?)
+3. How representative are examples? (Realistic distribution?)
+4. Are there duplicates or near-duplicates? (Overfitting risk?)
+5. How would you identify low-quality examples? (Any validation rules?)
+```
+
+Document specific metrics. Then ask: "Is this actually representative of what you need to solve?"
+
+#### **C. Success Definition - Data Perspective**
+
+"Let's define what success looks like for data in THIS project:"
+
+**Questions to probe:**
+
+```
+1. In 3 months, how will you know if the data pipeline is working well?
+   (Not: "Model has high accuracy" - but: "Users can find relevant info" OR "Model behaves correctly on X")
+
+2. What data quality metrics matter most?
+   (For RAG: Retrieval precision? Metadata completeness? Coverage?
+    For FT: Label accuracy? Example diversity? Edge case handling?)
+
+3. What's unacceptable failure?
+   (Missing data? Outdated information? Wrong labels? Bias?)
+
+4. What's the realistic timeline?
+   (When do you need data ready? Working backward: when should pipeline be done?)
+
+5. What are you willing to trade off?
+   (Volume for quality? Speed for accuracy? Completeness for coverage?)
+```
+
+Document answers as explicit success criteria. Reflect back: "So success means [synthesized criteria]. Is that right?"
+
+---
+
+### 4. Data Feasibility Assessment (NEW)
+
+**Validate that data situation actually supports the architecture choice and tech stack.**
+
+#### **A. Feasibility Against Architecture**
+
+"Let's check if your data situation actually supports your **{architecture}** choice:"
+
+**If RAG - Document Retrieval Feasibility:**
+```
+Question | Assessment | Risk
+---------|------------|-----
+Can you parse all document types? (PDFs, scanned docs, tables?) | ✓/✗ | Low/Medium/High
+Do documents have enough metadata? | ✓/✗ | Low/Medium/High
+Can you deduplicate at scale? (Exact + semantic?) | ✓/✗ | Low/Medium/High
+Can you handle document updates? (Versioning strategy?) | ✓/✗ | Low/Medium/High
+Is retrieval quality achievable? (Spot check: retrieve-ability test) | ✓/✗ | Low/Medium/High
+
+Blocker Check: Are there ANY "✗" marked HIGH risk?
+If YES → Escalate before proceeding
+```
+
+**If Fine-tuning - Training Data Feasibility:**
+```
+Question | Assessment | Risk
+---------|------------|-----
+Do you have minimum viable training data? (>1000 for FT? >100 for few-shot?) | ✓/✗ | Low/Medium/High
+Are labels consistent and accurate? (Validation done?) | ✓/✗ | Low/Medium/High
+Can you ensure no train/eval leakage? (Segregation clear?) | ✓/✗ | Low/Medium/High
+Do examples cover your use case distribution? (Representative?) | ✓/✗ | Low/Medium/High
+Can you generate more examples if needed? (Augmentation possible?) | ✓/✗ | Low/Medium/High
+
+Blocker Check: Are there ANY "✗" marked HIGH risk?
+If YES → Escalate before proceeding
+```
+
+**If Hybrid - Both Pipelines Feasible:**
+```
+For each path above, apply both checks.
+Additional question: Can you keep retrieval and training data SEPARATE?
+Overlap check: What % of training data is in retrieval corpus? (>20% = risk)
+```
+
+#### **B. Feasibility Against Tech Stack**
+
+"Let's validate your data works with the tech stack from Phase 0:"
+
+**Orchestration Tool Compatibility:**
+```
+Question: Your data pipeline needs [{pipeline_type}] processing.
+Your orchestration tool is: [{orchestration_tool}]
+
+Compatibility Check:
+- Can {orchestration_tool} handle your data volume? ({data_volume})
+- Can {orchestration_tool} handle your update frequency? ({update_frequency})
+- Does {orchestration_tool} support needed transformations? (Format conversion? Parsing?)
+- Are there team skills? (Team knows {orchestration_tool}? Or learning curve?)
+
+Risk Assessment: Low / Medium / High
+Blocker if HIGH: Need to revisit orchestration choice
+```
+
+**Vector DB Compatibility (If RAG):**
+```
+Question: Your data format is [{data_format}].
+Your vector DB is: [{vector_db}]
+
+Compatibility Check:
+- Can {vector_db} ingest your data format? (Native support? Conversion needed?)
+- Does {vector_db} support your metadata? (Searchable fields? Filtering?)
+- Can {vector_db} handle your data volume? ({data_volume})
+- Can {vector_db} scale to your update frequency? ({update_frequency})
+
+Risk Assessment: Low / Medium / High
+Blocker if HIGH: Need data format transformation or different vector DB
+```
+
+#### **C. Feasibility Against Team & Timeline**
+
+"Let's check if your team can actually execute this:"
+
+```
+Question | Assessment | Risk
+---------|------------|-----
+Does your team have expertise in [{data_source_types}]? | ✓/✗ | Low/Medium/High
+Can you dedicate {weeks_needed} weeks to data pipeline? | ✓/✗ | Low/Medium/High
+Do you have data governance/privacy expertise? | ✓/✗ | Low/Medium/High
+Can you access ALL identified data sources? (No licensing/permission blockers?) | ✓/✗ | Low/Medium/High
+Is the operational overhead acceptable? (Maintenance load?) | ✓/✗ | Low/Medium/High
+
+Blocker Check: Any critical dependencies on external teams/approvals?
+If YES → Document timeline dependencies
+```
+
+---
+
+### 5. Blocker Check & Decision (NEW)
+
+**Critical Gate: Can we actually proceed, or do we need to escalate?**
+
+Present summary:
+
+```markdown
+## Data Feasibility Summary
+
+### Requirements Validated
+- [ ] Use case alignment clear
+- [ ] Data characteristics documented
+- [ ] Success definition established
+
+### Feasibility Assessment
+- [ ] Architecture supported by data
+- [ ] Tech stack compatible
+- [ ] Team capacity sufficient
+- [ ] Timeline realistic
+
+### Blockers Identified
+[List any HIGH risk items]
+
+### Decision
+- [ ] **GO** - Proceed to pipeline design
+- [ ] **CONDITIONAL GO** - Proceed with mitigations documented
+- [ ] **NO-GO** - Escalate and revisit architecture/data strategy
+```
+
+**If GO or CONDITIONAL GO:** "Proceed to pipeline design"
+
+**If NO-GO:**
+```
+"Before we design the pipeline, we need to resolve:
+
+1. [Blocker 1]
+2. [Blocker 2]
+
+Would you like to:
+[A] Revisit data sources (find alternative data)
+[B] Reconsider architecture choice (back to Step 2)
+[C] Discuss options with stakeholders (escalate)
+```
+
+Present menu and wait for user input.
+
+---
+
+## PART B: PIPELINE DESIGN (After Requirements Validated)
+
+### 6. Query Knowledge MCP for Data Pipeline Patterns (ARCHITECTURE-AWARE)
 
 **MANDATORY CONTEXTUALIZED QUERIES** - Execute with context from Phase 0:
 
@@ -225,7 +533,7 @@ Present synthesized insights:
 - **FT:** Label noise or data leakage → model learns wrong patterns → poor generalization
 - **Hybrid:** Duplicates across retrieval and training data → evaluation metrics unreliable
 
-### 3. Architecture-Specific Data Pipeline Focus (CONDITIONAL)
+### 7. Architecture-Specific Data Pipeline Focus (CONDITIONAL)
 
 Before cataloging sources, align on what matters for your architecture:
 
@@ -261,7 +569,7 @@ Focus areas:
 
 ---
 
-### 4. Data Source Inventory (ARCHITECTURE-AWARE)
+### 8. Data Source Inventory (ARCHITECTURE-AWARE)
 
 **A. Source Identification**
 
@@ -295,7 +603,7 @@ For each identified source, gather:
 | **Veracity** | How reliable is it? | Known quality issues? |
 | **Value** | How critical is it? | Primary vs supplementary |
 
-### 4. Extraction Pipeline Design
+### 9. Extraction Pipeline Design
 
 **A. Extraction Method per Source**
 
@@ -345,7 +653,7 @@ Present to user:
 
 **Note:** If KB results are unclear or you want to explore different trade-offs, we can re-query with different constraints. Select [Q] in the menu at the end to re-query.
 
-### 5. Data Transformation Design (ARCHITECTURE-AWARE)
+### 10. Data Transformation Design (ARCHITECTURE-AWARE)
 
 **A. Cleaning Operations (CONDITIONAL)**
 
@@ -400,7 +708,7 @@ Clean Data (Ready for Step 4)
 
 Ask: "What specific cleaning rules does your data need? Any domain-specific transformations?"
 
-### 6. Data Quality Framework (ARCHITECTURE-AWARE)
+### 11. Data Quality Framework (ARCHITECTURE-AWARE)
 
 **A. Quality Dimensions (CONDITIONAL)**
 
@@ -501,7 +809,7 @@ Ask: "What quality thresholds are acceptable for your **{architecture}** use cas
 
 ---
 
-### 7. Semantic Caching Decision (IF RAG WITH HIGH VOLUME)
+### 12. Semantic Caching Decision (IF RAG WITH HIGH VOLUME)
 
 **Applicable only if RAG + data volume > 10GB**
 
@@ -532,7 +840,7 @@ Purpose: Understand cost/latency trade-offs
 
 ---
 
-### 8. Surface RAG Anti-Patterns & Data Pipeline Warnings
+### 13. Surface RAG Anti-Patterns & Data Pipeline Warnings
 
 **Critical: Pause and surface knowledge-grounded anti-patterns**
 
@@ -606,7 +914,7 @@ Ask user:
 
 ---
 
-### 9. Data Storage & Vector DB Specification (IF RAG)
+### 14. Data Storage & Vector DB Specification (IF RAG)
 
 **For RAG systems only - specify where cleaned data goes before embedding**
 
@@ -641,7 +949,7 @@ Purpose: Understand expected data format for your chosen vector DB
 
 ---
 
-### 10. Document Decisions
+### 15. Document Decisions
 
 Once user confirms data pipeline design, create the data pipeline specification.
 
@@ -703,7 +1011,7 @@ decisions:
 - [Impact on downstream steps]
 ```
 
-### 11. Generate Data Pipeline Stories (TECH-STACK AWARE)
+### 16. Generate Data Pipeline Stories (TECH-STACK AWARE)
 
 Based on the data pipeline design and your chosen tech stack, generate implementation stories:
 
@@ -785,7 +1093,7 @@ stories:
     - "[story list based on pipeline design]"
 ```
 
-### 12. Present MENU OPTIONS
+### 17. Present MENU OPTIONS
 
 Display: **Step 3 Complete - Select an Option:**
 ```
@@ -828,50 +1136,88 @@ ONLY WHEN 'C' is selected AND data pipeline is documented AND stories are genera
 
 **Context Loading:**
 - ✅ Tech stack (orchestration tool, vector DB) loaded from Phase 0
-- ✅ Build vs Buy decision verified
+- ✅ Build vs Buy decision verified (confirms this is BUILDING path, not API-only)
 - ✅ Architecture decision (RAG/FT/Hybrid) confirmed
-- ✅ Business requirements reviewed
+- ✅ Business requirements reviewed from Step 1
+- ✅ Data landscape baseline understood
 
-**Knowledge Grounding:**
-- ✅ Knowledge MCP queries executed (contextualized, not generic)
+**Requirements Definition (Part A - CRITICAL):**
+- ✅ Knowledge MCP queries for requirements elicitation executed
+- ✅ Data requirements definition grounded in KB best practices
+- ✅ Use case alignment probed (what does data support?)
+- ✅ Data characteristics documented (type, format, volume, quality, metadata)
+- ✅ Success definition explicit (how will we know data pipeline works?)
+- ✅ Architecture-specific data requirements validated (RAG vs FT vs Hybrid)
+
+**Feasibility Assessment (Part A - CRITICAL GATE):**
+- ✅ Data situation validated against architecture choice
+- ✅ Data situation validated against tech stack (orchestration tool, vector DB)
+- ✅ Team capacity and timeline assessed
+- ✅ Blocker check completed
+- ✅ GO/NO-GO decision made explicitly
+- ✅ If NO-GO: Escalation path discussed (revisit sources, architecture, or stakeholders)
+- ✅ Only proceeds to pipeline design if GO or CONDITIONAL GO
+
+**Knowledge Grounding (Part B):**
+- ✅ Requirements elicitation queries to Knowledge MCP executed
+- ✅ Data pipeline pattern queries contextualized (not generic)
 - ✅ Architecture-specific queries (e.g., "RAG data pipeline ZenML startup")
 - ✅ Vector DB-specific queries (e.g., "Qdrant data storage format")
 - ✅ Warnings about anti-patterns surfaced
-- ✅ User acknowledges risks before proceeding
+- ✅ User acknowledges risks specific to their architecture
 
-**Architecture-Aware Design:**
+**Architecture-Aware Pipeline Design (Part B):**
 - ✅ Different focus for RAG vs FT vs Hybrid documented
 - ✅ Conditional sections completed based on architecture
 - ✅ Quality gates differentiated by architecture
 - ✅ Transformation priorities aligned with architecture
 
-**Data Pipeline Design:**
-- ✅ All data sources identified and assessed
+**Data Pipeline Design (Part B):**
+- ✅ All data sources identified and assessed (post-feasibility validation)
 - ✅ Extraction strategy defined for each source
-- ✅ Extraction architecture chosen (Batch/Streaming/Hybrid) with rationale
+- ✅ Extraction architecture chosen (Batch/Streaming/Hybrid) with knowledge-grounded rationale
 - ✅ Transformation pipeline designed (architecture-aware)
 - ✅ Quality gates established with architecture-specific thresholds
 
-**Optimization & Risk Management:**
+**Optimization & Risk Management (Part B):**
 - ✅ [If RAG + high volume] Semantic caching decision documented
 - ✅ [If RAG] Data storage/vector DB specification complete
 - ✅ [If RAG] Anti-patterns acknowledged (metadata, dedup, versioning, extraction, boilerplate, validation)
 - ✅ [If FT] Anti-patterns acknowledged (labels, leakage, balance, overfitting)
 
 **Documentation:**
+- ✅ Data feasibility summary created with GO/NO-GO decision
 - ✅ Data-pipeline-spec.md created with all sections
 - ✅ Decision-log.md updated with DATA-001 entry
 - ✅ Sidecar.yaml updated with pipeline decisions
 - ✅ Stories generated (6+ stories referencing tech stack)
 
 **Completion:**
-- ✅ User confirmed pipeline design
+- ✅ Requirements validated and documented
+- ✅ Feasibility gate passed
+- ✅ User confirmed data pipeline design
 - ✅ Stories generated for implementation
 - ✅ User ready to proceed to Step 4 (Embeddings) or Step 5 (Training)
 
 ### SYSTEM FAILURE (CRITICAL BLOCKERS):
 
-**Context & Knowledge:**
+**Requirements Definition (Part A - CRITICAL GATE):**
+- ❌ Skipping requirements definition sections (2-5) and jumping to pipeline design
+- ❌ Not probing use case alignment with data
+- ❌ Not documenting data characteristics (type, format, volume, quality)
+- ❌ Not establishing explicit success criteria for data pipeline
+- ❌ Not validating data situation against architecture choice
+- ❌ Not validating data situation against tech stack
+- ❌ Skipping feasibility assessment or blocker check
+- ❌ Proceeding to pipeline design with NO-GO blocker check
+- ❌ Not documenting GO/NO-GO decision explicitly
+
+**Requirements Knowledge Grounding:**
+- ❌ Not querying Knowledge MCP for requirements elicitation frameworks
+- ❌ Not asking architecture-specific data requirement questions
+- ❌ Assuming data is feasible without validation
+
+**Context & Knowledge (Part B):**
 - ❌ Tech stack not loaded from Phase 0
 - ❌ Generic Knowledge MCP queries (e.g., "data pipeline") instead of contextualized
 - ❌ Hardcoded pipeline options without knowledge grounding
@@ -894,8 +1240,14 @@ ONLY WHEN 'C' is selected AND data pipeline is documented AND stories are genera
 - ❌ Making orchestration tool decisions (belongs in Phase 0)
 
 **Documentation:**
+- ❌ Not documenting requirements or feasibility assessment
+- ❌ Not creating data feasibility summary with GO/NO-GO decision
 - ❌ Not documenting decisions in required files
 - ❌ Stories not referencing tech stack
 - ❌ Proceeding without confirmed pipeline design
 
-**Master Rule:** Skipping steps, hardcoding options without knowledge grounding, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+**Master Rule:**
+- Skipping requirements definition (Part A) and jumping to pipeline design = AUTOMATIC FAILURE
+- Proceeding with NO-GO blockers = AUTOMATIC FAILURE
+- Not using knowledge base for requirements elicitation = AUTOMATIC FAILURE
+- Not validating feasibility before design = AUTOMATIC FAILURE

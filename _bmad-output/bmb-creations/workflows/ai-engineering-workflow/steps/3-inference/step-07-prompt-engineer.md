@@ -53,6 +53,14 @@ Load and fully embody the agent persona from `{workflow_path}/agents/prompt-engi
 **File:** `{output_folder}/{project_name}/decision-log.md`
 **Read:** Previous decisions (ARCH-001, RAG-* decisions)
 
+### 6. Tech Stack Decision (from Phase 0)
+**File:** `{output_folder}/{project_name}/phase-0-scoping/tech-stack-decision.md`
+**Read:**
+- LLM provider/model selected
+- Context window size (affects prompt budget)
+- Orchestration framework (prompt management features)
+- Guardrail tools selected (if any)
+
 **Validation:** Confirm RAG pipeline spec is complete before designing prompts.
 
 ---
@@ -126,46 +134,91 @@ Let's start by understanding the desired behavior."
 
 ### 2. Query Knowledge MCP for Prompting Patterns
 
+**Context Variables to Use:**
+- `{architecture}` from sidecar.yaml
+- `{llm_model}` from tech-stack-decision.md
+- `{use_case}` from business-requirements.md
+- `{context_format}` from rag-pipeline-spec.md
+- `{tone_requirements}` gathered from user
+
 **MANDATORY QUERIES** - Execute before gathering requirements:
 
-**Query 1: Prompting Best Practices**
+**Query 1: Prompting Best Practices (Contextualized)**
 ```
 Endpoint: search_knowledge
-Query: "prompt engineering best practices system prompt design"
+Query: "prompt engineering {llm_model} {use_case}"
+Example: "prompt engineering claude-3 customer-support"
 ```
 
-**Query 2: Output Formatting**
+**Query 2: Output Formatting (Contextualized)**
 ```
 Endpoint: get_patterns
-Topic: "prompting"
+Topic: "output format {llm_model} {downstream_system}"
+Example: "output format gpt-4 json-api"
 ```
 
-**Query 3: Prompting Warnings**
+**Query 3: Prompting Warnings (Contextualized)**
 ```
 Endpoint: get_warnings
-Topic: "prompting"
+Topic: "prompting {llm_model}"
+Example: "prompting claude-3"
 ```
 
-**Query 4: Guardrails**
+**Query 4: Guardrails (Contextualized)**
 ```
 Endpoint: search_knowledge
-Query: "LLM guardrails safety content filtering"
+Query: "LLM guardrails {domain} {compliance_requirements}"
+Example: "LLM guardrails healthcare hipaa"
 ```
 
 **Synthesis Approach:**
-1. Extract **prompt structure patterns** (role, task, context, format)
-2. Identify **output formatting techniques**
-3. Surface **common prompting mistakes**
-4. Note **safety and guardrail patterns**
+1. Extract **prompt structure patterns** specific to chosen LLM model
+2. Identify **output formatting techniques** that work with downstream systems
+3. Surface **common prompting mistakes** for this model/use case
+4. Note **safety and guardrail patterns** for domain compliance
 
 Present synthesized insights:
-"Here's what the knowledge base tells us about prompt engineering..."
+"Based on your {llm_model} selection and {use_case} requirements, here's what the knowledge base tells us about prompt engineering..."
 
 **Key Pattern to Surface:**
 > Effective system prompts follow a clear structure: Role/Persona → Task Description → Context Format → Output Constraints → Examples. This separation of concerns makes prompts maintainable and testable.
 
 **Key Warning to Surface:**
 > Potential for meaning fumbling - assuming perfect code guarantees correct meaning transmission to the model. Account for linguistic factors that can distort your original intent before reaching the LLM.
+
+### 2.1 Architecture-Specific Prompting Paths
+
+**Conditional queries based on architecture from sidecar.yaml:**
+
+**IF architecture == "rag-only":**
+- Heavy focus on context integration instructions
+- Citation and source attribution patterns
+- Grounding responses in retrieved content
+```
+Endpoint: search_knowledge
+Query: "rag prompting context-grounding citation"
+```
+Key concerns: Context window management, source attribution, handling insufficient context
+
+**IF architecture == "fine-tuning":**
+- Leverage model's learned behaviors from training
+- Less instruction needed for trained tasks
+- Focus on edge case handling and guardrails
+```
+Endpoint: search_knowledge
+Query: "fine-tuned model prompting {training_objective}"
+Example: "fine-tuned model prompting classification"
+```
+Key concerns: Avoiding prompt-training conflicts, calibrating confidence
+
+**IF architecture == "hybrid":**
+- Balance RAG context with model's fine-tuned knowledge
+- Clear instructions on when to use retrieved vs learned info
+```
+Endpoint: search_knowledge
+Query: "hybrid rag fine-tuned prompting strategies"
+```
+Key concerns: Knowledge source prioritization, consistency between RAG and FT responses
 
 ### 3. System Prompt Design
 
@@ -255,15 +308,21 @@ You will receive relevant context from our knowledge base. Use it as follows:
 
 "How should responses be structured?"
 
-| Format | Use Case | Example |
-|--------|----------|---------|
-| **Free-form** | General conversation | Natural paragraphs |
-| **Structured** | Consistent data extraction | JSON, XML, YAML |
-| **Markdown** | Rich text with formatting | Headers, lists, code |
-| **Templated** | Specific output pattern | Fill-in-the-blank |
-| **Hybrid** | Mix of prose and structured | Answer + metadata |
+**Query Knowledge MCP (Contextualized):**
+Based on your output requirements:
+- Use case: {use_case from business-requirements}
+- Downstream system: {integration_target}
+- LLM model: {llm_model from tech-stack}
 
-Ask: "What format do your downstream systems or users expect?"
+```
+Endpoint: get_patterns
+Topic: "output formatting {llm_model} {use_case}"
+Example: "output formatting gpt-4 structured-extraction"
+```
+
+**Synthesis:** Present format options that work well with chosen LLM and downstream integration needs. The knowledge base will return format patterns optimized for your specific model's capabilities (e.g., Claude's native JSON mode, GPT-4's function calling).
+
+Ask: "What format do your downstream systems or users expect? Based on your {llm_model} and {integration_target}, the knowledge base suggests these patterns work best..."
 
 **B. Format Enforcement**
 
@@ -387,17 +446,30 @@ few_shot:
 
 ### 6. Guardrails and Safety Design
 
+**Query Knowledge MCP for Guardrails (Contextualized):**
+
+```
+Endpoint: get_patterns
+Topic: "guardrails {domain} {compliance_requirements}"
+Example: "guardrails healthcare hipaa-compliance"
+```
+
+```
+Endpoint: get_warnings
+Topic: "prompt injection {llm_model}"
+Example: "prompt injection claude-3"
+```
+
+**Synthesis:** Surface domain-specific guardrail requirements and LLM-specific vulnerabilities from the knowledge base. Present guardrail categories that match the user's compliance needs and threat model.
+
 **A. Content Guardrails**
 
-"What content restrictions apply?"
+"What content restrictions apply? Based on your {domain} and {compliance_requirements}, here are the recommended guardrail categories..."
 
-| Category | Guardrail | Action |
-|----------|-----------|--------|
-| **Harmful content** | No violence, hate, etc. | Block + standard message |
-| **PII exposure** | Don't repeat PII from context | Redact or refuse |
-| **Competitive info** | Don't compare to competitors | Redirect |
-| **Pricing/Legal** | No guarantees or commitments | Disclaimer |
-| **Off-topic** | Stay within domain | Redirect to scope |
+Query results will inform guardrail priorities - for example:
+- Healthcare domains: HIPAA compliance, PHI protection
+- Financial domains: PCI-DSS, financial advice disclaimers
+- General domains: PII, harmful content, off-topic filtering
 
 **B. Input Guardrails**
 
@@ -658,7 +730,7 @@ stories:
 
 ### 10. Present MENU OPTIONS
 
-Display: **Step 7 Complete - Select an Option:** [A] Analyze prompting further [P] View progress [C] Continue to Step 8 (LLM Evaluator)
+Display: **Step 7 Complete - Select an Option:** [A] Analyze prompting further [Q] Re-query Knowledge MCP with different constraints [P] View progress [C] Continue to Step 8 (LLM Evaluator)
 
 #### EXECUTION RULES:
 
@@ -669,6 +741,7 @@ Display: **Step 7 Complete - Select an Option:** [A] Analyze prompting further [
 #### Menu Handling Logic:
 
 - IF A: Revisit prompting decisions, allow refinement, then redisplay menu
+- IF Q: Ask user to modify constraints (tone, format requirements, guardrail strictness), re-run queries with updated context, present updated recommendations from knowledge base, redisplay menu
 - IF P: Show prompt-engineering-spec.md, system-prompt.md, and decision-log.md summaries, then redisplay menu
 - IF C:
   1. Verify sidecar is updated with prompting decisions and stories
