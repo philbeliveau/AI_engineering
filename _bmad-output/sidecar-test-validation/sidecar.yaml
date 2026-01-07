@@ -1,0 +1,134 @@
+project_name: Test-Knowledge-RAG-System
+created: '2026-01-06'
+user_name: test-engineer
+architecture: rag-only
+workflow_status: in_progress
+completed_date: null
+lastContinued: null
+decisions:
+- id: req-001
+  type: business_requirement
+  requirement: Building a knowledge QA system for internal documentation
+  phase: 0
+  date: '2026-01-06T17:45:37.629429'
+- id: arch-001
+  choice: rag-only
+  rationale: Knowledge QA with frequent updates, RAG pattern optimal
+  knowledge_ref: get_decisions:rag-vs-fine-tuning
+  phase: 0
+  date: '2026-01-06T17:45:37.636065'
+- id: data-001
+  choice: semantic-chunking
+  rationale: Preserves context for better retrieval
+  phase: 1
+  date: '2026-01-06T17:45:37.643567'
+- id: emb-001
+  choice: text-embedding-3-small
+  rationale: Good performance-to-cost ratio, 1536 dimensions suitable for domain
+  phase: 1
+  date: '2026-01-06T17:45:37.651596'
+- id: tech-001
+  choice: pinecone
+  rationale: Managed service, no infrastructure overhead, good for MVP
+  phase: 0
+  date: '2026-01-06T17:45:37.651605'
+quality_gate:
+  decision: null
+  date: null
+  conditions: []
+  blockers: []
+warnings_acknowledged: []
+currentStep: 4
+stepsCompleted:
+- 1
+- 2
+- 3
+- 4
+steps:
+  step_1_business_analyst: complete
+  step_2_fti_architect: complete
+  step_3_data_engineer: complete
+  step_4_embeddings_engineer: complete
+  step_5_fine_tuning_specialist: skipped
+  step_6_rag_specialist: pending
+  step_7_prompt_engineer: pending
+  step_8_llm_evaluator: pending
+  step_9_mlops_engineer: pending
+  step_10_tech_lead: pending
+phases:
+  phase_0_scoping: in_progress
+  phase_1_feature: in_progress
+  phase_2_training: skipped
+  phase_3_inference: pending
+  phase_4_evaluation: pending
+  phase_5_operations: pending
+  integration_review: pending
+stories:
+  step_2_architect: []
+  step_3_data:
+  - id: DATA-S01
+    title: Design document ingestion pipeline
+    description: Build ETL for PDF/Markdown documents with metadata extraction
+    acceptance_criteria:
+    - Supports PDF and Markdown formats
+    - Extracts document metadata (title, author, date)
+    - Handles 100+ document batch processing
+    - Logs errors to monitoring system
+  - id: DATA-S02
+    title: Implement document chunking strategy
+    description: Smart chunking preserving semantic boundaries
+    acceptance_criteria:
+    - Respects document structure (sections, paragraphs)
+    - Maintains cross-references
+    - Generates chunk metadata
+  step_4_embeddings:
+  - id: EMB-S01
+    title: Select and fine-tune embedding model
+    description: Choose embedding model based on domain and evaluate performance
+    acceptance_criteria:
+    - 'Model selected: text-embedding-3-small'
+    - Evaluation metrics calculated
+    - Performance meets retrieval targets
+  - id: EMB-S02
+    title: Build embedding pipeline with caching
+    description: Efficient batch embedding generation with Redis caching
+    acceptance_criteria:
+    - Batch processing for 1000+ vectors
+    - Cache hit rate > 90%
+    - Latency < 100ms per chunk
+  - id: EMB-S03
+    title: Setup vector database (Pinecone)
+    description: Initialize and configure Pinecone index
+    acceptance_criteria:
+    - Index created with correct dimensions
+    - Metadata filtering configured
+    - Backup strategy implemented
+  step_5_training: []
+  step_6_rag: []
+  step_7_prompts: []
+  step_8_evaluation: []
+  step_9_operations: []
+  step_10_integration: []
+outputs:
+  phase_0:
+    architecture_decision: null
+  phase_1:
+    spec: null
+    chunking_config: null
+    embedding_config: null
+  phase_2:
+    spec: null
+    training_config: null
+  phase_3:
+    spec: null
+    deployment_config: null
+  phase_4:
+    report: null
+    quality_gate_checklist: null
+  phase_5:
+    runbook: null
+    alerts_config: null
+metadata:
+  workflow_version: '1.0'
+  template_version: '1.0'
+  knowledge_mcp_endpoint: https://knowledge-mcp-production.up.railway.app

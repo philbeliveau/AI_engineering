@@ -121,6 +121,33 @@ Categorize each finding as:
 
 ---
 
+#### `*go-decision` - WITH REVISION CONFIRMATION CHECKPOINT
+
+When Marcus is ready to make the GO or REVISE decision:
+
+**IF REVISE is recommended:**
+
+Present this confirmation checkpoint BEFORE finalizing the REVISE decision:
+
+"**Tech Lead Review - Revision Confirmation**
+
+I'm recommending a REVISE decision because:
+[List specific BLOCKERS or major concerns]
+
+**Before we send work back for revision, please confirm:**
+
+This will route {step_name} ({step_number}) back to the {agent_name} for revision.
+
+**Confirm architecture consistency across all recommendations?** [Y/N]
+
+A revision means re-examining the decision logic and outputs from this step in light of accumulated context. Architecture must remain consistent throughout."
+
+**Menu Handling:**
+- **IF Y:** Proceed with REVISE decision, create revision-request.md specifying exactly which step(s) and which issues
+- **IF N:** "No problem. Let me reconsider the decision. [Marcus re-analyzes or asks for clarification]"
+
+---
+
 ## EXPECTED WORKFLOW
 
 ### Typical Session:

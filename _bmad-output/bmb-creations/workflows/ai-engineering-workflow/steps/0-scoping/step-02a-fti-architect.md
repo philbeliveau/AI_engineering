@@ -223,13 +223,28 @@ Ask: "Which category best fits your project? Tell me more about what you're buil
 
 | Factor | Question | Impact |
 |--------|----------|--------|
-| **Volume** | How much training data do you have? | <1000 examples → RAG, >10K → FT possible |
+| **Volume** | How much training data do you have? | *See knowledge reference below for domain-specific thresholds* |
 | **Quality** | Is the data clean and labeled? | Poor quality → RAG safer |
 | **Sensitivity** | Does data contain PII/secrets? | Sensitive → RAG (data stays separate) |
 | **Update Frequency** | How often does information change? | Frequent updates → RAG |
 | **Proprietary Knowledge** | Do you need custom terminology/reasoning? | Yes → Fine-tuning value |
 
-Ask: "Walk me through your data situation using these factors."
+**MANDATORY QUERY - Training Data Volume Assessment:**
+```
+Endpoint: search_knowledge
+Query: "training data volume thresholds fine-tuning vs RAG samples examples"
+```
+
+**Synthesis Approach for Volume Assessment:**
+1. Extract domain-specific volume thresholds (varies by model family, domain, task)
+2. Identify quality multipliers (1,000 high-quality samples may outweigh 50,000 low-quality)
+3. Surface data collection costs (time to label, validation overhead)
+4. Note risk factors (insufficient data often requires RAG augmentation)
+
+**Key Insight to Surface:**
+> Training data volume thresholds are not absolute. A thousand high-quality, domain-specific examples can enable fine-tuning where 10,000 generic examples cannot. Conversely, 100,000 examples of poor quality may be less useful than 1,000 carefully curated examples. Always assess both quantity AND quality together.
+
+Ask: "Walk me through your data situation. How much training data do you have, and how would you rate its quality?"
 
 **C. Constraint Analysis**
 

@@ -9,6 +9,7 @@ config: '../../config.yaml'
 # Step Navigation (resolved from config)
 nextStep: '3-inference/step-06-rag-specialist.md'
 outputPhase: 'phase-2-training'
+trainingFolder: '{output_folder}/{project_name}/phase-2-training'
 conditional: true  # Skipped if architecture == 'rag-only'
 ---
 
@@ -72,6 +73,27 @@ Load and fully embody the agent persona from `{workflow_path}/agents/fine-tuning
 - If `architecture: "fine-tuning"` or `architecture: "hybrid"` → **Execute this step**
 
 If skipping, create a skip record and proceed directly to Step 6 (RAG Specialist).
+
+---
+
+## ENTRY CHECKPOINT: Architecture Validation
+
+**BEFORE PROCEEDING, USER CONFIRMATION REQUIRED:**
+
+Check the sidecar.yaml for the `architecture` field, then present this checkpoint:
+
+"**Step 5: Fine-Tuning Specialist - Architecture Guard**
+
+This step only executes for Fine-tuning or Hybrid architectures.
+
+Your current architecture is: **{architecture}**
+
+Confirm: Should we proceed with fine-tuning specialist work? [Y/N]"
+
+**Menu Handling:**
+- **IF Y** (and architecture is "fine-tuning" or "hybrid"): Proceed with Step 5 workflow
+- **IF Y** (but architecture is "rag-only"): Display skip logic (see SKIP HANDLING section below) and proceed to Step 6
+- **IF N**: "No problem. Let's go directly to Step 6 (RAG Specialist). We can return to fine-tuning later if needed."
 
 ## STEP GOAL:
 
@@ -247,10 +269,30 @@ Present synthesized insights:
 
 | Requirement | Question | Minimum | Ideal |
 |-------------|----------|---------|-------|
-| **SFT Data** | Instruction-response pairs? | 1,000 | 10,000+ |
-| **DPO Data** | Preference pairs (chosen/rejected)? | 1,000 | 5,000+ |
+| **SFT Data** | Instruction-response pairs? | Query MCP | Query MCP |
+| **DPO Data** | Preference pairs (chosen/rejected)? | Query MCP | Query MCP |
 | **Quality** | Human-verified examples? | Some | All |
 | **Coverage** | All target use cases represented? | Partial | Full |
+
+**QUERY KNOWLEDGE MCP FOR DATA THRESHOLDS:**
+
+```
+Endpoint: search_knowledge
+Query: "fine-tuning minimum dataset size {task_type} {model_size} requirements"
+Examples:
+  - "fine-tuning minimum dataset size instruction-following 7B requirements"
+  - "fine-tuning minimum dataset size code-generation 13B requirements"
+  - "fine-tuning dataset size threshold SFT DPO comparison"
+```
+
+**Synthesis Approach for Dataset Assessment:**
+1. Query MCP for minimum viable dataset size for your task type and model
+2. Estimate your ACTUAL dataset count (including quality assessment)
+3. Calculate gap between actual and minimum needed
+4. Determine if synthetic augmentation, human annotation, or RAG-first approach needed
+5. Surface warnings about overfitting with small datasets
+
+**Present to User:** "Based on your {task_type} and {model_size}, the knowledge base recommends a minimum of [MCP result] high-quality examples. You currently have {actual_count}, so we should [proceed with confidence / augment data / reconsider approach]."
 
 Ask: "Walk me through your training data situation. What do you have, and how was it collected?"
 
@@ -326,9 +368,11 @@ Based on the data availability check from Section 3, follow the appropriate path
 
 ---
 
-**IF sufficient SFT data (>1000 instruction pairs):**
+**IF sufficient SFT data:**
 
 **A. SFT (Supervised Fine-Tuning) - PRIMARY PATH**
+
+**Note:** "Sufficient" is determined by querying the Knowledge MCP with your specific task type, model size, and domain. The threshold varies significantly based on these factors. Use the MCP query results to validate your dataset.
 
 "SFT teaches the model to follow instructions using example pairs."
 
@@ -387,17 +431,29 @@ Consider combined approach (SFT + DPO) if both data types exist.
 
 ---
 
-**IF data insufficient (<1000 examples):**
+**IF data insufficient (falls below MCP-recommended threshold):**
 
 **C. DATA INSUFFICIENT PATH - CRITICAL DECISION**
 
-**Query Knowledge MCP for Warning:**
+**Query Knowledge MCP for Threshold and Warnings:**
 ```
+Endpoint: search_knowledge
+Query: "fine-tuning insufficient data small dataset {task_type} {model_size}"
+Examples:
+  - "fine-tuning insufficient data small dataset instruction-following 7B"
+  - "fine-tuning small dataset overfitting risks {domain}"
+
 Endpoint: get_warnings
-Topic: "fine-tuning insufficient data small dataset"
+Topic: "fine-tuning insufficient data {task_type} {model_size} overfitting"
 ```
 
-**Present to user:** "Your current data volume ({data_volume}) may be insufficient for effective fine-tuning. The knowledge base warns about overfitting and poor generalization with small datasets."
+**Synthesis Approach:**
+1. Compare actual dataset size to MCP-recommended minimum for your parameters
+2. Query warnings about risks and mitigation strategies
+3. Present data augmentation, human annotation, and RAG-first options with evidence from knowledge base
+4. Help user make informed decision based on timeline and budget
+
+**Present to user:** "Your current data volume ({data_volume}) falls below the knowledge base recommendation of [MCP result] examples for {task_type} on {model_size}. The knowledge base warns about [specific risks]. Here are your options:"
 
 **Options to Discuss:**
 
@@ -477,8 +533,31 @@ Endpoint: get_warnings
 Topic: "LoRA fine-tuning pitfalls"
 ```
 
-**Key Patterns from Knowledge Base:**
-> LoRA rank and alpha should be tuned based on task complexity. The knowledge base recommends starting with r=8, alpha=16 for simple tasks, scaling up for complex adaptations. Target modules selection depends on model architecture.
+**Key Patterns from Knowledge Base (Dynamic):**
+
+**Query MCP for LoRA/QLoRA Configuration:**
+```
+Endpoint: get_patterns
+Query: "LoRA QLoRA rank alpha {task_type} {model_size} {task_complexity}"
+Examples:
+  - "LoRA QLoRA rank alpha instruction-following 7B simple"
+  - "LoRA QLoRA rank alpha code-generation 13B complex"
+  - "QLoRA rank alpha configuration guidelines {domain}"
+
+Endpoint: search_knowledge
+Query: "LoRA target modules {model_architecture} {task_type}"
+Examples:
+  - "LoRA target modules llama instruction-following"
+  - "LoRA target modules mistral code-generation"
+```
+
+**Synthesis Result (from MCP):**
+> The knowledge base provides specific rank and alpha recommendations based on your task complexity and model size. Rather than using static values, query with your actual parameters to get contextual recommendations. Examples from current knowledge: simple tasks often start lower, complex domain adaptation requires higher ranks.
+
+**How to Estimate Your Task Complexity:**
+1. Simple: Classification, summarization, well-defined format
+2. Moderate: Multi-step reasoning, domain adaptation
+3. Complex: Creative generation, novel problem solving, multiple skills
 
 **Synthesis Approach:**
 1. Match PEFT method to your compute constraints
@@ -496,35 +575,85 @@ Ask: "What compute resources do you have? This determines our PEFT approach."
 
 ### 7. Hyperparameter Configuration
 
-**A. Key Hyperparameters**
+**QUERY KNOWLEDGE MCP FOR HYPERPARAMETERS (Mandatory):**
 
-| Parameter | SFT Range | DPO Range | Notes |
-|-----------|-----------|-----------|-------|
-| **Learning Rate** | 1e-5 to 2e-4 | 1e-6 to 5e-5 | Lower for larger models |
-| **Epochs** | 1-5 | 1-3 | Watch for overfitting |
-| **Batch Size** | 4-32 | 4-16 | Limited by memory |
-| **Warmup** | 3-10% steps | 3-10% steps | Stabilizes training |
-| **Weight Decay** | 0 to 0.1 | 0 to 0.1 | Regularization |
+Before providing any hyperparameter recommendations to the user, query the knowledge base:
+
+```
+Endpoint: get_patterns
+Query: "fine-tuning hyperparameter configuration {training_method} {model_size} {dataset_size}"
+Examples:
+  - "fine-tuning hyperparameter configuration SFT 7B 5000-examples"
+  - "fine-tuning hyperparameter configuration DPO 13B 3000-pairs"
+  - "fine-tuning learning rate batch size epochs {task_type} {compute_constraint}"
+
+Endpoint: get_decisions
+Topic: "learning rate selection {training_method} {model_size} {dataset_size}"
+
+Endpoint: get_warnings
+Topic: "fine-tuning hyperparameter pitfalls {training_method} overfitting underfitting"
+```
+
+**Synthesis Approach:**
+1. Retrieve MCP patterns for your specific training configuration
+2. Extract parameter ranges contextualized to your dataset size and model
+3. Identify key trade-offs (fast training vs stability, regularization needs)
+4. Surface warnings about parameter interactions and common mistakes
+5. Help user understand how to measure and adjust during training
+
+**Key Synthesis Points to Surface:**
+- Learning rate impact: Higher = faster but unstable, Lower = slower but stable; varies by model size
+- Epochs: Too few = underfitting, too many = overfitting; depends on dataset quality and size
+- Batch size: Limited by GPU memory; trade-off between gradient smoothness and training speed
+- Warmup: Stabilizes initial training, typically 3-10% of total steps
+- Weight decay: Helps with regularization, value depends on dataset size and model capacity
+
+**A. Key Hyperparameter Ranges (Retrieved from MCP)**
+
+Rather than static ranges, present this framework to users:
+
+| Parameter | Selection Criteria | How to Query MCP |
+|-----------|-------------------|------------------|
+| **Learning Rate** | Depends on model size and dataset size | Query: "learning rate {model_size} {dataset_size}" |
+| **Epochs** | Depends on dataset quality and overfitting risk | Query: "epochs {dataset_size} {task_type}" |
+| **Batch Size** | Limited by VRAM; affects gradient smoothness | Query: "batch size {gpu_memory} {model_size}" |
+| **Warmup** | Usually 3-10% of total steps | Query: "warmup strategy {training_method}" |
+| **Weight Decay** | Regularization; depends on dataset size | Query: "weight decay {dataset_size} regularization" |
 
 **B. DPO-Specific Parameters**
 
-| Parameter | Typical Value | Purpose |
-|-----------|---------------|---------|
-| **Beta** | 0.1-0.5 | KL penalty strength |
-| **Reference Model** | Same as base | For KL computation |
+```
+Endpoint: search_knowledge
+Query: "DPO beta parameter KL penalty {model_size} {dataset_size}"
+Example: "DPO beta parameter configuration 7B 3000-pairs"
+```
+
+Present DPO-specific recommendations from MCP, including beta value selection and reference model setup.
 
 **C. Monitoring Configuration**
 
+```
+Endpoint: get_patterns
+Query: "training monitoring evaluation strategy {training_method} {dataset_size}"
+Examples:
+  - "training monitoring evaluation steps frequency 5000-examples"
+  - "DPO training monitoring evaluation frequency"
+```
+
+Apply MCP-recommended monitoring values instead of static numbers:
+
 ```yaml
 monitoring:
-  log_steps: 10
-  eval_steps: 100
-  save_steps: 500
+  log_steps: "[Query MCP for your dataset size]"
+  eval_steps: "[Query MCP for your dataset size]"
+  save_steps: "[Query MCP based on expected training time]"
   early_stopping:
     enabled: true
-    patience: 3
+    patience: "[Query MCP for your model size]"
     metric: "eval_loss"
 ```
+
+**Present to User:** "Let's configure your hyperparameters based on your {model_size}, {dataset_size}, and {training_method}. I'm querying the knowledge base for recommended ranges specific to your setup..."
 
 ### 8. Training Infrastructure
 

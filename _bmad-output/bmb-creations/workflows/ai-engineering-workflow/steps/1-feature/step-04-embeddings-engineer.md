@@ -214,21 +214,29 @@ Ask: "What type of content are you chunking? How structured is it?"
 ```
 Query: get_decisions with topic: "chunk size {document_type} {use_case}"
 Query: get_warnings with topic: "chunk size {architecture}"
+Query: get_patterns with topic: "chunk size impact {scale_concern}"
+Example: "chunk size impact vector-count-optimization"
+Example: "chunk size impact retrieval-latency"
 ```
 
 Present trade-offs from knowledge base synthesis:
-- Smaller chunks (100-256 tokens): Better precision, may lose context
-- Medium chunks (256-512 tokens): Balanced approach
-- Larger chunks (512-1024 tokens): More context, lower precision
+- **Smaller chunks:** Better precision, may lose context, increases vector count (more storage/latency)
+- **Medium chunks:** Balanced approach
+- **Larger chunks:** More context, lower precision, reduces vector count (more efficient storage)
+
+**SCALE IMPACT NOTE:**
+Your chunk size directly affects your total vector count. The knowledge base will provide guidance on balancing chunk size with your scale constraints:
+- Chunk Size Choice → Affects Vector Count → Affects Vector DB Indexing Strategy
 
 **Query for Overlap Patterns:**
 ```
 Query: get_patterns with topic: "chunk overlap semantic boundaries"
+Query: get_warnings with topic: "chunk overlap performance {scale}"
 ```
 
-The knowledge base contains patterns for overlap strategies specific to different document types.
+The knowledge base contains patterns for overlap strategies specific to different document types and scale considerations.
 
-Ask: "For your use case, is precision or context more important? What's your cost sensitivity?"
+Ask: "For your use case, is precision or context more important? What's your cost sensitivity? And approximately how many documents will you be processing?"
 
 **C. Chunking Configuration**
 
@@ -328,45 +336,83 @@ embedding:
 **A. Vector DB Selection (Only if not already decided)**
 
 **Query Knowledge MCP (Contextualized):**
-Based on your constraints:
-- Scale: `{expected_volume}` from data-pipeline-spec.md
-- Hosting preference: `{hosting}` (managed vs self-hosted)
-- Query patterns: `{query_patterns}` (filtering, hybrid search, etc.)
-- Budget: `{budget_tier}` gathered from user
+
+Before querying for database recommendations, gather scale information:
 
 ```
-Query: get_patterns with topic: "vector database {scale} {hosting}"
-Example: "vector database high-scale managed"
-Example: "vector database medium-scale self-hosted"
+Vector Count Estimation:
+  = (Total Documents) × (Chunks per Document)
+  Example: 500 docs × 4 chunks = 2,000 vectors
+
+Scale Tiers:
+  - Small: <100K vectors
+  - Medium: 100K-10M vectors
+  - Large: >10M vectors
+```
+
+Now query the Knowledge MCP with your estimated scale:
+
+```
+Query: get_patterns with topic: "vector database {scale_tier} {hosting} {query_pattern}"
+Example: "vector database medium-scale managed filtered-search"
+Example: "vector database large-scale self-hosted hybrid-search"
 ```
 
 ```
-Query: get_decisions with topic: "vector database selection {use_case}"
-Query: get_warnings with topic: "vector database {scale}"
+Query: get_decisions with topic: "vector database selection {scale_tier} {use_case}"
+Query: get_warnings with topic: "vector database {scale_tier} {architecture}"
+Example: "vector database large-scale rag-only"
 ```
 
-The knowledge base will return database recommendations specific to your scale and hosting requirements.
+**Synthesis Approach:**
+1. Extract database candidates optimized for your scale tier
+2. Identify cost and performance implications of your scale
+3. Surface warnings about scale transitions (when migrating to larger scales)
+4. Note hosting and deployment considerations
 
-**Discuss with user:** "Based on your scale requirements and hosting preference, here's what the knowledge base recommends: [synthesized recommendation]. What's your priority: scalability, cost, or feature richness?"
+**Key Pattern to Surface (Example - will vary by context):**
+> The knowledge base will return database recommendations conditioned on your estimated vector count. Database choice significantly impacts performance and cost at different scales - the right choice at 1K vectors may be wrong at 10M vectors.
 
-Ask: "What scale do you anticipate? Do you need managed or self-hosted?"
+The knowledge base will return database recommendations specific to your estimated scale, hosting requirements, and query patterns.
+
+**Discuss with user:** "Based on your estimated vector count and hosting preference, here's what the knowledge base recommends: [synthesized recommendation]. What's your priority: scalability, cost, or feature richness?"
+
+Ask: "How many documents will you be processing? Approximately how many chunks per document? Do you need managed or self-hosted?"
 
 **B. Indexing Strategy**
 
-**Query Knowledge MCP for Indexing Patterns:**
+**MANDATORY QUERY to Knowledge MCP for Scale-Based Indexing Patterns:**
+
+Before selecting an index type, estimate your expected vector count:
+
 ```
-Query: get_patterns with topic: "vector index {vector_db} {scale}"
-Example: "vector index qdrant production-scale"
-Query: get_decisions with topic: "vector indexing {recall_requirement}"
+To estimate your vector count:
+  Vector Count = (Total Documents) × (Chunks per Document)
+  Example: 1,000 documents × 5 chunks/doc = 5,000 vectors
 ```
 
-Key indexing options (from knowledge base synthesis):
-- **Flat (exact):** 100% recall, slower, best for <100K vectors
-- **IVF:** ~95% recall, fast, best for 100K-10M vectors
-- **HNSW:** ~99% recall, very fast, best for production
-- **PQ (compressed):** ~90% recall, fast, best for cost-sensitive
+**Query Knowledge MCP (Contextualized):**
+```
+Query: get_decisions with topic: "vector indexing {vector_count} {recall_requirement}"
+Query: get_patterns with topic: "vector index {vector_db} {scale_tier}"
+```
 
-The knowledge base will return specific tuning parameters for your chosen {vector_db}.
+Provide your estimated vector count to the Knowledge MCP to receive current recommendations for index types optimized to your scale.
+
+**Synthesis Approach:**
+1. Extract index type recommendations for your estimated {vector_count}
+2. Identify trade-offs between recall percentage and query performance
+3. Surface warnings about index migration costs and scale transitions
+4. Note {vector_db}-specific tuning parameters
+
+**Key Pattern to Surface (Example - will vary by context):**
+> The knowledge base will return index recommendations based on your vector count. Factors affecting the choice include:
+> - **Recall vs Latency trade-off:** Higher recall (>99%) typically means slower queries
+> - **Memory overhead:** Different index types have different memory footprints per vector
+> - **Scale transitions:** Moving from one index type to another (flat → IVF → HNSW) has different costs at different scales
+> - **Query pattern:** Filtering requirements may favor HNSW over simpler approaches
+
+The knowledge base will return specific tuning parameters and recommendations for your chosen {vector_db} and estimated vector count.
 
 **C. Vector DB Configuration**
 
@@ -597,7 +643,30 @@ stories:
     - "[story list based on pipeline design]"
 ```
 
-### 10. Present MENU OPTIONS
+### 10. Confirm Architecture Before Routing (CHECKPOINT)
+
+**ARCHITECTURE CONFIRMATION CHECKPOINT:**
+
+Before we determine your next step, please confirm your current architecture is correct:
+
+"Based on your sidecar.yaml, your architecture is: **{architecture}**
+
+This determines routing:
+- **RAG-only** → Next step is Step 6 (RAG Specialist) - Skip fine-tuning
+- **Fine-tuning or Hybrid** → Next step is Step 5 (Fine-Tuning Specialist)
+
+**Checkpoint Question:**
+
+Is your current architecture ({architecture}) still correct in your sidecar.yaml? [Y/N/ADJUST]"
+
+**Menu Handling:**
+- **IF Y:** Proceed to menu options (next section)
+- **IF N:** "Let's check your sidecar.yaml. Please review the architecture field and confirm it reflects your current thinking."
+- **IF ADJUST:** "What should the architecture be? (Options: rag-only, fine-tuning, hybrid). Once you update sidecar.yaml, we'll confirm and continue."
+
+---
+
+### 11. Present MENU OPTIONS
 
 **Determine next step based on architecture:**
 - If RAG-only: Next = Step 6 (RAG Specialist) - Skip Step 5
@@ -616,17 +685,14 @@ Display: **Step 4 Complete - Select an Option:** [A] Analyze embeddings further 
 - IF A: Revisit embedding decisions, allow refinement, then redisplay menu
 - IF Q: Ask user to modify constraints (document types, budget tier, privacy requirements, latency needs, scale expectations), then re-run Knowledge MCP queries with new parameters, present updated recommendations, then redisplay menu
 - IF P: Show embeddings-spec.md and decision-log.md summaries, then redisplay menu
-- IF C:
-  1. Verify sidecar is updated with embedding decisions and stories
-  2. Check architecture:
-     - RAG-only → Load `{nextStepFileRAG}` (Step 6: RAG Specialist)
-     - Fine-tuning/Hybrid → Load `{nextStepFileTraining}` (Step 5: Fine-Tuning Specialist)
-  3. Read entire file, then execute
+- IF C: Save content to {outputFile}, update frontmatter, then check {architecture} from sidecar.yaml:
+  - IF {architecture} == 'rag-only': load, read entire file, then execute {nextStep} where nextStep = `{nextStepIfRAGOnly}` (Step 6: RAG Specialist)
+  - IF {architecture} contains 'fine-tuning' (hybrid or fine-tuning-only): load, read entire file, then execute {nextStep} where nextStep = `{nextStepIfTraining}` (Step 5: Fine-Tuning Specialist)
 - IF Any other comments or queries: help user respond then redisplay menu
 
 ## CRITICAL STEP COMPLETION NOTE
 
-ONLY WHEN 'C' is selected AND embeddings pipeline is documented AND stories are generated, will you then immediately load the appropriate next step file based on architecture.
+ONLY WHEN 'C' is selected AND embeddings pipeline is documented AND stories are generated AND architecture is confirmed, will you then immediately load the appropriate next step file based on architecture.
 
 ---
 

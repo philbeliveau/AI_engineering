@@ -285,7 +285,9 @@ llm_judge:
     - randomize_position
     - length_normalization
   calibration:
-    human_agreement_target: ">80%"
+    # Query Knowledge MCP for human agreement targets
+    human_agreement_target_query: "evaluation llm-judge human-agreement calibration {use_case}"
+    human_agreement_target: "[from MCP query - consult knowledge base for {use_case}]"
 ```
 
 **C. Human Evaluation**
@@ -401,12 +403,46 @@ Example: "quality gate thresholds rag-only customer-support production-readiness
 
 **Synthesis:** Present thresholds as "recommendations from knowledge base" not fixed values. Allow user to adjust based on their risk tolerance.
 
-**Example Dynamic Threshold (from knowledge base):**
-> Knowledge base recommendation for {domain} {architecture} systems:
-> - Retrieval recall@5: >80% (adjust based on coverage requirements)
-> - Generation faithfulness: >90% (critical for factual accuracy)
-> - Latency P99: <{latency_sla from business-requirements}
-> - Error rate: <{error_threshold based on risk tolerance}
+**Example Dynamic Thresholds (from Knowledge MCP queries):**
+
+Query Knowledge MCP with your specific constraints to determine thresholds dynamically:
+
+```
+Endpoint: search_knowledge
+Query: "evaluation metrics thresholds {architecture} {use_case} {quality_target}"
+Example: "evaluation metrics thresholds rag-only customer-support high-reliability"
+```
+
+**Threshold Selection Framework:**
+1. **Architecture Factor:** {architecture} determines metric types
+   - RAG systems: retrieval recall, generation faithfulness, groundedness
+   - Fine-tuning: task-specific benchmarks, loss convergence
+   - API-only: output quality, reliability
+
+2. **Use Case Factor:** {use_case} determines acceptable error rates
+   - Customer support (moderate risk): Different thresholds than medical diagnosis (high risk)
+   - Knowledge bases: Emphasis on retrieval recall
+   - Code generation: Functional correctness critical
+
+3. **Quality Target Factor:** {quality_target} from business requirements
+   - High-reliability systems: Stricter thresholds
+   - Best-effort systems: More lenient thresholds
+   - Production vs. beta: Different standards
+
+**Synthesis Approach for Dynamic Thresholds:**
+1. Extract threshold patterns from knowledge base for [{architecture}, {use_case}, {quality_target}]
+2. Identify risk factors: What metrics are critical to your domain?
+3. Surface warnings: Are there anti-patterns specific to your use case?
+4. Present ranges: Show minimum, recommended, and stretch targets
+
+**Reference Structure (values populated from MCP):**
+> Knowledge base recommendations for {domain} {architecture} systems in {use_case}:
+> - Retrieval recall@5: [from MCP - varies by coverage requirements and domain]
+> - Generation faithfulness: [from MCP - critical for factual accuracy in {use_case}]
+> - Latency P99: [from business-requirements SLA]
+> - Error rate: [from MCP - based on {risk_tolerance} for {use_case}]
+> - Token efficiency: [from MCP - model-specific optimization targets]
+> - Cost-per-query: [from MCP - budget constraints]
 
 **B. Gate Decision Options**
 

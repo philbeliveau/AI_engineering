@@ -374,60 +374,90 @@ Ask: "What specific cleaning rules does your data need? Any domain-specific tran
 
 "We'll validate data across dimensions that matter for **{architecture}**:"
 
-**For RAG:**
-| Dimension | Check | Threshold | Why |
-|-----------|-------|-----------|-----|
-| **Metadata Completeness** | Source, timestamp, version present | 100% | Required for retrieval traceability |
-| **Document Integrity** | No truncated or corrupted text | 100% | Prevents incomplete retrieval |
-| **Deduplication** | No exact or semantic duplicates | 100% | Prevents redundant retrieval |
-| **Format Consistency** | All documents parseable | 100% | Enables reliable embedding |
-| **Freshness** | Documents within acceptable age | Configurable | Depends on domain |
+**Query Knowledge MCP for Architecture-Specific Quality Thresholds:**
 
-**For Fine-tuning:**
-| Dimension | Check | Threshold | Why |
-|-----------|-------|-----------|-----|
-| **Label Accuracy** | Labels correct per guidelines | 100% (sample verified) | Wrong labels = wrong behavior |
-| **Example Diversity** | No overfitting risk | Domain-specific | Poor diversity = poor generalization |
-| **Data Leakage** | No eval/test data in training | 0 leakage | Essential for valid evaluation |
-| **Completeness** | All required fields present | >99% | Prevents training failures |
-| **Class Balance** | Fair representation of classes | Domain-specific | Prevents model bias |
+```
+Endpoint: get_patterns
+Topic: "data quality gates {architecture} validation"
+Example: "data quality gates rag-only validation" or "data quality gates fine-tuning validation"
+```
+
+```
+Endpoint: search_knowledge
+Query: "data quality thresholds {architecture} completeness deduplication"
+Example: "data quality thresholds rag metadata completeness"
+```
+
+**For RAG - Synthesized from Knowledge MCP:**
+Present quality dimensions with thresholds from knowledge base queries:
+
+| Dimension | Check | Threshold Source | Why |
+|-----------|-------|------------------|-----|
+| **Metadata Completeness** | Source, timestamp, version present | Query Knowledge MCP | Required for retrieval traceability |
+| **Document Integrity** | No truncated or corrupted text | Query Knowledge MCP | Prevents incomplete retrieval |
+| **Deduplication** | No exact or semantic duplicates | Query Knowledge MCP | Prevents redundant retrieval |
+| **Format Consistency** | All documents parseable | Query Knowledge MCP | Enables reliable embedding |
+| **Freshness** | Documents within acceptable age | Query Knowledge MCP (domain-dependent) | Depends on domain |
+
+**For Fine-tuning - Synthesized from Knowledge MCP:**
+Present quality dimensions with thresholds from knowledge base queries:
+
+| Dimension | Check | Threshold Source | Why |
+|-----------|-------|------------------|-----|
+| **Label Accuracy** | Labels correct per guidelines | Query Knowledge MCP | Wrong labels = wrong behavior |
+| **Example Diversity** | No overfitting risk | Query Knowledge MCP (domain-specific) | Poor diversity = poor generalization |
+| **Data Leakage** | No eval/test data in training | Query Knowledge MCP | Essential for valid evaluation |
+| **Completeness** | All required fields present | Query Knowledge MCP | Prevents training failures |
+| **Class Balance** | Fair representation of classes | Query Knowledge MCP (domain-specific) | Prevents model bias |
 
 **B. Quality Gates**
 
-**If RAG:**
+**If RAG - Quality Gates (Thresholds from Knowledge MCP):**
 ```yaml
 quality_gates:
   extraction:
     - name: "Metadata extraction"
-      check: "Source, timestamp, version extracted for 100%"
+      check: "Source, timestamp, version extracted"
+      threshold: "[from Knowledge MCP: metadata completeness rag]"
+      note: "Query Knowledge MCP: metadata extraction threshold rag"
       action_on_fail: "Block pipeline, review source"
 
   transformation:
     - name: "Deduplication check"
       check: "No exact or semantic duplicates"
+      threshold: "[from Knowledge MCP: deduplication tolerance rag]"
+      note: "Query Knowledge MCP: semantic deduplication threshold rag"
       action_on_fail: "Quarantine duplicates, investigate"
 
   output:
     - name: "Format validation"
-      check: "All documents match schema (100%)"
+      check: "All documents match schema"
+      threshold: "[from Knowledge MCP: format consistency threshold rag]"
+      note: "Query Knowledge MCP: document format validation rag"
       action_on_fail: "Block pipeline, review"
 ```
 
-**If Fine-tuning:**
+**If Fine-tuning - Quality Gates (Thresholds from Knowledge MCP):**
 ```yaml
 quality_gates:
   extraction:
     - name: "Data completeness"
-      check: "All required fields present (>99%)"
+      check: "All required fields present"
+      threshold: "[from Knowledge MCP: completeness threshold fine-tuning]"
+      note: "Query Knowledge MCP: data completeness threshold fine-tuning"
       action_on_fail: "Quarantine incomplete records"
 
   transformation:
     - name: "Label validation"
-      check: "Labels match guidelines (100% sample verified)"
+      check: "Labels match guidelines (sample verified)"
+      threshold: "[from Knowledge MCP: label accuracy threshold fine-tuning]"
+      note: "Query Knowledge MCP: label validation threshold fine-tuning"
       action_on_fail: "Block pipeline, review labeling"
 
     - name: "Leakage prevention"
-      check: "No eval/test data in training (>99%)"
+      check: "No eval/test data in training"
+      threshold: "[from Knowledge MCP: data leakage tolerance fine-tuning]"
+      note: "Query Knowledge MCP: train-eval separation threshold fine-tuning"
       action_on_fail: "Block pipeline, segregate data"
 ```
 
@@ -435,26 +465,67 @@ Ask: "What quality thresholds are acceptable for your use case? Any critical gat
 
 ### 8. Semantic Caching Decision (IF RAG WITH HIGH VOLUME)
 
-**Applicable only if RAG + data volume > 10GB**
+**Query Knowledge MCP for Volume Thresholds:**
 
-Query Knowledge MCP:
+Before deciding on semantic caching, query the knowledge base for current best practices on caching thresholds:
+
 ```
 Endpoint: search_knowledge
-Query: "semantic caching RAG optimization {data_volume} {query_frequency}"
+Query: "semantic caching volume threshold RAG {orchestration_tool}"
+Example: "semantic caching volume threshold RAG ZenML"
 ```
 
-**Should we implement semantic caching?**
+```
+Endpoint: get_patterns
+Topic: "semantic caching optimization {data_volume} RAG"
+```
 
-| Factor | Supports Caching | Supports No Cache |
-|--------|------------------|-------------------|
-| **Data volume** | >50GB (cost matters) | <50GB |
-| **Query volume** | High (many similar queries) | Low (unique queries) |
-| **Budget** | Limited | Generous |
+**Synthesis Approach:**
+1. Extract volume-based caching thresholds from knowledge base
+2. Identify cost-benefit trade-offs for your specific data volume
+3. Surface warnings about caching complexity and latency impact
+4. Present Knowledge MCP recommendation for your data size
 
-**Decision:**
-- "Yes, implement caching" → Adds complexity, saves cost
-- "No caching" → Simpler pipeline, higher cost
-- "Evaluate later" → Start without, add if costs spike
+**SYNTHESIS APPROACH:**
+
+Based on your data volume and infrastructure:
+
+**Query Knowledge MCP for volume-specific recommendations:**
+```
+Endpoint: search_knowledge
+Query: "semantic caching thresholds {orchestration_tool} {data_volume}"
+Example: "semantic caching thresholds ZenML 50GB"
+```
+
+```
+Endpoint: get_patterns
+Topic: "caching cost-benefit {data_volume} {query_frequency}"
+Example: "caching cost-benefit 100GB high-frequency"
+```
+
+```
+Endpoint: get_warnings
+Topic: "semantic caching complexity latency trade-offs"
+```
+
+**Synthesis:**
+1. Extract volume-based thresholds from knowledge base
+2. Identify cost-benefit trade-offs specific to your {orchestration_tool}
+3. Surface latency and complexity warnings
+4. Present recommendation conditioned on actual data volume
+
+**Key Pattern to Surface (from Knowledge MCP):**
+> Volume thresholds for caching recommendation vary by orchestration platform and query patterns. The knowledge base will recommend if caching provides ROI for your {data_volume} at {query_frequency}.
+
+**Based on Knowledge MCP recommendations, determine if semantic caching applies:**
+- User provides actual data volume from conversation
+- Knowledge MCP returns volume-specific recommendation
+- Present cost-benefit trade-off for their specific scenario
+
+**Decision (conditioned on Knowledge MCP recommendation):**
+- Based on Knowledge MCP patterns for your volume: Implement caching → Adds complexity, saves cost
+- Based on Knowledge MCP patterns for your volume: No caching → Simpler pipeline, higher cost
+- Evaluate later → Start without, add if costs spike (monitor actual usage patterns first)
 
 ### 9. Surface Anti-Patterns & Warnings
 
@@ -673,6 +744,26 @@ stories:
   step_3_data:
     - "[story list based on pipeline design]"
 ```
+
+### 12.5 Data Pipeline Design Confirmation
+
+**Before proceeding to Step 4, confirm the pipeline architecture:**
+
+We've designed your data pipeline with:
+- **Ingestion Strategy:** {summarize extraction method: batch/streaming/hybrid}
+- **Quality Checks:** {list 2-3 key quality gates from conversation}
+- **Architecture Fit:** {note which architecture this pipeline serves - RAG/FT/Hybrid}
+
+"This pipeline architecture is designed for **{architecture}** and uses **{orchestration_tool}** for orchestration. Is this approach right for your project?"
+
+**Confirm you're ready to proceed:**
+- **[Yes]** The pipeline design aligns with my needs
+- **[No]** I need to adjust the pipeline strategy
+- **[Questions]** I have concerns we should discuss
+
+Wait for user response and address any adjustments before displaying the menu below.
+
+---
 
 ### 13. Present MENU OPTIONS
 

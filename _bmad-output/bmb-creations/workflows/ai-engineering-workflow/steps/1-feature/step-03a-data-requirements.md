@@ -344,8 +344,31 @@ If YES → Escalate before proceeding
 ```
 For each path above, apply both checks.
 Additional question: Can you keep retrieval and training data SEPARATE?
-Overlap check: What % of training data is in retrieval corpus? (>20% = risk)
+Overlap check: What % of training data is in retrieval corpus? (Query Knowledge MCP for thresholds)
 ```
+
+**QUERY KNOWLEDGE MCP FOR DATA OVERLAP THRESHOLDS:**
+
+Before assessing overlap risk, surface current best practices:
+
+```
+Endpoint: search_knowledge
+Query: "data overlap detection thresholds feasibility {data_volume} training retrieval"
+Example: "data overlap detection thresholds feasibility large-scale training retrieval separation"
+Purpose: Identify recommended overlap detection approaches and risk thresholds for your data size
+```
+
+**Synthesis Approach for Overlap Assessment:**
+
+1. **Extract** recommended overlap detection methods from KB (exact match vs semantic similarity)
+2. **Identify** risk threshold guidance based on your data volume and architecture
+3. **Surface** warnings about data leakage between training and retrieval sets
+4. **Document** the specific overlap percentage found in YOUR dataset (measured, not assumed)
+
+**Practical Assessment:**
+- Actual overlap % in your dataset (measure: exact match + semantic similarity check)
+- Risk level based on knowledge-grounded thresholds
+- Mitigation strategy if overlap exceeds guidance
 
 #### **B. Feasibility Against Tech Stack**
 
@@ -567,7 +590,28 @@ decisions:
 
 ---
 
-### 7. Present MENU OPTIONS
+### 7. Architecture & Data Feasibility Confirmation
+
+**Before proceeding to Step 3B, reflect back what we've validated:**
+
+Based on our analysis:
+- **Data Volume:** {summarize data volume from conversation}
+- **Data Diversity:** {summarize diversity/coverage from conversation}
+- **Quality Requirements:** {summarize quality targets from conversation}
+- **Timeline:** {summarize realistic timeline from conversation}
+
+"Does this summary match your situation and constraints? If not, we can revisit any aspect before moving forward."
+
+**Is your project feasible to proceed with the current architecture decision and data strategy?**
+- **[Yes]** Continue with data pipeline design
+- **[No]** Return to Step 2A to reconsider architecture choice
+- **[Maybe]** Discuss concerns further
+
+Wait for user response and address any concerns before displaying the menu below.
+
+---
+
+### 8. Present MENU OPTIONS
 
 Display: **Step 3A Complete - Select an Option:**
 ```

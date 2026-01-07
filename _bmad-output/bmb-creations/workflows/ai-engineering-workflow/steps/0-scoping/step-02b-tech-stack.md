@@ -496,7 +496,30 @@ stories:
     - "[story list based on tech stack]"
 ```
 
-### 11. Present MENU OPTIONS
+### 11. Confirm Architecture Decision (CHECKPOINT)
+
+**CRITICAL CHECKPOINT BEFORE PROCEEDING:**
+
+Before we finalize the tech stack and proceed, you must explicitly confirm your architecture choice:
+
+"Your architecture decision from Step 2A is: **{architecture}**
+
+This determines which downstream steps execute and which tools you'll use:
+- RAG-only → Skip fine-tuning (Step 5), proceed to RAG design (Step 6)
+- Fine-tuning → Execute training pipeline design (Step 5), then RAG (Step 6)
+- Hybrid → Execute training (Step 5) AND embeddings (Step 4) for both paths
+
+**Architecture Decision Confirmation:**
+
+Have you confirmed the architecture choice ({architecture}) for this project? [Y/N]"
+
+**Menu Handling:**
+- **IF Y:** Proceed to menu options (next section)
+- **IF N:** Return user to Step 2A with message: "No problem. Let's revisit your architecture thinking in Step 2A. Load the architecture-decision.md and reconsider your constraints."
+
+---
+
+### 12. Present MENU OPTIONS
 
 Display: **Step 2B Complete - Select an Option:**
 ```
@@ -546,6 +569,7 @@ Phase 0 is now complete with:
   ✓ BUILD-001: Build vs Buy decision
   ✓ ARCH-001: Architecture direction
   ✓ TECH-001: Tech stack selection
+  ✓ Architecture confirmed via CHECKPOINT
 
 RECOMMENDATION: Clear your conversation context now.
 

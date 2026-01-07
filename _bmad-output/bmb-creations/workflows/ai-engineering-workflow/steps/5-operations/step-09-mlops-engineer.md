@@ -164,7 +164,7 @@ Example: "drift rag-only" or "drift fine-tuning"
 
 **Query 3: MLOps Patterns (Contextualized)**
 ```
-Endpoint: get_methodologies
+Endpoint: get_patterns
 Topic: "mlops {orchestration_platform} {architecture}"
 Example: "mlops kubernetes rag-only"
 ```
@@ -191,7 +191,7 @@ Present synthesized insights:
 **Key Methodology to Surface:**
 > Drift detection requires: (1) Reference window - baseline from training, (2) Test window - production data, (3) Hypothesis tests to compare distributions (KS test for numerical, chi-squared for categorical, MMD for multivariate).
 
-### 3. Monitoring Strategy
+### 3. Monitoring Strategy (Knowledge-Grounded)
 
 **Query Knowledge MCP (Contextualized):**
 Based on your infrastructure:
@@ -199,14 +199,31 @@ Based on your infrastructure:
 - Cloud provider: {cloud_provider}
 - Architecture: {architecture from sidecar}
 
-Query: `get_patterns` with topic: "monitoring {monitoring_tool} {architecture}"
-Example: "monitoring datadog rag-only"
+**MANDATORY KNOWLEDGE MCP QUERIES:**
 
-**Synthesis:** Present monitoring setup specific to chosen tools. Don't suggest alternatives unless asked.
+```
+Endpoint: get_patterns
+Topic: "monitoring {monitoring_tool} {architecture}"
+Example: "monitoring datadog rag-only" or "monitoring prometheus fine-tuning"
+```
+
+```
+Endpoint: search_knowledge
+Query: "llm monitoring metrics thresholds {domain} {sla_requirements}"
+Example: "llm monitoring metrics thresholds customer-service high-availability"
+```
+
+```
+Endpoint: get_warnings
+Topic: "monitoring blind spots {architecture} {monitoring_tool}"
+Example: "monitoring blind spots rag-only datadog"
+```
+
+**Synthesis:** Present monitoring setup specific to chosen tools with knowledge-grounded metric recommendations.
 
 **IF monitoring_tool already selected:**
 - Focus on configuration, not selection
-- "Your tech stack includes {monitoring_tool}. Here's how to configure it for LLM monitoring..."
+- "Your tech stack includes {monitoring_tool}. Here's how to configure it for LLM monitoring based on the knowledge base..."
 
 **A. Observability Pillars**
 
@@ -242,30 +259,37 @@ monitoring:
   metrics:
     - name: "request_latency_p50"
       type: histogram
-      alert_threshold: ">500ms"
+      alert_threshold: "[from Knowledge MCP for {latency_sla}]"
+      note: "Query Knowledge MCP: latency {architecture} {sla_requirements}"
 
     - name: "error_rate"
       type: counter
-      alert_threshold: ">1%"
+      alert_threshold: "[from Knowledge MCP for {domain} {sla_requirements}]"
+      note: "Query Knowledge MCP: error rate threshold {architecture}"
 
     - name: "token_usage_daily"
       type: gauge
-      alert_threshold: ">budget"
+      alert_threshold: "[from budget constraint - {daily_budget}]"
+      note: "Knowledge MCP: cost monitoring {domain}"
 
     - name: "retrieval_empty_rate"
       type: gauge
-      alert_threshold: ">5%"
+      alert_threshold: "[from Knowledge MCP for {domain}]"
+      note: "Query Knowledge MCP: retrieval coverage threshold rag"
 
   logging:
-    level: INFO
-    sample_rate: 0.1  # Log 10% of requests
+    level: "[INFO | DEBUG - from Knowledge MCP for {environment}]"
+    sample_rate: "[from Knowledge MCP for {cost_constraints}]"
     include_prompt: false  # Privacy
     include_response: false
 
   tracing:
     enabled: true
-    sample_rate: 0.01
+    sample_rate: "[from Knowledge MCP for {latency_requirements}]"
 ```
+
+**Knowledge MCP Configuration Guidance:**
+Query the Knowledge MCP for specific thresholds appropriate to your architecture and domain before finalizing monitoring configuration.
 
 Ask: "What monitoring infrastructure do you have? What metrics are most critical for your use case?"
 
@@ -282,19 +306,26 @@ Ask: "What monitoring infrastructure do you have? What metrics are most critical
 **Key Warning:**
 > Data drift can result from natural real-life changes OR systemic problems (missing data, pipeline errors, schema modifications). Both need different responses.
 
-**B. Detection Methodology**
+**B. Detection Methodology (Knowledge-Grounded)**
+
+Query Knowledge MCP for drift detection approaches:
+```
+Endpoint: get_patterns
+Topic: "drift detection hypothesis testing {data_type}"
+Example: "drift detection hypothesis testing embeddings"
+```
 
 1. **Establish Reference Window**: Baseline data from training/validation
 2. **Establish Test Window**: Production data (sliding or tumbling)
-3. **Apply Hypothesis Tests**: Compare distributions
+3. **Apply Hypothesis Tests**: Compare distributions (per Knowledge MCP recommendations)
 
-| Data Type | Recommended Test |
-|-----------|-----------------|
-| **Numerical (univariate)** | Kolmogorov-Smirnov (KS) test |
-| **Categorical** | Chi-squared test |
-| **Text/Embeddings** | Maximum Mean Discrepancy (MMD) |
+| Data Type | Recommended Test | Knowledge MCP Reference |
+|-----------|-----------------|------------------------|
+| **Numerical (univariate)** | Kolmogorov-Smirnov (KS) test | Query for KS threshold |
+| **Categorical** | Chi-squared test | Query for chi-squared threshold |
+| **Text/Embeddings** | Maximum Mean Discrepancy (MMD) | Query for MMD threshold |
 
-**C. Drift Configuration**
+**C. Drift Configuration (Knowledge-Grounded)**
 
 ```yaml
 drift_detection:
@@ -304,28 +335,35 @@ drift_detection:
 
   test_window:
     type: "sliding"
-    size_days: 7
-    slide_days: 1
+    size_days: "[from Knowledge MCP for {architecture}]"
+    slide_days: "[from Knowledge MCP for sensitivity]"
 
   tests:
     - name: "query_embedding_drift"
       type: "mmd"
-      threshold: 0.05  # p-value
+      threshold: "[from Knowledge MCP for {domain}]"  # p-value
+      note: "Query Knowledge MCP: drift detection threshold mmd"
 
     - name: "response_length_drift"
       type: "ks"
-      threshold: 0.05
+      threshold: "[from Knowledge MCP for {data_type}]"
+      note: "Query Knowledge MCP: drift detection ks threshold"
 
     - name: "category_distribution_drift"
       type: "chi_squared"
-      threshold: 0.05
+      threshold: "[from Knowledge MCP for {categorical_domain}]"
+      note: "Query Knowledge MCP: categorical drift threshold"
 
   actions:
     on_drift_detected:
       - alert: "slack"
       - log: "drift_events"
       - investigate: "manual"
+      - notify: "[escalation per Knowledge MCP for {sla_requirements}]"
 ```
+
+**Knowledge MCP Drift Threshold Guidance:**
+Query the Knowledge MCP for specific p-value thresholds and test window sizes appropriate to your domain risk tolerance before finalizing drift detection configuration.
 
 ### 4B. Architecture-Specific Operations
 
@@ -354,28 +392,61 @@ drift_detection:
 
 ### 5. Alerting Configuration
 
-**Query Knowledge MCP for Alert Thresholds:**
+**Query Knowledge MCP for Alert Thresholds (Contextualized):**
 ```
 Endpoint: search_knowledge
-Query: "alerting thresholds {architecture} {sla_requirements}"
+Query: "alerting thresholds {architecture} {sla_requirements} {domain}"
+Example: "alerting thresholds rag-only high-availability financial"
 ```
 
-**Present as recommendations:**
-> Knowledge base suggests for {domain} with {sla_requirements}:
-> - Error rate alert: >{error_threshold}% (adjust based on user traffic patterns)
-> - Latency alert: >{latency_sla * 1.5}ms (based on your SLA)
-> - Cost alert: >{daily_budget * 1.5} (based on your budget)
+```
+Endpoint: get_patterns
+Topic: "monitoring alert thresholds {architecture} {orchestration_platform}"
+Example: "monitoring alert thresholds rag-only kubernetes"
+```
 
-Allow user to customize thresholds based on their specific situation.
+```
+Endpoint: get_warnings
+Topic: "alerting threshold pitfalls false positives {architecture}"
+Example: "alerting threshold pitfalls false positives rag-only"
+```
 
-**A. Alert Severity Levels (Contextual)**
+**Synthesis Approach:**
+1. Extract recommended alert thresholds from Knowledge MCP for {architecture}
+2. Identify domain-specific threshold adjustments (baseline varies by domain)
+3. Surface warnings about false positive rates vs sensitivity
+4. Present Knowledge MCP recommendation for your SLA
+
+**Based on Knowledge MCP recommendations, present thresholds:**
+> Knowledge base suggests for {architecture} with {sla_requirements}:
+> - Error rate alert: [from get_patterns for {domain}] (adjust based on user traffic patterns)
+> - Latency alert: [from get_patterns for {latency_sla}] (based on your SLA)
+> - Cost alert: [from get_patterns for {budget_constraint}] (based on your budget)
+> - Drift detection alert: [from get_patterns for {architecture}]
+
+**Key Pattern from Knowledge MCP:**
+> [Based on current recommendations - will evolve as more sources added]
+
+Allow user to customize thresholds based on their specific situation and Knowledge MCP guidance.
+
+**A. Alert Severity Levels (Knowledge-Grounded)**
+
+Query Knowledge MCP for severity-specific alert thresholds:
+
+```
+Endpoint: get_patterns
+Topic: "alert severity levels response time {sla_requirements}"
+Example: "alert severity levels response time high-availability"
+```
 
 | Level | Examples | Response Time | Notification |
 |-------|----------|---------------|--------------|
 | **Critical** | System down, data breach | Immediate (per {sla_requirements}) | Primary channel + escalation |
-| **High** | Latency > 2x SLA, error > threshold | Per SLA response time | Team notification channel |
-| **Medium** | Drift detected, cost spike | Business hours | Monitoring channel |
-| **Low** | Performance degradation | Next day | Digest |
+| **High** | Latency degradation, error threshold (from Knowledge MCP) | Per SLA response time | Team notification channel |
+| **Medium** | Drift detected, cost spike | [from Knowledge MCP for {domain}] | Monitoring channel |
+| **Low** | Performance degradation | [from Knowledge MCP] | Digest |
+
+**Note:** High-level thresholds (e.g., "Latency > 2x SLA") should be retrieved from Knowledge MCP for {architecture} and {sla_requirements}.
 
 **B. Alert Configuration (Knowledge-Grounded)**
 
@@ -399,25 +470,32 @@ alerting:
 
   alerts:
     - name: "high_error_rate"
-      condition: "error_rate > 5%"
+      condition: "error_rate > [from Knowledge MCP for {domain}]%"
       severity: "high"
       message: "Error rate exceeded threshold"
+      note: "Query Knowledge MCP: error rate alert threshold {architecture}"
 
     - name: "latency_degradation"
-      condition: "p99_latency > 2000ms"
+      condition: "p99_latency > [from Knowledge MCP for {latency_sla}]ms"
       severity: "high"
       message: "P99 latency exceeded SLA"
+      note: "Query Knowledge MCP: latency alert {sla_requirements}"
 
     - name: "drift_detected"
-      condition: "drift_p_value < 0.05"
+      condition: "drift_p_value < [from Knowledge MCP for {domain}]"
       severity: "medium"
       message: "Data drift detected in {feature}"
+      note: "Query Knowledge MCP: drift detection p-value threshold"
 
     - name: "cost_spike"
-      condition: "daily_cost > budget * 1.5"
+      condition: "daily_cost > [budget constraint from {daily_budget}]"
       severity: "medium"
       message: "Token usage exceeding budget"
+      note: "Query Knowledge MCP: cost monitoring alerts {domain}"
 ```
+
+**Knowledge MCP Alert Threshold Configuration:**
+Before finalizing alert thresholds, query the Knowledge MCP for domain-specific and architecture-specific recommendations that account for baseline traffic patterns, SLA requirements, and risk tolerance.
 
 ### 6. Deployment Pipeline
 

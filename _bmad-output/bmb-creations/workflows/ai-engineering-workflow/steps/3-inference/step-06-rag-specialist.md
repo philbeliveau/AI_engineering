@@ -222,6 +222,24 @@ ELSE:
   → Continue with full RAG design (sections 3-9)
 ```
 
+---
+
+### 2.6 RAG Pipeline Configuration Confirmation
+
+**Before proceeding with full RAG design, confirm your architecture needs retrieval:**
+
+Your architecture is: **{architecture}**
+
+- If your architecture is **rag-only** or **hybrid**: We'll design a full RAG pipeline in this step
+- If your architecture is **fine-tuning-only**: You may not need a retrieval-augmented generation component
+
+**Does your system need a RAG (Retrieval-Augmented Generation) component?**
+- **[Yes]** Design the full RAG pipeline
+- **[No, skip RAG]** Skip to Step 7 (Prompt Engineering)
+- **[Unsure]** Let's discuss what retrieval would add to your system
+
+Wait for user response. If "No", update sidecar with `step_6_skipped: true` and proceed directly to Step 7. If "Yes" or "Unsure", continue with Sections 3-9 below.
+
 ### 3. Query Understanding Design
 
 **A. Query Analysis Requirements**
@@ -327,14 +345,28 @@ retrieval:
 
 Ask: "Do your queries require exact keyword matching, semantic understanding, or both? Let me query the knowledge base for patterns specific to your {vector_db} choice."
 
-**B. Retrieval Parameters**
+**B. Retrieval Parameters (Knowledge-Grounded)**
 
-| Parameter | Description | Typical Value |
+Query Knowledge MCP for architecture and vector DB-specific parameter recommendations:
+
+```
+Endpoint: get_patterns
+Topic: "retrieval parameters top-k threshold {vector_db} {query_complexity}"
+Example: "retrieval parameters top-k threshold qdrant multi-facet-queries"
+```
+
+```
+Endpoint: search_knowledge
+Query: "retrieval configuration {vector_db} {latency_requirement}"
+Example: "retrieval configuration qdrant 200ms latency"
+```
+
+| Parameter | Description | Value Source |
 |-----------|-------------|---------------|
-| **top_k** | Candidates to retrieve | 10-50 |
-| **similarity_threshold** | Minimum score | 0.5-0.8 |
-| **diversity** | Prevent redundancy | MMR with lambda 0.5 |
-| **max_results** | Final results after filtering | 3-10 |
+| **top_k** | Candidates to retrieve | From Knowledge MCP for {query_complexity} |
+| **similarity_threshold** | Minimum score | From Knowledge MCP for {vector_db} and {quality_tier} |
+| **diversity** | Prevent redundancy | From Knowledge MCP (MMR method and lambda) |
+| **max_results** | Final results after filtering | From Knowledge MCP for {context_window_size} |
 
 **C. Metadata Filtering**
 
@@ -359,7 +391,7 @@ filters:
     - category
 ```
 
-### 5. Reranking Pipeline Design
+### 5. Reranking & LLM-as-Judge Evaluation Design
 
 **A. Reranking Method Selection**
 
@@ -380,25 +412,73 @@ Endpoint: get_decisions
 Topic: "reranking cross-encoder cohere colbert"
 ```
 
-**Conditional Logic:**
-- IF latency_budget < 50ms:
-  - Surface warning: "Reranking adds latency. Consider ColBERT or skip reranking."
-  - Query: "low-latency reranking alternatives colbert"
-- IF quality is paramount:
-  - Recommend cross-encoder or Cohere Rerank
-  - Query: "high-precision reranking cross-encoder cohere"
+**Query for LLM-as-Judge Bias Patterns (if using LLM-based reranking):**
+```
+Endpoint: get_patterns
+Topic: "llm judge bias evaluation reranking"
+Example: "llm judge bias evaluation reranking"
+```
+
+```
+Endpoint: get_warnings
+Topic: "llm-as-judge limitations reranking {architecture}"
+Example: "llm-as-judge limitations reranking rag-only"
+```
+
+**Conditional Logic (Knowledge-Grounded):**
+
+Query Knowledge MCP for latency-specific recommendations:
+```
+Endpoint: get_patterns
+Topic: "reranking latency-budget {latency_sla} {vector_db}"
+Example: "reranking latency-budget 50ms qdrant" or "reranking latency-budget 200ms pinecone"
+```
+
+Based on Knowledge MCP response:
+- IF knowledge base indicates latency_budget is constrained:
+  - Surface warning about reranking latency trade-off
+  - Query: "low-latency reranking alternatives"
+- IF quality requirements are paramount:
+  - Query: "high-precision reranking models {vector_db}"
 - IF cost-sensitive:
-  - Recommend local cross-encoder models
-  - Query: "local reranking models self-hosted"
+  - Query: "cost-effective reranking local-models"
 
 **Synthesis:** Present reranking options based on:
 1. Your latency budget: {latency_sla from business-requirements}
 2. Quality requirements: {quality_tier from user discussion}
 3. Budget constraints: {budget from business-requirements}
+4. LLM-as-judge biases (if applicable): Current patterns from Knowledge MCP
 
 "Based on your **{latency_budget}ms** latency budget and **{quality_requirement}** priority, here are the reranking approaches from the knowledge base:"
 
-Ask: "What latency can you tolerate for reranking? Is reranking quality worth the cost? Let me query for patterns that match your constraints."
+**Key Reranking & LLM-as-Judge Bias Patterns to Surface (from Knowledge MCP):**
+
+Query Knowledge MCP for current LLM judge bias patterns:
+```
+Endpoint: get_patterns
+Topic: "llm-judge bias types detection mitigation reranking"
+Example: "llm-judge bias types detection mitigation reranking"
+```
+
+```
+Endpoint: get_warnings
+Topic: "llm-as-judge reranking sole-quality-signal risks"
+Example: "llm-as-judge reranking sole-quality-signal risks"
+```
+
+**Synthesis Approach:**
+1. Retrieve current bias types from knowledge base (evolves as research updates)
+2. Identify detection methods specific to {vector_db} and {latency_sla}
+3. Surface mitigation strategies from literature
+4. Present warning about cross-validation necessity
+
+**Key Pattern to Surface (from Knowledge MCP):**
+> LLM-as-judge introduces systematic biases that vary by model and reranking context. Current knowledge base identifies [specific bias types and frequencies].
+
+**Key Warning to Surface:**
+> The knowledge base strongly recommends avoiding LLM-based reranking as your sole quality signal. Cross-validate with human judgment or classical methods (BM25, cross-encoder models). Different reranking methods can have conflicting preferences - this is documented in [current knowledge sources].
+
+Ask: "What latency can you tolerate for reranking? Is reranking quality worth the cost? If using LLM-based reranking, are you aware of potential biases? Let me query for patterns that match your constraints."
 
 **B. Reranking Configuration**
 
@@ -453,13 +533,22 @@ Top Results (3-10)
 | **Ranked list** | Numbered by relevance | Citation needed |
 | **Hierarchical** | Parent > Child structure | Document-aware |
 
-**B. Context Assembly Configuration**
+**B. Context Assembly Configuration (Knowledge-Grounded)**
+
+Query Knowledge MCP for context assembly best practices:
+
+```
+Endpoint: get_patterns
+Topic: "context assembly formatting {llm_model} {context_window_size}"
+Example: "context assembly formatting claude-opus 200k"
+```
 
 ```yaml
 context_assembly:
-  format: "[simple | structured | ranked | hierarchical]"
+  format: "[from Knowledge MCP: simple | structured | ranked | hierarchical]"
   separator: "\n---\n"
-  max_context_tokens: 4000  # Leave room for prompt + response
+  max_context_tokens: "[from Knowledge MCP for {llm_model}]"
+  note: "Query Knowledge MCP: context budget allocation {llm_context_window}"
 
   include_metadata: true
   metadata_fields:
@@ -467,7 +556,7 @@ context_assembly:
     - page_number
     - relevance_score
 
-  ordering: "[relevance | chronological | source_grouped]"
+  ordering: "[from Knowledge MCP: relevance | chronological | source_grouped]"
 
   # For structured format
   structure_template: |
@@ -478,21 +567,30 @@ context_assembly:
     </context>
 ```
 
-**C. Context Window Management**
+**C. Context Window Management (Knowledge-Grounded)**
+
+Query Knowledge MCP for context budget allocation:
 
 ```
-Available Context Budget
+Endpoint: search_knowledge
+Query: "context window budget allocation {llm_model} {architecture}"
+Example: "context window budget allocation claude-opus rag-only"
+```
+
+**Context Budget Allocation (Dynamically determined):**
+```
+Available Context Budget ({llm_context_window} tokens)
          ↓
 ┌─────────────────────────────┐
-│     System Prompt           │  → Fixed allocation (500-1000 tokens)
+│     System Prompt           │  → [from Knowledge MCP for {llm_model}]
 ├─────────────────────────────┤
-│     Retrieved Context       │  → Dynamic (2000-6000 tokens)
+│     Retrieved Context       │  → [from Knowledge MCP for {architecture}]
 ├─────────────────────────────┤
-│     Conversation History    │  → Dynamic (500-2000 tokens)
+│     Conversation History    │  → [from Knowledge MCP based on use case]
 ├─────────────────────────────┤
-│     User Query              │  → Variable (100-500 tokens)
+│     User Query              │  → [from Knowledge MCP estimate]
 ├─────────────────────────────┤
-│     Response Buffer         │  → Reserved (1000-4000 tokens)
+│     Response Buffer         │  → [from Knowledge MCP safety margin]
 └─────────────────────────────┘
 ```
 
@@ -510,24 +608,42 @@ Ask: "What's your target LLM's context window? How should we prioritize when con
 | **Too many results** | Exceeds context budget | Intelligent truncation |
 | **Retrieval timeout** | Latency > threshold | Return partial results |
 
-**B. Fallback Configuration**
+**B. Fallback Configuration (Knowledge-Grounded)**
+
+Query Knowledge MCP for failure handling strategies:
+
+```
+Endpoint: get_patterns
+Topic: "rag failure handling timeout thresholds {latency_sla}"
+Example: "rag failure handling timeout thresholds 200ms"
+```
+
+```
+Endpoint: get_warnings
+Topic: "rag retrieval failure modes handling {architecture}"
+Example: "rag retrieval failure modes handling rag-only"
+```
 
 ```yaml
 fallbacks:
   no_results:
-    strategy: "[broaden_search | suggest_alternatives | graceful_fail]"
+    strategy: "[from Knowledge MCP: broaden_search | suggest_alternatives | graceful_fail]"
     message: "I couldn't find relevant information. Could you rephrase?"
+    note: "Query Knowledge MCP: no-results fallback strategy {domain}"
 
   low_confidence:
-    threshold: 0.5
-    strategy: "[include_disclaimer | ask_clarification | graceful_fail]"
+    threshold: "[from Knowledge MCP for {vector_db} and {quality_tier}]"
+    note: "Query Knowledge MCP: confidence threshold {vector_db}"
+    strategy: "[from Knowledge MCP: include_disclaimer | ask_clarification | graceful_fail]"
 
   context_overflow:
-    strategy: "[truncate_oldest | truncate_lowest_score | summarize]"
+    strategy: "[from Knowledge MCP: truncate_oldest | truncate_lowest_score | summarize]"
+    note: "Query Knowledge MCP: context overflow handling {llm_model}"
 
   timeout:
-    threshold_ms: 2000
-    strategy: "[return_partial | cache_fallback | graceful_fail]"
+    threshold_ms: "[from Knowledge MCP for {latency_sla}]"
+    note: "Query Knowledge MCP: retrieval timeout threshold {latency_sla}"
+    strategy: "[from Knowledge MCP: return_partial | cache_fallback | graceful_fail]"
 ```
 
 ### 8. Document Decisions

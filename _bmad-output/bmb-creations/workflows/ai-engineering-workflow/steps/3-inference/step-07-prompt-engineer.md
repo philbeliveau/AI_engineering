@@ -171,11 +171,19 @@ Query: "LLM guardrails {domain} {compliance_requirements}"
 Example: "LLM guardrails healthcare hipaa"
 ```
 
+**Query 5: Prompt Token Budgeting (Contextualized)**
+```
+Endpoint: search_knowledge
+Query: "prompt token budgeting {llm_model} {context_window_size}"
+Example: "prompt token budgeting claude-3 200000"
+```
+
 **Synthesis Approach:**
 1. Extract **prompt structure patterns** specific to chosen LLM model
 2. Identify **output formatting techniques** that work with downstream systems
 3. Surface **common prompting mistakes** for this model/use case
 4. Note **safety and guardrail patterns** for domain compliance
+5. Extract **token allocation framework** based on model context window and output length requirements
 
 Present synthesized insights:
 "Based on your {llm_model} selection and {use_case} requirements, here's what the knowledge base tells us about prompt engineering..."
@@ -507,8 +515,30 @@ output_guardrails:
 
   length_limits:
     min_tokens: 10
-    max_tokens: 2000
+    max_tokens: "[Query Knowledge MCP: prompt token budgeting {llm_model} {context_window_size}]"
 ```
+
+**Token Allocation Framework (from Knowledge MCP Query 5):**
+
+After querying the knowledge base for prompt token budgeting, dynamically allocate output token limits based on:
+- Model context window size (from tech-stack-decision.md)
+- System prompt size
+- Expected input length
+- Required output length
+- Safety margin (typically 10-20% of context window)
+
+**Synthesis:** Based on query results, apply allocation percentages:
+- System Prompt: {X}% of context window
+- Few-shot Examples: {Y}% of context window
+- User Input + Retrieved Context: {Z}% of context window
+- Output (max_tokens): {W}% of context window
+
+**Example allocation for Claude 3 (200K context):**
+- System Prompt: 5% (10,000 tokens)
+- Examples: 10% (20,000 tokens)
+- Input + Context: 70% (140,000 tokens)
+- Output: 10% (20,000 tokens)
+- Safety Margin: 5% (10,000 tokens reserved)
 
 **D. Guardrail Messages**
 
