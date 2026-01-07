@@ -10,7 +10,11 @@
 
 ## Why This Exists
 
-Building AI applications is overwhelming. You face hundreds of decisions about architecture, data pipelines, embeddings, fine-tuning, RAG, evaluation, and operations.
+Building AI applications is overwhelming. You face hundreds of decisions:
+
+- *"What chunking strategy for my domain? What size? Semantic or fixed?"*
+- *"RAG or fine-tuning? Hybrid? What are the trade-offs for my scale?"*
+- *"What embedding model? What vector DB? How do I evaluate quality?"*
 
 The answers exist — scattered across books, papers, and case studies. But finding and synthesizing them while holding your specific context in mind is exhausting.
 
@@ -32,6 +36,97 @@ We extract **actionable structure** from the literature:
 | **Patterns** | Reusable implementations with context and constraints |
 | **Warnings** | Anti-patterns, pitfalls, and failure modes to avoid |
 | **Methodologies** | Step-by-step processes for complex tasks |
+
+---
+
+## How It Works
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  1. KNOWLEDGE EXTRACTION (One-time)                                      │
+│                                                                          │
+│  Books, Papers, Case Studies                                             │
+│        ↓                                                                 │
+│  PDF/Markdown Parsing → Semantic Chunking → Claude API Extraction        │
+│        ↓                                                                 │
+│  Structured prompts extract: decisions, patterns, warnings,              │
+│  methodologies, agent definitions (with validation & deduplication)      │
+└──────────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  2. VECTOR STORAGE                                                       │
+│                                                                          │
+│  MongoDB (metadata, full content) + Qdrant (768d nomic embeddings)       │
+│                                                                          │
+│  Semantic search with 8K context window for long-form retrieval          │
+└──────────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  3. MCP SERVER (Real-time queries)                                       │
+│                                                                          │
+│  5 tools: search, decisions, patterns, warnings, sources                 │
+│  Guides Claude to multi-query, cross-reference, and synthesize           │
+└──────────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  4. AGENTIC WORKFLOWS (Contextual guidance)                              │
+│                                                                          │
+│  Specialized agents → Structured steps → Contextual MCP queries          │
+│                                                                          │
+│  Each step loads prior context → Searches are domain-aware               │
+│  Questions enforce structure → Solution space shrinks                    │
+│  Warnings surface proactively → Mistakes avoided                         │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Design Philosophy:**
+- Extractions are for *navigation*, Claude is for *synthesis*
+- Workflows provide *structure*, agents provide *expertise*
+- Context flows forward, each step builds on the last
+
+---
+
+## Example: How Structure Guides Decisions
+
+Without structure, a user asking "Should I use RAG or fine-tuning?" faces overwhelming options and trade-offs.
+
+**With this workflow, structure shrinks the solution space:**
+
+### Step 2A: Architecture Decision (Funnel: 100+ options → 3 paths)
+
+**1. Build vs Buy (3-question decision tree):**
+```
+Q1: Is the LLM critical to your business?
+├─ YES → Q2: Do you have sufficient training data?
+│  ├─ YES → Q3: Privacy/security requirements?
+│  │  ├─ YES → BUILD (BUILDING path)
+│  │  └─ NO  → Analyze trade-offs
+│  └─ NO  → RAG likely better (BUYING/RAG path)
+└─ NO  → Use API access (BUYING path)
+```
+
+**2. Use Case Classification (narrows to 6 categories):**
+| Use Case | Direction | Why |
+|----------|-----------|-----|
+| Knowledge QA | RAG | Retrieves from documents, prevents hallucinations |
+| Content Generation | Fine-tuning | Needs custom style, requires training data |
+| Conversational Agent | Hybrid | Needs both retrieval AND reasoning |
+
+**3. Data Assessment (5 factors evaluate your specific situation):**
+- Volume: `search_knowledge("training data volume thresholds...")`
+- Quality: 1,000 high-quality samples > 50,000 low-quality
+- Sensitivity: PII data? → RAG (keeps data separate)
+- Update Frequency: Changes often? → RAG (always current)
+- Proprietary Knowledge: Custom terminology? → Fine-tuning
+
+**Result:** User goes from confused to confident in 15 minutes with a clear decision.
+
+---
+
+## The AI Engineering Workflow
 
 ### Architecture
 
@@ -85,6 +180,22 @@ Each agent brings domain expertise, asks clarifying questions, and generates imp
 | **10** | **Tech Lead** 👨‍💼 | Story review, dependency sequencing, implementation validation, GO/REVISE decision |
 | **11** | **Story Elaborator** 📚 | Story format transformation, task breakdown, dev handoff |
 
+### Design Principles
+
+**Why This Works:**
+- **Micro-file Design** — Each step is self-contained, read completely before execution
+- **Sequential Enforcement** — Complete phases in order, no skipping or optimization
+- **Knowledge-Grounded** — Every decision references the Knowledge MCP for best practices
+- **Story Generation** — Each phase outputs implementation stories (~41 total across phases)
+- **State Tracking** — Progress tracked in `sidecar.yaml` with completion checkpoints
+- **Conditional Routing** — RAG-only path skips Step 5; hybrid path includes it
+
+**Why FTI Pattern:**
+- Solves training-serving skew — Same feature logic in training and inference
+- Clear separation of concerns — Each pipeline has one job
+- Independent scaling — Scale inference without touching training
+- Quality gates — Evaluation validates before operations
+
 ### How to Run the Workflow
 
 The workflow is designed to be executed step-by-step with your AI engineering project:
@@ -122,7 +233,7 @@ The workflow is designed to be executed step-by-step with your AI engineering pr
 
 ## Getting Started
 
-### Option 1: Use via Claude Desktop (No Installation)
+### Option 1: Use via Claude Code (No Installation)
 
 Add to your `claude_desktop_config.json`:
 
@@ -142,7 +253,7 @@ Add to your `claude_desktop_config.json`:
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 - Linux: `~/.config/Claude/claude_desktop_config.json`
 
-Then restart Claude. Claude can now query the knowledge pipeline using these tools:
+Then restart Claude Code. You can now query the knowledge pipeline using these tools:
 - `search_knowledge` — Semantic search across all knowledge
 - `get_decisions` — Architectural decisions with trade-offs
 - `get_patterns` — Reusable implementation patterns
