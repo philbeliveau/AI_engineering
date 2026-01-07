@@ -152,7 +152,7 @@ Add to your Claude config (`claude_desktop_config.json`):
 
 ## Database Overview (CRITICAL - READ THIS)
 
-**Connection String:** `mongodb+srv://philbeliv_db_user:UJQaFv2xtPScNv2S@knowledge-cluster.2tb7rue.mongodb.net/knowledge_db?retryWrites=true&w=majority`
+**Connection String:** Set via `MONGODB_URI` environment variable (see `.env.example`)
 
 **Important:** MongoDB contains BOTH collections. Always query `knowledge-pipeline_extractions` (NOT `ai_engineering_extractions` which is empty).
 
