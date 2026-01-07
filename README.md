@@ -2,6 +2,10 @@
 
 **A cognitive framework for building AI applications — specialized agents guide you through structured workflows, backed by contextual knowledge search across the AI engineering literature.**
 
+<p align="center">
+  <img src="assets/hero-image.png" alt="Knowledge Pipeline - Agents guiding chaos into clarity" width="600">
+</p>
+
 ---
 
 ## Why This Exists
