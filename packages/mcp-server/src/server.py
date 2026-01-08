@@ -286,7 +286,7 @@ async def health_endpoint(request: Request) -> Response:
 
 # Create and mount MCP server AFTER defining endpoints
 # Follows architecture.md:169-189 (fastapi-mcp integration pattern)
-# Using SSE transport for Claude Desktop/Code compatibility
+# Using SSE transport for Claude Desktop/Code compatibility (build: force-redeploy-20260108)
 # Exclude infrastructure endpoints from MCP tools (per context7 best practices)
 mcp = FastApiMCP(
     app,
