@@ -286,7 +286,7 @@ async def health_endpoint(request: Request) -> Response:
 
 # Create and mount MCP server AFTER defining endpoints
 # Follows architecture.md:169-189 (fastapi-mcp integration pattern)
-# Using HTTP transport (recommended) per fastapi-mcp docs
+# Using SSE transport for Claude Desktop/Code compatibility
 # Exclude infrastructure endpoints from MCP tools (per context7 best practices)
 mcp = FastApiMCP(
     app,
@@ -294,8 +294,8 @@ mcp = FastApiMCP(
     description="Query AI engineering knowledge extracted from methodology books",
     exclude_tags=["infrastructure"],  # Health check is not a knowledge query tool
 )
-# Mount MCP at /mcp endpoint with HTTP transport
-mcp.mount_http()
+# Mount MCP at /mcp endpoint with SSE transport
+mcp.mount_sse(mount_path="/mcp")
 
 
 def main() -> None:
