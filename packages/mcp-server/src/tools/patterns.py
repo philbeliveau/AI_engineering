@@ -159,8 +159,8 @@ For complex implementations, retrieve patterns for:
 - ALWAYS pair with get_warnings() before implementation""",
 )
 async def get_patterns(
-    topic: str | None = Query(
-        default=None,
+    topic: str = Query(
+        default="",
         description="Topic filter: 'rag', 'embeddings', 'chunking', 'prompt-engineering', 'evaluation'. Include domain from loaded spec if available.",
     ),
     limit: int = Query(

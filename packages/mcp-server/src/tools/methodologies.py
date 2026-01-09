@@ -187,8 +187,8 @@ Each methodology includes:
 )
 async def get_methodologies(
     request: Request,
-    topic: str | None = Query(
-        None,
+    topic: str = Query(
+        "",
         description="Topic filter: 'rag', 'fine-tuning', 'prompt-engineering', 'evaluation', 'deployment'. Include domain from loaded spec.",
     ),
     limit: int = Query(

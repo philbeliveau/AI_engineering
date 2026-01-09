@@ -152,8 +152,8 @@ def _map_decision_payload(extraction_id: str, payload: dict[str, Any]) -> Decisi
 - compare_sources() → how different authors view the decision""",
 )
 async def get_decisions(
-    topic: str | None = Query(
-        default=None,
+    topic: str = Query(
+        default="",
         description="Topic filter: 'rag', 'embeddings', 'chunking', 'llm-ops', 'fine-tuning', 'prompt-engineering'. Include domain from loaded spec if available.",
     ),
     limit: int = Query(

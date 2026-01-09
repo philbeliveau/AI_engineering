@@ -158,8 +158,8 @@ When user asks "how do I implement X?":
 - 'production' → scaling, latency, cost""",
 )
 async def get_warnings(
-    topic: str | None = Query(
-        default=None,
+    topic: str = Query(
+        default="",
         description="Topic filter. IMPORTANT: Always query warnings for any topic you're about to help implement. Include domain from loaded spec.",
     ),
     limit: int = Query(
