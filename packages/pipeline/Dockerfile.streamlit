@@ -1,7 +1,10 @@
 # =============================================================================
-# Knowledge Pipeline Streamlit Dockerfile
+# Knowledge Pipeline Combined Dockerfile (Streamlit + API)
 # =============================================================================
-# Multi-stage build for Streamlit web ingestion interface
+# Multi-stage build for Streamlit web UI + FastAPI pipeline endpoints
+# Uses nginx reverse proxy to serve both on single Railway port:
+#   - /api/*  -> FastAPI (ingest, extract, sources, health)
+#   - /*      -> Streamlit web interface
 #
 # Environment Variables (required at runtime):
 #   MONGODB_URI    - MongoDB connection string (e.g., mongodb+srv://...)
@@ -13,8 +16,15 @@
 #   PROJECT_ID     - Multi-tenant project isolation (default: ai_engineering)
 #   ANTHROPIC_API_KEY - Required for extraction during ingestion
 #
-# Build: docker build -f Dockerfile.streamlit -t knowledge-streamlit .
-# Run:   docker run -p 8501:8501 -e MONGODB_URI=... -e QDRANT_URL=... knowledge-streamlit
+# Build: docker build -f Dockerfile.streamlit -t knowledge-pipeline .
+# Run:   docker run -p 8501:8501 -e MONGODB_URI=... -e QDRANT_URL=... knowledge-pipeline
+#
+# API Endpoints (via /api/):
+#   POST /api/ingest          - File upload ingestion
+#   POST /api/ingest/url      - URL-based ingestion
+#   POST /api/extract/{id}    - Run extraction on source
+#   GET  /api/sources/{id}    - Get source status
+#   GET  /health              - Health check (direct, not under /api)
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -39,10 +49,12 @@ RUN uv sync --frozen --no-dev --no-cache --no-install-project
 # -----------------------------------------------------------------------------
 FROM python:3.11-slim AS runtime
 
-# Install libgl1 for OpenCV (per Docling docs: https://github.com/docling-project/docling/blob/main/docs/faq/index.md)
-# This resolves: ImportError: libGL.so.1: cannot open shared object file
+# Install system dependencies:
+# - libgl1, libglib2.0-0: OpenCV for Docling (per Docling docs)
+# - nginx: Reverse proxy to serve both Streamlit and FastAPI
+# - gettext-base: envsubst for nginx config templating
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && \
+    apt-get install -y --no-install-recommends libgl1 libglib2.0-0 nginx gettext-base && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -79,8 +91,14 @@ COPY src/ /app/src/
 COPY scripts/ /app/scripts/
 COPY pages/ /app/pages/
 COPY web_app.py /app/
+COPY api.py /app/
 COPY .streamlit/ /app/.streamlit/
 COPY pyproject.toml uv.lock README.md /app/
+
+# Copy nginx config and startup script
+COPY nginx.conf /app/nginx.conf
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 # Add virtualenv to PATH
 ENV PATH="/app/.venv/bin:$PATH"
@@ -89,10 +107,10 @@ ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8501
 
 # Health check for container orchestration
-# Streamlit serves on /healthz when running
+# Uses FastAPI /health endpoint through nginx
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT}/_stcore/health', timeout=5)" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT}/health', timeout=5)" || exit 1
 
-# Run Streamlit with dynamic port binding
-# Note: PORT is read from environment variable at runtime
-CMD ["sh", "-c", "streamlit run web_app.py --server.port ${PORT} --server.address 0.0.0.0"]
+# Run combined services via start script
+# nginx (PORT) -> Streamlit (8501) + FastAPI (8000)
+CMD ["/app/start.sh"]

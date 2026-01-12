@@ -94,4 +94,5 @@ development_status:
   5-4-cloud-database-configuration: done  # All 10 tasks completed 2026-01-03, 235 tests pass
   5-5-railway-deployment-pipeline: done  # Code review passed 2026-01-04: Deployed + verified data returns
   5-6-streamlit-web-ingestion-interface: in-progress  # 2026-01-04: Code review fixes applied (libGL, connection leak, collection names). Task 7 (Railway deploy) pending.
+  5-7-pipeline-api-service: review  # 2026-01-12: Complete - FastAPI service deployed to Railway (PROJECT_ID=enact)
   epic-5-retrospective: optional

@@ -28,6 +28,8 @@ dependencies = [
     # Web UI
     "streamlit>=1.40.0",
     "einops>=0.8.1",
+    # File upload support for FastAPI
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
