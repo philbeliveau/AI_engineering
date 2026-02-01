@@ -78,3 +78,6 @@ codex --sandbox danger-full-access --ask-for-approval never
   phases. If you see the book LLM Handbook, the author mentions clearly about the zenML, opik,   
   cometML stack, why and whats best. We need to have one of our current  agent that own part     
   of this role.   
+
+   Now, lets make the extractions for the prompt engineering doc: '/Users/philippebeliveau/Desk
+  top/Notebook/AI_engineering/_bmad-output/data/download-script/prompt-engineering' 

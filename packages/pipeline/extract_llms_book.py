@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Extract Methodology, Checklist, Workflow, and Persona from LLMs in Production book.
+Extract Methodology and Checklist from LLMs in Production book.
 """
 
 import asyncio
@@ -27,8 +27,8 @@ SOURCE_ID = "695c4ffed9fd318585d2fe19"
 EXTRACTORS = [
     ExtractionType.METHODOLOGY,
     ExtractionType.CHECKLIST,
-    ExtractionType.WORKFLOW,
-    ExtractionType.PERSONA,
+    # ExtractionType.WORKFLOW,    # Commented out - not currently needed
+    # ExtractionType.PERSONA,     # Commented out - not currently needed
 ]
 
 

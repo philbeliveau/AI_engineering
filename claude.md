@@ -1,5 +1,25 @@
 # Knowledge Pipeline - Claude Development Notes
 
+**Method 2: Direct HTTP (always works)**
+
+```bash
+# Semantic search (POST)
+curl -s -X POST "https://knowledge-mcp-production.up.railway.app/search_knowledge?query=YOUR_QUERY&limit=10"
+
+# Get patterns (GET)
+curl -s "https://knowledge-mcp-production.up.railway.app/get_patterns?topic=YOUR_TOPIC"
+
+# Get warnings (GET)
+curl -s "https://knowledge-mcp-production.up.railway.app/get_warnings?topic=YOUR_TOPIC"
+
+# Get decisions (GET)
+curl -s "https://knowledge-mcp-production.up.railway.app/get_decisions?topic=YOUR_TOPIC"
+
+# List sources (GET)
+curl -s "https://knowledge-mcp-production.up.railway.app/list_sources"
+
+# Health check
+curl -s "https://knowledge-mcp-production.up.railway.app/health"
 ## Project Overview
 
 Building an AI engineering knowledge system that extracts structured knowledge from methodology books and serves it via MCP to Claude Code users.
@@ -214,6 +234,28 @@ All 7 extractors are defined in:
 - `src/extractors/base.py:ExtractorRegistry` - Manages all extractors
 - `src/extractors/llm_client.py:LLMClient` - Handles Claude API calls
 - Each extractor inherits from `BaseExtractor` and implements custom extraction logic
+
+
+**Method 2: Direct HTTP (always works)**
+
+```bash
+# Semantic search (POST)
+curl -s -X POST "https://knowledge-mcp-production.up.railway.app/search_knowledge?query=YOUR_QUERY&limit=10"
+
+# Get patterns (GET)
+curl -s "https://knowledge-mcp-production.up.railway.app/get_patterns?topic=YOUR_TOPIC"
+
+# Get warnings (GET)
+curl -s "https://knowledge-mcp-production.up.railway.app/get_warnings?topic=YOUR_TOPIC"
+
+# Get decisions (GET)
+curl -s "https://knowledge-mcp-production.up.railway.app/get_decisions?topic=YOUR_TOPIC"
+
+# List sources (GET)
+curl -s "https://knowledge-mcp-production.up.railway.app/list_sources"
+
+# Health check
+curl -s "https://knowledge-mcp-production.up.railway.app/health"
 
 ## Known Issues
 

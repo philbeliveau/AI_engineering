@@ -6,29 +6,24 @@
     "auditLog": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/.d7ee729a0a29199d2308dc256f925e9cbaaa42d0-audit.json",
     "files": [
         {
-            "date": 1767108186314,
-            "name": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/mcp-puppeteer-2025-12-30.log",
-            "hash": "68565fd83c5180fab2b6827784daf58d3c0402543c295e0987f1f4ed4880ca09"
+            "date": 1767829948071,
+            "name": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/mcp-puppeteer-2026-01-07.log",
+            "hash": "f594f60b5395d2504483facc528666191b1cccc2336f70ae0684237fc19d2a34"
         },
         {
-            "date": 1767458891900,
-            "name": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/mcp-puppeteer-2026-01-03.log",
-            "hash": "a89f25ff11384eb4eedd5862c811fda778712acaf9fec317699ccb248d583f37"
+            "date": 1768228865918,
+            "name": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/mcp-puppeteer-2026-01-12.log",
+            "hash": "c9dc7b7eb0485a2f5a4cbed5d1871f7112a686a12ecf6aeee96746ea8dfef82f"
         },
         {
-            "date": 1767545934721,
-            "name": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/mcp-puppeteer-2026-01-04.log",
-            "hash": "80d8370af9f6ef53e799b1f384e8a7c348813fe94db6997c754a002a45539210"
+            "date": 1768924728434,
+            "name": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/mcp-puppeteer-2026-01-20.log",
+            "hash": "0c88c85c99c2f34516676a127bd85f8477265d204be399f263c3b996ad5a6b3b"
         },
         {
-            "date": 1767657246963,
-            "name": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/mcp-puppeteer-2026-01-05.log",
-            "hash": "d387fe242139ac54f8a2d2554ac6620b65920b15b0a75a9e47201ca512577b68"
-        },
-        {
-            "date": 1767710190759,
-            "name": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/mcp-puppeteer-2026-01-06.log",
-            "hash": "b86f1e50e3e0e793f3891ee4234a4280c1525e494963ad0483e325a341ebedf7"
+            "date": 1769003740216,
+            "name": "/Users/philippebeliveau/Desktop/Notebook/AI_engineering/logs/mcp-puppeteer-2026-01-21.log",
+            "hash": "6f6b0fa29e1f311a588a35f81e1159f517c575ad982bc578950a72228fc75324"
         }
     ],
     "hashType": "sha256"
