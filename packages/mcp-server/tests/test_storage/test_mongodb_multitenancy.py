@@ -46,6 +46,51 @@ class TestCollectionNameHelper:
         assert client._collection_name("extractions") == settings.extractions_collection
 
 
+class TestValidateProjectId:
+    """Tests for _validate_project_id() security validation."""
+
+    def test_valid_alphanumeric(self):
+        """Accept standard alphanumeric project IDs."""
+        # Should not raise
+        MongoDBClient._validate_project_id("org_abc")
+        MongoDBClient._validate_project_id("my-project")
+        MongoDBClient._validate_project_id("Project123")
+        MongoDBClient._validate_project_id("a")
+
+    def test_rejects_empty_string(self):
+        """Reject empty string."""
+        with pytest.raises(ValueError):
+            MongoDBClient._validate_project_id("")
+
+    def test_rejects_none_like(self):
+        """Reject None passed as string (edge case)."""
+        with pytest.raises(ValueError):
+            MongoDBClient._validate_project_id("")
+
+    def test_rejects_special_characters(self):
+        """Reject project IDs with dots, slashes, spaces, or other special chars."""
+        with pytest.raises(ValueError):
+            MongoDBClient._validate_project_id("org.abc")
+        with pytest.raises(ValueError):
+            MongoDBClient._validate_project_id("../../admin")
+        with pytest.raises(ValueError):
+            MongoDBClient._validate_project_id("org abc")
+        with pytest.raises(ValueError):
+            MongoDBClient._validate_project_id("org$abc")
+
+    def test_rejects_dollar_prefix(self):
+        """Reject MongoDB operator injection attempts."""
+        with pytest.raises(ValueError):
+            MongoDBClient._validate_project_id("$where")
+
+    def test_collection_name_validates(self):
+        """_collection_name() calls _validate_project_id, so invalid IDs are rejected."""
+        settings = Settings(project_id="default")
+        client = MongoDBClient(settings)
+        with pytest.raises(ValueError):
+            client._collection_name("sources", "../../hack")
+
+
 class TestProjectIdPropagation:
     """Tests that project_id is correctly propagated to collection resolution."""
 

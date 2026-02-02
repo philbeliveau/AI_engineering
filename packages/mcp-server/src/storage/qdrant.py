@@ -559,10 +559,12 @@ class QdrantStorageClient:
 
             # Scroll through all extractions for these sources
             # Use higher limit since we're fetching for multiple sources
+            # Cap at 10,000 to prevent unbounded scrolls with large source lists
+            scroll_limit = min(len(source_ids) * 1000, 10_000)
             results, _ = self._client.scroll(
                 collection_name=self._collection,
                 scroll_filter=qdrant_filter,
-                limit=len(source_ids) * 1000,  # Up to 1000 extractions per source
+                limit=scroll_limit,
                 with_payload=["extraction_type", "source_id"],
                 with_vectors=False,
             )

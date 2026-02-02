@@ -5,9 +5,75 @@ from datetime import datetime
 import pytest
 
 from src.config import settings
-from src.exceptions import NotFoundError, StorageError
+from src.exceptions import NotFoundError, StorageError, ValidationError
 from src.models import Chunk, ChunkPosition, Extraction, Source
 from src.storage import MongoDBClient
+
+
+# =============================================================================
+# Unit Tests — _validate_project_id and _collection_name (no DB needed)
+# =============================================================================
+
+
+class TestValidateProjectId:
+    """Tests for _validate_project_id() security validation (Story 11.1)."""
+
+    def test_valid_alphanumeric(self):
+        """Accept standard alphanumeric project IDs."""
+        MongoDBClient._validate_project_id("org_abc")
+        MongoDBClient._validate_project_id("my-project")
+        MongoDBClient._validate_project_id("Project123")
+        MongoDBClient._validate_project_id("a")
+
+    def test_rejects_empty_string(self):
+        """Reject empty string."""
+        with pytest.raises(ValidationError):
+            MongoDBClient._validate_project_id("")
+
+    def test_rejects_special_characters(self):
+        """Reject project IDs with dots, slashes, spaces, or other special chars."""
+        with pytest.raises(ValidationError):
+            MongoDBClient._validate_project_id("org.abc")
+        with pytest.raises(ValidationError):
+            MongoDBClient._validate_project_id("../../admin")
+        with pytest.raises(ValidationError):
+            MongoDBClient._validate_project_id("org abc")
+        with pytest.raises(ValidationError):
+            MongoDBClient._validate_project_id("org$abc")
+
+    def test_rejects_dollar_prefix(self):
+        """Reject MongoDB operator injection attempts."""
+        with pytest.raises(ValidationError):
+            MongoDBClient._validate_project_id("$where")
+
+
+class TestCollectionNameHelper:
+    """Tests for _collection_name() method (Story 11.1)."""
+
+    def test_with_explicit_project_id(self):
+        """Uses provided project_id when given."""
+        assert MongoDBClient._collection_name("sources", "org_abc") == "org_abc_sources"
+        assert MongoDBClient._collection_name("chunks", "org_abc") == "org_abc_chunks"
+
+    def test_with_none_falls_back_to_settings(self):
+        """Falls back to settings.project_id when None."""
+        expected = f"{settings.project_id}_sources"
+        assert MongoDBClient._collection_name("sources", None) == expected
+
+    def test_without_project_id_falls_back_to_settings(self):
+        """Falls back to settings.project_id when not provided."""
+        expected = f"{settings.project_id}_sources"
+        assert MongoDBClient._collection_name("sources") == expected
+
+    def test_rejects_invalid_project_id(self):
+        """Rejects invalid project_id values."""
+        with pytest.raises(ValidationError):
+            MongoDBClient._collection_name("sources", "../../hack")
+
+
+# =============================================================================
+# Integration Tests (require running MongoDB)
+# =============================================================================
 
 
 class TestMongoDBClientConnection:

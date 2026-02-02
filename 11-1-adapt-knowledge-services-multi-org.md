@@ -1,6 +1,6 @@
 # Story 11.1: Adapt Knowledge Services for Multi-Organization Support
 
-Status: review
+Status: done
 
 ## Story
 
@@ -277,7 +277,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - Part D (Tasks 9-10): Enact infra scaffolding complete — API_CONTRACT.md, railway.enact.json, docker-compose, .env.example, knowledge.ts config, config-validation.ts warning
 - Part E (Task 11): Railway deployment documented as manual ops instructions in story file
 
-### Code Review Fixes Applied
+### Code Review Fixes Applied (Round 1)
 - **[H1-FIXED]** `api.py` GET `/sources/{source_id}` now passes `project_id` to `get_source()`, `count_chunks_by_source()`, `get_extractions_by_source()`
 - **[H1-FIXED]** Pipeline `count_chunks_by_source()` and `get_extractions_by_source()` now accept `project_id` param with `_collection_name()` resolution
 - **[M2-FIXED]** Added `_validate_project_id()` to both MCP and Pipeline `MongoDBClient` — rejects empty/invalid project IDs before they become collection names
@@ -285,10 +285,23 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - **[M4-FIXED]** Pipeline `list_sources()` now accepts `project_id` and uses `_collection_name("sources", project_id)` instead of `settings.sources_collection`
 - **[M1-FIXED]** Story File List updated with all 21 modified files (was missing 7)
 
+### Code Review Fixes Applied (Round 2)
+- **[H3-FIXED]** Added `_validate_project_id()` tests to MCP `test_mongodb_multitenancy.py` (6 tests: valid IDs, empty string, special chars, dollar prefix, collection_name integration) and Pipeline `test_mongodb.py` (8 tests: valid IDs, empty string, special chars, dollar prefix, collection_name helper)
+- **[M3-FIXED]** Capped `count_extractions_by_sources` scroll limit at 10,000 in MCP `qdrant.py` to prevent unbounded scrolls with large source lists
+- **[L1-FIXED]** Removed dead code in Pipeline `api.py` — `int(settings.environment == "local" and 8000 or 8000)` always evaluated to 8000, simplified to `uvicorn.run(app, host="0.0.0.0", port=8000)`
+- MCP server: 454 tests pass (up from 448), 0 failures
+
+### Known Limitations (Documented by Review)
+- **Pipeline write methods not multi-tenant**: `create_source`, `update_source`, `create_chunk`, `create_extraction`, `save_extraction_from_extractor`, `create_chunks_bulk`, `create_extractions_bulk` still use hardcoded `settings.*_collection`. This is by design — ACs only scope read/delete paths. Future story needed for write-path multi-tenancy.
+- **Pipeline `extract_source` endpoint**: Does not pass `project_id` to `ExtractionPipeline()`. Pre-existing issue, not in scope for this story.
+- **Pipeline `update_source`**: Uses `settings.sources_collection` instead of `_collection_name()`. Pre-existing inconsistency.
+- **Pipeline `ensure_indexes`**: Creates indexes only on default project collections. Non-default org collections will lack indexes at scale.
+- **`uv.lock` uncommitted**: `packages/mcp-server/uv.lock` has local changes not committed.
+
 ### File List
 **MCP Server (Part A):**
 - `packages/mcp-server/src/storage/mongodb.py` — Added `_collection_name()` with `_validate_project_id()`, `project_id` to 6 methods
-- `packages/mcp-server/src/storage/qdrant.py` — Added `source_id` to `list_extractions()`
+- `packages/mcp-server/src/storage/qdrant.py` — Added `source_id` to `list_extractions()`, capped scroll limit in `count_extractions_by_sources`
 - `packages/mcp-server/src/tools/search.py` — Added `project_id` Query param
 - `packages/mcp-server/src/tools/decisions.py` — Added `project_id` + `source_id` Query params
 - `packages/mcp-server/src/tools/patterns.py` — Added `project_id` + `source_id` Query params
@@ -297,7 +310,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - `packages/mcp-server/src/tools/sources.py` — Added `project_id` to `list_sources` + `compare_sources`
 - `packages/mcp-server/src/embeddings/__init__.py` — Updated docstring (model name correction)
 - `packages/mcp-server/src/embeddings/embedding_service.py` — Lazy fastembed import fix
-- `packages/mcp-server/tests/test_storage/test_mongodb_multitenancy.py` — NEW: MongoDB multi-tenancy tests
+- `packages/mcp-server/tests/test_storage/test_mongodb_multitenancy.py` — NEW: MongoDB multi-tenancy tests + `_validate_project_id` tests (review fix)
 - `packages/mcp-server/tests/test_storage/test_qdrant_multitenancy.py` — NEW: Qdrant multi-tenancy tests
 - `packages/mcp-server/tests/test_tools/test_multitenancy.py` — NEW: Endpoint multi-tenancy tests (7 endpoints + 2 backward compat)
 - `packages/mcp-server/tests/test_embeddings/test_embedding_service.py` — Fixed pre-existing test
@@ -312,8 +325,9 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 **Pipeline API (Part B):**
 - `packages/pipeline/src/storage/mongodb.py` — Added `_collection_name()` with `_validate_project_id()`, `project_id` to `delete_source`, `delete_chunks_by_source`, `delete_extractions_by_source`, `get_source`, `get_extractions_by_source`, `count_chunks_by_source`, `list_sources`
 - `packages/pipeline/src/storage/qdrant.py` — Added `project_id` to `delete_by_source`
-- `packages/pipeline/api.py` — Added `DELETE /sources/{source_id}` endpoint, fixed `GET /sources/{source_id}` to pass `project_id` to all storage calls
+- `packages/pipeline/api.py` — Added `DELETE /sources/{source_id}` endpoint, fixed `GET /sources/{source_id}` to pass `project_id` to all storage calls, fixed dead code in `__main__`
 - `packages/pipeline/tests/test_api/test_api.py` — Added `TestDeleteSourceEndpoint` (5 tests)
+- `packages/pipeline/tests/test_storage/test_mongodb.py` — Added `TestValidateProjectId` + `TestCollectionNameHelper` unit tests (review fix)
 
 **Release (Part C):**
 - `packages/mcp-server/pyproject.toml` — Version bump 0.1.0 → 0.2.0
@@ -330,3 +344,4 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 **Change Log:**
 - 2026-02-02: Tasks 8-11 complete — v0.2.0 tagged, Enact infra scaffolding created, Railway deployment documented
+- 2026-02-02: Code review round 2 — Added _validate_project_id tests (H3), capped scroll limit (M3), fixed dead code (L1), documented known limitations
