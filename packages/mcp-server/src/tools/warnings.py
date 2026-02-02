@@ -168,6 +168,14 @@ async def get_warnings(
         le=500,
         description="Max results. Use 10-20 to get key pitfalls without overload.",
     ),
+    project_id: str | None = Query(
+        default=None,
+        description="Project ID for multi-tenant scoping. Defaults to server's global PROJECT_ID.",
+    ),
+    source_id: str | None = Query(
+        default=None,
+        description="Filter results to a single source document.",
+    ),
 ) -> WarningsResponse:
     """Query warning extractions with optional topic filter.
 
@@ -188,7 +196,10 @@ async def get_warnings(
         WarningsResponse with results and metadata
     """
     start_time = time.time()
-    logger.info("get_warnings_start", topic=topic, limit=limit)
+    logger.info(
+        "get_warnings_start", topic=topic, limit=limit,
+        project_id=project_id, source_id=source_id,
+    )
 
     qdrant = get_qdrant_client()
     if not qdrant:
@@ -211,6 +222,8 @@ async def get_warnings(
             extraction_type="warning",
             limit=limit,
             topic=topic,
+            project_id=project_id,
+            source_id=source_id,
         )
     except RuntimeError as e:
         logger.error("get_warnings_qdrant_error", error=str(e), topic=topic)
@@ -239,7 +252,9 @@ async def get_warnings(
         # Try to get full content from MongoDB
         if mongodb and extraction_id:
             try:
-                extraction = await mongodb.get_extraction_by_id(extraction_id)
+                extraction = await mongodb.get_extraction_by_id(
+                    extraction_id, project_id=project_id
+                )
                 if extraction:
                     warning = _map_warning_from_mongodb(item["id"], extraction, payload)
                 else:

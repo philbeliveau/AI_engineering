@@ -53,7 +53,7 @@ class TestListSourcesEndpoint:
             mock_get_mongo.return_value = mock_mongo
 
             with patch("src.tools.sources.get_qdrant_client", return_value=None):
-                result = await list_sources(request=mock_request, limit=100)
+                result = await list_sources(request=mock_request, limit=100, project_id=None)
 
                 assert isinstance(result, SourceListResponse)
                 assert result.metadata.query == "all"
@@ -105,7 +105,7 @@ class TestListSourcesEndpoint:
                 )
                 mock_get_qdrant.return_value = mock_qdrant
 
-                result = await list_sources(request=mock_request, limit=100)
+                result = await list_sources(request=mock_request, limit=100, project_id=None)
 
                 assert len(result.results) == 2
                 assert result.results[0].id == "src-1"
@@ -129,7 +129,7 @@ class TestListSourcesEndpoint:
             mock_get_mongo.return_value = mock_mongo
 
             with patch("src.tools.sources.get_qdrant_client", return_value=None):
-                result = await list_sources(request=mock_request, limit=100)
+                result = await list_sources(request=mock_request, limit=100, project_id=None)
 
                 assert len(result.results) == 0
                 assert result.metadata.result_count == 0
@@ -143,7 +143,7 @@ class TestListSourcesEndpoint:
         mock_request = MagicMock()
 
         with patch("src.tools.sources.get_mongodb_client", return_value=None):
-            result = await list_sources(request=mock_request, limit=100)
+            result = await list_sources(request=mock_request, limit=100, project_id=None)
 
             assert len(result.results) == 0
             assert result.metadata.result_count == 0
@@ -170,7 +170,7 @@ class TestListSourcesEndpoint:
                 )
                 mock_get_qdrant.return_value = mock_qdrant
 
-                result = await list_sources(request=mock_request, limit=100)
+                result = await list_sources(request=mock_request, limit=100, project_id=None)
 
                 # Should still return source, just with empty counts
                 assert len(result.results) == 1
@@ -214,7 +214,7 @@ class TestListSourcesEndpoint:
                 mock_qdrant.count_extractions_by_sources = AsyncMock(return_value={})
                 mock_get_qdrant.return_value = mock_qdrant
 
-                result = await list_sources(request=mock_request, limit=100)
+                result = await list_sources(request=mock_request, limit=100, project_id=None)
 
                 # Verify datetime was converted to ISO string
                 assert len(result.results) == 1
@@ -246,7 +246,7 @@ class TestListSourcesEndpoint:
             mock_get_mongo.return_value = mock_mongo
 
             with patch("src.tools.sources.get_qdrant_client", return_value=None):
-                result = await list_sources(request=mock_request, limit=100)
+                result = await list_sources(request=mock_request, limit=100, project_id=None)
 
                 # Should handle None gracefully
                 assert len(result.results) == 1
@@ -277,7 +277,7 @@ class TestListSourcesEndpoint:
             mock_get_mongo.return_value = mock_mongo
 
             with patch("src.tools.sources.get_qdrant_client", return_value=None):
-                result = await list_sources(request=mock_request, limit=100)
+                result = await list_sources(request=mock_request, limit=100, project_id=None)
 
                 # String should pass through
                 assert len(result.results) == 1
@@ -358,7 +358,7 @@ class TestListSourcesResponseFormat:
             mock_get_mongo.return_value = mock_mongo
 
             with patch("src.tools.sources.get_qdrant_client", return_value=None):
-                result = await list_sources(request=mock_request, limit=100)
+                result = await list_sources(request=mock_request, limit=100, project_id=None)
 
                 assert hasattr(result, "results")
                 assert isinstance(result.results, list)
@@ -376,7 +376,7 @@ class TestListSourcesResponseFormat:
             mock_get_mongo.return_value = mock_mongo
 
             with patch("src.tools.sources.get_qdrant_client", return_value=None):
-                result = await list_sources(request=mock_request, limit=100)
+                result = await list_sources(request=mock_request, limit=100, project_id=None)
 
                 assert hasattr(result, "metadata")
                 assert result.metadata.query == "all"
@@ -415,7 +415,7 @@ class TestListSourcesResponseFormat:
                 )
                 mock_get_qdrant.return_value = mock_qdrant
 
-                result = await list_sources(request=mock_request, limit=100)
+                result = await list_sources(request=mock_request, limit=100, project_id=None)
 
                 assert "extraction_counts" in result.results[0].model_dump()
                 assert result.results[0].extraction_counts["decision"] == 5
@@ -463,6 +463,7 @@ class TestCompareSourcesEndpoint:
                     topic="rag",
                     source_ids=["src-1"],
                     limit_per_source=10,
+                    project_id=None,
                     auth_context=mock_auth,
                 )
 
@@ -472,7 +473,7 @@ class TestCompareSourcesEndpoint:
 
     @pytest.mark.asyncio
     async def test_compare_sources_with_extractions(self):
-        """Test compare_sources with actual extractions."""
+        """Test compare_sources with actual extractions via MongoDB enrichment."""
         from src.tools.sources import compare_sources
 
         mock_request = MagicMock()
@@ -488,11 +489,8 @@ class TestCompareSourcesEndpoint:
                 {
                     "id": "ext-1",
                     "payload": {
+                        "extraction_id": "extract-ext-1",
                         "extraction_type": "decision",
-                        "content": {
-                            "question": "Which embedding model to use?",
-                            "summary": "Recommends all-MiniLM-L6-v2",
-                        },
                         "topics": ["embeddings", "rag"],
                     },
                 }
@@ -501,20 +499,35 @@ class TestCompareSourcesEndpoint:
                 {
                     "id": "ext-2",
                     "payload": {
+                        "extraction_id": "extract-ext-2",
                         "extraction_type": "decision",
-                        "content": {
-                            "name": "Embedding model selection",
-                            "description": "Suggests BGE-large for accuracy",
-                        },
                         "topics": ["embeddings", "rag"],
                     },
                 }
             ],
         }
 
+        mock_extraction_docs = {
+            "extract-ext-1": {
+                "content": {
+                    "question": "Which embedding model to use?",
+                    "summary": "Recommends all-MiniLM-L6-v2",
+                },
+            },
+            "extract-ext-2": {
+                "content": {
+                    "name": "Embedding model selection",
+                    "description": "Suggests BGE-large for accuracy",
+                },
+            },
+        }
+
         with patch("src.tools.sources.get_mongodb_client") as mock_get_mongo:
             mock_mongo = AsyncMock()
-            mock_mongo.get_source = AsyncMock(side_effect=lambda sid: mock_sources.get(sid))
+            mock_mongo.get_source = AsyncMock(side_effect=lambda sid, **kwargs: mock_sources.get(sid))
+            mock_mongo.get_extraction_by_id = AsyncMock(
+                side_effect=lambda eid, **kwargs: mock_extraction_docs.get(eid)
+            )
             mock_get_mongo.return_value = mock_mongo
 
             with patch("src.tools.sources.get_qdrant_client") as mock_get_qdrant:
@@ -529,6 +542,7 @@ class TestCompareSourcesEndpoint:
                     topic="embeddings",
                     source_ids=["src-1", "src-2"],
                     limit_per_source=10,
+                    project_id=None,
                     auth_context=mock_auth,
                 )
 
@@ -563,6 +577,7 @@ class TestCompareSourcesEndpoint:
                         topic="rag",
                         source_ids=["nonexistent-id"],
                         limit_per_source=10,
+                        project_id=None,
                         auth_context=mock_auth,
                     )
 
@@ -583,6 +598,7 @@ class TestCompareSourcesEndpoint:
                     topic="rag",
                     source_ids=["src-1"],
                     limit_per_source=10,
+                    project_id=None,
                     auth_context=mock_auth,
                 )
 
@@ -647,17 +663,19 @@ class TestCompareSourcesAuthentication:
         """Create test client."""
         return TestClient(app, raise_server_exceptions=False)
 
-    def test_returns_403_without_api_key(self, client: TestClient) -> None:
-        """Test that compare_sources returns 403 without API key (AC #5)."""
+    def test_returns_200_without_api_key(self, client: TestClient) -> None:
+        """Test that compare_sources returns 200 without API key (PUBLIC tier access)."""
         response = client.get(
             "/compare_sources",
             params={"topic": "rag", "source_ids": ["id1", "id2"]},
         )
 
-        assert response.status_code == 403
+        # compare_sources now allows PUBLIC tier access
+        assert response.status_code == 200
         data = response.json()
-        assert data["error"]["code"] == "FORBIDDEN"
-        assert data["error"]["details"]["current_tier"] == "PUBLIC"
+        # Without storage clients, returns empty results
+        assert "results" in data
+        assert "metadata" in data
 
     def test_returns_401_with_invalid_key(self, client: TestClient) -> None:
         """Test that invalid API key returns 401 Unauthorized."""
@@ -782,7 +800,7 @@ class TestCompareSourcesResponseFormat:
 
         with patch("src.tools.sources.get_mongodb_client") as mock_get_mongo:
             mock_mongo = AsyncMock()
-            mock_mongo.get_source = AsyncMock(side_effect=lambda sid: mock_sources.get(sid))
+            mock_mongo.get_source = AsyncMock(side_effect=lambda sid, **kwargs: mock_sources.get(sid))
             mock_get_mongo.return_value = mock_mongo
 
             with patch("src.tools.sources.get_qdrant_client") as mock_get_qdrant:
@@ -797,6 +815,7 @@ class TestCompareSourcesResponseFormat:
                     topic="rag",
                     source_ids=["src-1", "src-2"],
                     limit_per_source=10,
+                    project_id=None,
                     auth_context=mock_auth,
                 )
 
@@ -831,6 +850,7 @@ class TestCompareSourcesResponseFormat:
                     topic="embeddings",
                     source_ids=["src-1"],
                     limit_per_source=10,
+                    project_id=None,
                     auth_context=mock_auth,
                 )
 
@@ -846,7 +866,7 @@ class TestExtractionSummaryExtraction:
 
     @pytest.mark.asyncio
     async def test_extracts_title_from_name_field(self):
-        """Test title extraction from name field."""
+        """Test title extraction from name field via MongoDB enrichment."""
         from src.tools.sources import compare_sources
 
         mock_request = MagicMock()
@@ -859,17 +879,22 @@ class TestExtractionSummaryExtraction:
                 {
                     "id": "ext-1",
                     "payload": {
+                        "extraction_id": "extract-ext-1",
                         "extraction_type": "pattern",
-                        "content": {"name": "Retry Pattern"},
                         "topics": [],
                     },
                 }
             ]
         }
 
+        mock_extraction_doc = {
+            "content": {"name": "Retry Pattern"},
+        }
+
         with patch("src.tools.sources.get_mongodb_client") as mock_get_mongo:
             mock_mongo = AsyncMock()
             mock_mongo.get_source = AsyncMock(return_value=mock_source)
+            mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction_doc)
             mock_get_mongo.return_value = mock_mongo
 
             with patch("src.tools.sources.get_qdrant_client") as mock_get_qdrant:
@@ -884,6 +909,7 @@ class TestExtractionSummaryExtraction:
                     topic="test",
                     source_ids=["src-1"],
                     limit_per_source=10,
+                    project_id=None,
                     auth_context=mock_auth,
                 )
 
@@ -891,7 +917,7 @@ class TestExtractionSummaryExtraction:
 
     @pytest.mark.asyncio
     async def test_extracts_title_from_question_field(self):
-        """Test title extraction from question field."""
+        """Test title extraction from question field via MongoDB enrichment."""
         from src.tools.sources import compare_sources
 
         mock_request = MagicMock()
@@ -904,17 +930,22 @@ class TestExtractionSummaryExtraction:
                 {
                     "id": "ext-1",
                     "payload": {
+                        "extraction_id": "extract-ext-1",
                         "extraction_type": "decision",
-                        "content": {"question": "Which model to use?"},
                         "topics": [],
                     },
                 }
             ]
         }
 
+        mock_extraction_doc = {
+            "content": {"question": "Which model to use?"},
+        }
+
         with patch("src.tools.sources.get_mongodb_client") as mock_get_mongo:
             mock_mongo = AsyncMock()
             mock_mongo.get_source = AsyncMock(return_value=mock_source)
+            mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction_doc)
             mock_get_mongo.return_value = mock_mongo
 
             with patch("src.tools.sources.get_qdrant_client") as mock_get_qdrant:
@@ -929,6 +960,7 @@ class TestExtractionSummaryExtraction:
                     topic="test",
                     source_ids=["src-1"],
                     limit_per_source=10,
+                    project_id=None,
                     auth_context=mock_auth,
                 )
 
@@ -936,7 +968,7 @@ class TestExtractionSummaryExtraction:
 
     @pytest.mark.asyncio
     async def test_extracts_summary_from_description(self):
-        """Test summary extraction from description field."""
+        """Test summary extraction from description field via MongoDB enrichment."""
         from src.tools.sources import compare_sources
 
         mock_request = MagicMock()
@@ -949,17 +981,22 @@ class TestExtractionSummaryExtraction:
                 {
                     "id": "ext-1",
                     "payload": {
+                        "extraction_id": "extract-ext-1",
                         "extraction_type": "warning",
-                        "content": {"title": "Warning", "description": "Watch out for this!"},
                         "topics": [],
                     },
                 }
             ]
         }
 
+        mock_extraction_doc = {
+            "content": {"title": "Warning", "description": "Watch out for this!"},
+        }
+
         with patch("src.tools.sources.get_mongodb_client") as mock_get_mongo:
             mock_mongo = AsyncMock()
             mock_mongo.get_source = AsyncMock(return_value=mock_source)
+            mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction_doc)
             mock_get_mongo.return_value = mock_mongo
 
             with patch("src.tools.sources.get_qdrant_client") as mock_get_qdrant:
@@ -974,6 +1011,7 @@ class TestExtractionSummaryExtraction:
                     topic="test",
                     source_ids=["src-1"],
                     limit_per_source=10,
+                    project_id=None,
                     auth_context=mock_auth,
                 )
 
@@ -1001,14 +1039,20 @@ class TestServerIntegration:
         # Should get 200 (Public tier - no auth required)
         assert response.status_code == 200
 
-    def test_compare_sources_requires_auth_in_server(self, client: TestClient) -> None:
-        """Test that compare_sources requires auth in server."""
+    def test_compare_sources_accessible_without_auth(self, client: TestClient) -> None:
+        """Test that compare_sources is accessible without auth (PUBLIC tier).
+
+        The request will fail with 400 due to validation (source_ids needs >= 2 items),
+        but the key assertion is that it does NOT return 403 (auth is not required).
+        """
         response = client.get(
             "/compare_sources",
             params={"topic": "rag", "source_ids": ["id1"]},
         )
-        # Should get 403 (Registered tier required)
-        assert response.status_code == 403
+        # PUBLIC tier - no auth required; 400 = validation error (not 403 auth error)
+        assert response.status_code == 400
+        data = response.json()
+        assert data["error"]["code"] == "VALIDATION_ERROR"
 
     def test_list_sources_available_in_mcp(self) -> None:
         """Test that list_sources is available as MCP tool."""

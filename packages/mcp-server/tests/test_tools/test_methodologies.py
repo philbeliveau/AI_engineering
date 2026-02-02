@@ -50,6 +50,8 @@ class TestGetMethodologiesEndpoint:
                 request=mock_request,
                 topic=None,
                 limit=100,
+                project_id=None,
+                source_id=None,
                 auth_context=mock_auth,
             )
 
@@ -74,6 +76,8 @@ class TestGetMethodologiesEndpoint:
                 request=mock_request,
                 topic="rag",
                 limit=100,
+                project_id=None,
+                source_id=None,
                 auth_context=mock_auth,
             )
 
@@ -82,11 +86,13 @@ class TestGetMethodologiesEndpoint:
                 extraction_type="methodology",
                 limit=100,
                 topic="rag",
+                project_id=None,
+                source_id=None,
             )
 
     @pytest.mark.asyncio
     async def test_get_methodologies_with_results(self):
-        """Test get_methodologies with actual results."""
+        """Test get_methodologies with actual results via MongoDB enrichment."""
         from src.tools.methodologies import get_methodologies
 
         mock_request = MagicMock()
@@ -96,18 +102,7 @@ class TestGetMethodologiesEndpoint:
             {
                 "id": "meth-1",
                 "payload": {
-                    "content": {
-                        "name": "RAG System Design",
-                        "steps": [
-                            "Define use case requirements",
-                            "Choose embedding model",
-                            "Select vector database",
-                            "Implement retrieval pipeline",
-                            "Add reranking layer",
-                        ],
-                        "prerequisites": ["Python knowledge", "LLM API access"],
-                        "outputs": ["Working RAG system", "API endpoint"],
-                    },
+                    "extraction_id": "extract-meth-1",
                     "topics": ["rag", "architecture"],
                     "source_title": "LLM Engineering Handbook",
                     "source_id": "src-1",
@@ -116,26 +111,51 @@ class TestGetMethodologiesEndpoint:
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "name": "RAG System Design",
+                "steps": [
+                    "Define use case requirements",
+                    "Choose embedding model",
+                    "Select vector database",
+                    "Implement retrieval pipeline",
+                    "Add reranking layer",
+                ],
+                "prerequisites": ["Python knowledge", "LLM API access"],
+                "outputs": ["Working RAG system", "API endpoint"],
+            },
+            "topics": ["rag", "architecture"],
+            "source_id": "src-1",
+            "chunk_id": "chunk-1",
+        }
+
         with patch("src.tools.methodologies.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_methodologies(
-                request=mock_request,
-                topic=None,
-                limit=100,
-                auth_context=mock_auth,
-            )
+            with patch("src.tools.methodologies.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            assert len(result.results) == 1
-            assert result.results[0].id == "meth-1"
-            assert result.results[0].name == "RAG System Design"
-            assert len(result.results[0].steps) == 5
-            assert result.results[0].prerequisites == ["Python knowledge", "LLM API access"]
-            assert result.results[0].outputs == ["Working RAG system", "API endpoint"]
-            assert result.results[0].source_title == "LLM Engineering Handbook"
-            assert "LLM Engineering Handbook" in result.metadata.sources_cited
+                result = await get_methodologies(
+                    request=mock_request,
+                    topic=None,
+                    limit=100,
+                    project_id=None,
+                    source_id=None,
+                    auth_context=mock_auth,
+                )
+
+                assert len(result.results) == 1
+                assert result.results[0].id == "meth-1"
+                assert result.results[0].name == "RAG System Design"
+                assert len(result.results[0].steps) == 5
+                assert result.results[0].prerequisites == ["Python knowledge", "LLM API access"]
+                assert result.results[0].outputs == ["Working RAG system", "API endpoint"]
+                assert result.results[0].source_title == "LLM Engineering Handbook"
+                assert "LLM Engineering Handbook" in result.metadata.sources_cited
 
     @pytest.mark.asyncio
     async def test_get_methodologies_empty_results(self):
@@ -154,6 +174,8 @@ class TestGetMethodologiesEndpoint:
                 request=mock_request,
                 topic="nonexistent",
                 limit=100,
+                project_id=None,
+                source_id=None,
                 auth_context=mock_auth,
             )
 
@@ -174,6 +196,8 @@ class TestGetMethodologiesEndpoint:
                 request=mock_request,
                 topic=None,
                 limit=100,
+                project_id=None,
+                source_id=None,
                 auth_context=mock_auth,
             )
 
@@ -208,7 +232,7 @@ class TestMethodologyPayloadMapping:
 
     @pytest.mark.asyncio
     async def test_handles_missing_optional_fields(self):
-        """Test mapping when optional fields are missing."""
+        """Test mapping when MongoDB content has minimal fields."""
         from src.tools.methodologies import get_methodologies
 
         mock_request = MagicMock()
@@ -218,34 +242,46 @@ class TestMethodologyPayloadMapping:
             {
                 "id": "meth-2",
                 "payload": {
-                    "content": {
-                        "name": "Basic Methodology",
-                        "steps": ["Step 1", "Step 2"],
-                    },
+                    "extraction_id": "extract-meth-2",
                     "source_title": "Source Book",
                     "source_id": "src-2",
                 },
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "name": "Basic Methodology",
+                "steps": ["Step 1", "Step 2"],
+            },
+            "source_id": "src-2",
+        }
+
         with patch("src.tools.methodologies.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_methodologies(
-                request=mock_request,
-                topic=None,
-                limit=100,
-                auth_context=mock_auth,
-            )
+            with patch("src.tools.methodologies.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            methodology = result.results[0]
-            assert methodology.name == "Basic Methodology"
-            assert methodology.steps == ["Step 1", "Step 2"]
-            assert methodology.prerequisites is None
-            assert methodology.outputs is None
-            assert methodology.topics == []
+                result = await get_methodologies(
+                    request=mock_request,
+                    topic=None,
+                    limit=100,
+                    project_id=None,
+                    source_id=None,
+                    auth_context=mock_auth,
+                )
+
+                methodology = result.results[0]
+                assert methodology.name == "Basic Methodology"
+                assert methodology.steps == ["Step 1", "Step 2"]
+                assert methodology.prerequisites is None
+                assert methodology.outputs is None
+                assert methodology.topics == []
 
     @pytest.mark.asyncio
     async def test_skips_invalid_content_format(self):
@@ -275,6 +311,8 @@ class TestMethodologyPayloadMapping:
                 request=mock_request,
                 topic=None,
                 limit=100,
+                project_id=None,
+                source_id=None,
                 auth_context=mock_auth,
             )
 
@@ -320,6 +358,8 @@ class TestMethodologyPayloadMapping:
                 request=mock_request,
                 topic=None,
                 limit=100,
+                project_id=None,
+                source_id=None,
                 auth_context=mock_auth,
             )
 
@@ -372,8 +412,8 @@ class TestMethodologiesAuthentication:
         """Create test client."""
         return TestClient(app, raise_server_exceptions=False)
 
-    def test_returns_403_without_api_key(self, client: TestClient) -> None:
-        """Test that endpoint returns 403 without API key (AC #5)."""
+    def test_returns_200_without_api_key(self, client: TestClient) -> None:
+        """Test that endpoint returns 200 without API key (PUBLIC tier access)."""
         with patch("src.tools.methodologies.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=[])
@@ -381,13 +421,14 @@ class TestMethodologiesAuthentication:
 
             response = client.get("/get_methodologies")
 
-            assert response.status_code == 403
+            # Methodologies endpoint now allows PUBLIC tier access
+            assert response.status_code == 200
             data = response.json()
-            assert data["error"]["code"] == "FORBIDDEN"
-            assert data["error"]["details"]["current_tier"] == "PUBLIC"
+            assert "results" in data
+            assert "metadata" in data
 
-    def test_returns_403_with_public_tier(self, client: TestClient) -> None:
-        """Test that PUBLIC tier gets 403 Forbidden (AC #6)."""
+    def test_returns_200_with_public_tier(self, client: TestClient) -> None:
+        """Test that PUBLIC tier gets 200 OK (endpoint allows public access)."""
         with patch("src.tools.methodologies.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=[])
@@ -396,10 +437,9 @@ class TestMethodologiesAuthentication:
             # No API key = PUBLIC tier
             response = client.get("/get_methodologies")
 
-            assert response.status_code == 403
+            assert response.status_code == 200
             data = response.json()
-            assert data["error"]["code"] == "FORBIDDEN"
-            assert "REGISTERED" in data["error"]["message"]
+            assert "results" in data
 
     def test_returns_200_with_registered_key(self, client: TestClient) -> None:
         """Test that Registered tier key returns 200 (AC #1)."""
@@ -464,6 +504,8 @@ class TestMethodologiesResponseFormat:
                 request=mock_request,
                 topic=None,
                 limit=100,
+                project_id=None,
+                source_id=None,
                 auth_context=mock_auth,
             )
 
@@ -487,6 +529,8 @@ class TestMethodologiesResponseFormat:
                 request=mock_request,
                 topic="rag",
                 limit=100,
+                project_id=None,
+                source_id=None,
                 auth_context=mock_auth,
             )
 
@@ -512,10 +556,7 @@ class TestMethodologiesSourceAttribution:
             {
                 "id": "meth-6",
                 "payload": {
-                    "content": {
-                        "name": "Test Methodology",
-                        "steps": ["Step 1"],
-                    },
+                    "extraction_id": "extract-meth-6",
                     "topics": ["testing"],
                     "source_title": "Testing Handbook",
                     "source_id": "src-test",
@@ -524,22 +565,39 @@ class TestMethodologiesSourceAttribution:
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "name": "Test Methodology",
+                "steps": ["Step 1"],
+            },
+            "topics": ["testing"],
+            "source_id": "src-test",
+            "chunk_id": "chunk-test",
+        }
+
         with patch("src.tools.methodologies.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_methodologies(
-                request=mock_request,
-                topic=None,
-                limit=100,
-                auth_context=mock_auth,
-            )
+            with patch("src.tools.methodologies.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            methodology = result.results[0]
-            assert methodology.source_id == "src-test"
-            assert methodology.chunk_id == "chunk-test"
-            assert methodology.source_title == "Testing Handbook"
+                result = await get_methodologies(
+                    request=mock_request,
+                    topic=None,
+                    limit=100,
+                    project_id=None,
+                    source_id=None,
+                    auth_context=mock_auth,
+                )
+
+                methodology = result.results[0]
+                assert methodology.source_id == "src-test"
+                assert methodology.chunk_id == "chunk-test"
+                assert methodology.source_title == "Testing Handbook"
 
     @pytest.mark.asyncio
     async def test_sources_cited_in_metadata(self):
@@ -553,7 +611,7 @@ class TestMethodologiesSourceAttribution:
             {
                 "id": "meth-7",
                 "payload": {
-                    "content": {"name": "Method 1", "steps": ["Step"]},
+                    "extraction_id": "extract-meth-7",
                     "source_title": "Book A",
                     "source_id": "src-a",
                 },
@@ -561,7 +619,7 @@ class TestMethodologiesSourceAttribution:
             {
                 "id": "meth-8",
                 "payload": {
-                    "content": {"name": "Method 2", "steps": ["Step"]},
+                    "extraction_id": "extract-meth-8",
                     "source_title": "Book B",
                     "source_id": "src-b",
                 },
@@ -569,28 +627,43 @@ class TestMethodologiesSourceAttribution:
             {
                 "id": "meth-9",
                 "payload": {
-                    "content": {"name": "Method 3", "steps": ["Step"]},
+                    "extraction_id": "extract-meth-9",
                     "source_title": "Book A",
                     "source_id": "src-a",
                 },
             },
         ]
 
+        mock_extractions = {
+            "extract-meth-7": {"content": {"name": "Method 1", "steps": ["Step"]}, "source_id": "src-a"},
+            "extract-meth-8": {"content": {"name": "Method 2", "steps": ["Step"]}, "source_id": "src-b"},
+            "extract-meth-9": {"content": {"name": "Method 3", "steps": ["Step"]}, "source_id": "src-a"},
+        }
+
         with patch("src.tools.methodologies.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_methodologies(
-                request=mock_request,
-                topic=None,
-                limit=100,
-                auth_context=mock_auth,
-            )
+            with patch("src.tools.methodologies.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(
+                    side_effect=lambda eid, **kwargs: mock_extractions.get(eid)
+                )
+                mock_get_mongo.return_value = mock_mongo
 
-            assert len(result.metadata.sources_cited) == 2
-            assert "Book A" in result.metadata.sources_cited
-            assert "Book B" in result.metadata.sources_cited
+                result = await get_methodologies(
+                    request=mock_request,
+                    topic=None,
+                    limit=100,
+                    project_id=None,
+                    source_id=None,
+                    auth_context=mock_auth,
+                )
+
+                assert len(result.metadata.sources_cited) == 2
+                assert "Book A" in result.metadata.sources_cited
+                assert "Book B" in result.metadata.sources_cited
 
 
 class TestServerIntegration:
@@ -604,11 +677,10 @@ class TestServerIntegration:
         return TestClient(app, raise_server_exceptions=False)
 
     def test_methodologies_endpoint_registered_in_server(self, client: TestClient) -> None:
-        """Test that get_methodologies endpoint exists in server."""
-        # Without API key, should get 403 (Registered tier required)
+        """Test that get_methodologies endpoint exists in server and is accessible (PUBLIC tier)."""
         response = client.get("/get_methodologies")
-        # 403 = endpoint exists but requires auth
-        assert response.status_code == 403
+        # PUBLIC tier - no auth required, should succeed (200)
+        assert response.status_code == 200
 
     def test_methodologies_returns_401_for_invalid_key(self, client: TestClient) -> None:
         """Test that invalid API key returns 401."""

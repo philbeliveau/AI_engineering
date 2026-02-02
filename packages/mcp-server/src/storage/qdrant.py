@@ -383,6 +383,7 @@ class QdrantStorageClient:
         limit: int = 100,
         project_id: str | None = None,
         topic: str | None = None,
+        source_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """List extractions by type without semantic search.
 
@@ -394,6 +395,7 @@ class QdrantStorageClient:
             limit: Maximum number of results to return
             project_id: Override project filter (defaults to settings.project_id)
             topic: Optional topic filter (returns extractions containing this topic)
+            source_id: Optional source_id filter (returns extractions from this source only)
 
         Returns:
             List of extraction payloads from Qdrant
@@ -425,6 +427,10 @@ class QdrantStorageClient:
             if topic:
                 must_conditions.append(
                     FieldCondition(key="topics", match=MatchAny(any=[topic]))
+                )
+            if source_id:
+                must_conditions.append(
+                    FieldCondition(key="source_id", match=MatchValue(value=source_id))
                 )
 
             qdrant_filter = Filter(must=must_conditions)

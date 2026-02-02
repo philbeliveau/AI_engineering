@@ -734,26 +734,33 @@ class QdrantStorageClient:
                 details={"collection": collection, "point_id": point_id, "error": str(e)},
             )
 
-    def delete_by_source(self, collection: str, source_id: str) -> None:
+    def delete_by_source(self, collection: str, source_id: str, project_id: str | None = None) -> None:
         """Delete all points for a given source.
 
         Args:
             collection: Target collection name.
             source_id: Source ID to filter and delete all matching points.
+            project_id: Optional project_id filter for multi-tenant scoping.
         """
         try:
+            must_conditions = [
+                FieldCondition(
+                    key="source_id",
+                    match=MatchValue(value=source_id),
+                )
+            ]
+            if project_id:
+                must_conditions.append(
+                    FieldCondition(
+                        key="project_id",
+                        match=MatchValue(value=project_id),
+                    )
+                )
             self.client.delete(
                 collection_name=collection,
-                points_selector=Filter(
-                    must=[
-                        FieldCondition(
-                            key="source_id",
-                            match=MatchValue(value=source_id),
-                        )
-                    ]
-                ),
+                points_selector=Filter(must=must_conditions),
             )
-            logger.info("points_deleted_by_source", collection=collection, source_id=source_id)
+            logger.info("points_deleted_by_source", collection=collection, source_id=source_id, project_id=project_id)
         except Exception as e:
             raise QdrantCollectionError(
                 code="QDRANT_DELETE_BY_SOURCE_ERROR",

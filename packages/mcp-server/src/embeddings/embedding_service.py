@@ -14,8 +14,14 @@ Follows project-context.md:33-36 (embedding configuration) and
 project-context.md:54-57 (CPU-bound helpers can be sync).
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import structlog
-from fastembed import TextEmbedding
+
+if TYPE_CHECKING:
+    from fastembed import TextEmbedding
 
 logger = structlog.get_logger()
 
@@ -36,11 +42,16 @@ def get_embedding_model() -> TextEmbedding:
 
     Returns:
         TextEmbedding model instance (FastEmbed/ONNX)
+
+    Raises:
+        ImportError: If fastembed is not installed.
     """
+    from fastembed import TextEmbedding as _TextEmbedding
+
     global _embedding_model
     if _embedding_model is None:
         logger.info("embedding_model_loading", model=EMBEDDING_MODEL_ID, runtime="onnx")
-        _embedding_model = TextEmbedding(model_name=EMBEDDING_MODEL_ID)
+        _embedding_model = _TextEmbedding(model_name=EMBEDDING_MODEL_ID)
         logger.info(
             "embedding_model_loaded",
             model=EMBEDDING_MODEL_ID,

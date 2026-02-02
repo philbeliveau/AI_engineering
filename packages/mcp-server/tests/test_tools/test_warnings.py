@@ -34,7 +34,7 @@ class TestGetWarningsEndpoint:
             mock_qdrant.list_extractions = AsyncMock(return_value=[])
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_warnings(topic=None, limit=100)
+            result = await get_warnings(topic=None, limit=100, project_id=None, source_id=None)
 
             assert isinstance(result, WarningsResponse)
             assert result.metadata.query == "all"
@@ -50,31 +50,27 @@ class TestGetWarningsEndpoint:
             mock_qdrant.list_extractions = AsyncMock(return_value=[])
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_warnings(topic="security", limit=100)
+            result = await get_warnings(topic="security", limit=100, project_id=None, source_id=None)
 
             assert result.metadata.query == "security"
             mock_qdrant.list_extractions.assert_called_once_with(
                 extraction_type="warning",
                 limit=100,
                 topic="security",
+                project_id=None,
+                source_id=None,
             )
 
     @pytest.mark.asyncio
     async def test_get_warnings_with_results(self):
-        """Test get_warnings with actual results."""
+        """Test get_warnings with actual results via MongoDB enrichment."""
         from src.tools.warnings import get_warnings
 
         mock_results = [
             {
                 "id": "warn-1",
                 "payload": {
-                    "content": {
-                        "title": "Prompt Injection Vulnerability",
-                        "description": "User input can manipulate LLM behavior",
-                        "symptoms": ["Unexpected outputs", "Ignored instructions"],
-                        "consequences": ["Data leakage", "Unauthorized actions"],
-                        "prevention": "Use input validation and output filtering",
-                    },
+                    "extraction_id": "extract-warn-1",
                     "topics": ["security", "prompt-engineering"],
                     "source_title": "LLM Security Best Practices",
                     "source_id": "src-1",
@@ -83,19 +79,37 @@ class TestGetWarningsEndpoint:
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "title": "Prompt Injection Vulnerability",
+                "description": "User input can manipulate LLM behavior",
+                "symptoms": ["Unexpected outputs", "Ignored instructions"],
+                "consequences": ["Data leakage", "Unauthorized actions"],
+                "prevention": "Use input validation and output filtering",
+            },
+            "topics": ["security", "prompt-engineering"],
+            "source_id": "src-1",
+            "chunk_id": "chunk-1",
+        }
+
         with patch("src.tools.warnings.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_warnings(topic=None, limit=100)
+            with patch("src.tools.warnings.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            assert len(result.results) == 1
-            assert result.results[0].id == "warn-1"
-            assert result.results[0].title == "Prompt Injection Vulnerability"
-            assert "Data leakage" in result.results[0].consequences
-            assert result.results[0].source_title == "LLM Security Best Practices"
-            assert "LLM Security Best Practices" in result.metadata.sources_cited
+                result = await get_warnings(topic=None, limit=100, project_id=None, source_id=None)
+
+                assert len(result.results) == 1
+                assert result.results[0].id == "warn-1"
+                assert result.results[0].title == "Prompt Injection Vulnerability"
+                assert "Data leakage" in result.results[0].consequences
+                assert result.results[0].source_title == "LLM Security Best Practices"
+                assert "LLM Security Best Practices" in result.metadata.sources_cited
 
     @pytest.mark.asyncio
     async def test_get_warnings_empty_results(self):
@@ -107,7 +121,7 @@ class TestGetWarningsEndpoint:
             mock_qdrant.list_extractions = AsyncMock(return_value=[])
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_warnings(topic="nonexistent", limit=100)
+            result = await get_warnings(topic="nonexistent", limit=100, project_id=None, source_id=None)
 
             assert len(result.results) == 0
             assert result.metadata.result_count == 0
@@ -119,27 +133,21 @@ class TestGetWarningsEndpoint:
         from src.tools.warnings import get_warnings
 
         with patch("src.tools.warnings.get_qdrant_client", return_value=None):
-            result = await get_warnings(topic=None, limit=100)
+            result = await get_warnings(topic=None, limit=100, project_id=None, source_id=None)
 
             assert len(result.results) == 0
             assert result.metadata.result_count == 0
 
     @pytest.mark.asyncio
     async def test_get_warnings_maps_content_correctly(self):
-        """Test that warning payload fields are mapped correctly."""
+        """Test that warning fields are mapped correctly via MongoDB enrichment."""
         from src.tools.warnings import get_warnings
 
         mock_results = [
             {
                 "id": "warn-2",
                 "payload": {
-                    "content": {
-                        "title": "Token Limit Exceeded",
-                        "description": "Context window overflow causes truncation",
-                        "symptoms": ["Incomplete responses", "Missing context"],
-                        "consequences": ["Poor quality answers", "Lost information"],
-                        "prevention": "Implement chunking and summarization",
-                    },
+                    "extraction_id": "extract-warn-2",
                     "topics": ["context-window", "rag"],
                     "source_title": "RAG Implementation Guide",
                     "source_id": "src-2",
@@ -148,19 +156,37 @@ class TestGetWarningsEndpoint:
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "title": "Token Limit Exceeded",
+                "description": "Context window overflow causes truncation",
+                "symptoms": ["Incomplete responses", "Missing context"],
+                "consequences": ["Poor quality answers", "Lost information"],
+                "prevention": "Implement chunking and summarization",
+            },
+            "topics": ["context-window", "rag"],
+            "source_id": "src-2",
+            "chunk_id": "chunk-2",
+        }
+
         with patch("src.tools.warnings.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_warnings(topic=None, limit=100)
+            with patch("src.tools.warnings.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            warning = result.results[0]
-            assert warning.title == "Token Limit Exceeded"
-            assert warning.description == "Context window overflow causes truncation"
-            assert warning.symptoms == ["Incomplete responses", "Missing context"]
-            assert warning.prevention == "Implement chunking and summarization"
-            assert warning.topics == ["context-window", "rag"]
+                result = await get_warnings(topic=None, limit=100, project_id=None, source_id=None)
+
+                warning = result.results[0]
+                assert warning.title == "Token Limit Exceeded"
+                assert warning.description == "Context window overflow causes truncation"
+                assert warning.symptoms == ["Incomplete responses", "Missing context"]
+                assert warning.prevention == "Implement chunking and summarization"
+                assert warning.topics == ["context-window", "rag"]
 
 
 class TestWarningsEndpointRouter:
@@ -190,14 +216,14 @@ class TestWarningPayloadMapping:
 
     @pytest.mark.asyncio
     async def test_handles_string_content(self):
-        """Test mapping when content is a string instead of dict."""
+        """Test mapping when MongoDB content is a string instead of dict."""
         from src.tools.warnings import get_warnings
 
         mock_results = [
             {
                 "id": "warn-3",
                 "payload": {
-                    "content": "Simple warning description",
+                    "extraction_id": "extract-warn-3",
                     "extraction_title": "Warning Title",
                     "topics": [],
                     "source_title": "Source",
@@ -206,49 +232,70 @@ class TestWarningPayloadMapping:
             }
         ]
 
+        mock_extraction = {
+            "content": "Simple warning description",
+            "topics": [],
+            "source_id": "src-3",
+        }
+
         with patch("src.tools.warnings.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_warnings(topic=None, limit=100)
+            with patch("src.tools.warnings.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            assert len(result.results) == 1
-            assert result.results[0].description == "Simple warning description"
+                result = await get_warnings(topic=None, limit=100, project_id=None, source_id=None)
+
+                assert len(result.results) == 1
+                assert result.results[0].description == "Simple warning description"
 
     @pytest.mark.asyncio
     async def test_handles_missing_optional_fields(self):
-        """Test mapping when optional fields are missing."""
+        """Test mapping when MongoDB content has minimal fields."""
         from src.tools.warnings import get_warnings
 
         mock_results = [
             {
                 "id": "warn-4",
                 "payload": {
-                    "content": {
-                        "title": "Minimal Warning",
-                        "description": "A warning description",
-                    },
+                    "extraction_id": "extract-warn-4",
                     "source_title": "Source",
                     "source_id": "src-4",
                 },
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "title": "Minimal Warning",
+                "description": "A warning description",
+            },
+            "source_id": "src-4",
+        }
+
         with patch("src.tools.warnings.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_warnings(topic=None, limit=100)
+            with patch("src.tools.warnings.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            warning = result.results[0]
-            assert warning.title == "Minimal Warning"
-            assert warning.description == "A warning description"
-            assert warning.symptoms is None
-            assert warning.consequences is None
-            assert warning.prevention is None
-            assert warning.topics == []
+                result = await get_warnings(topic=None, limit=100, project_id=None, source_id=None)
+
+                warning = result.results[0]
+                assert warning.title == "Minimal Warning"
+                assert warning.description == "A warning description"
+                assert warning.symptoms is None
+                assert warning.consequences is None
+                assert warning.prevention is None
+                assert warning.topics == []
 
     @pytest.mark.asyncio
     async def test_handles_dict_content_missing_title(self):
@@ -274,7 +321,7 @@ class TestWarningPayloadMapping:
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_warnings(topic=None, limit=100)
+            result = await get_warnings(topic=None, limit=100, project_id=None, source_id=None)
 
             warning = result.results[0]
             assert warning.title == "Fallback Warning Title"
@@ -377,7 +424,7 @@ class TestWarningsErrorHandling:
             mock_get_qdrant.return_value = mock_qdrant
 
             with pytest.raises(KnowledgeError) as exc_info:
-                await get_warnings(topic=None, limit=100)
+                await get_warnings(topic=None, limit=100, project_id=None, source_id=None)
 
             assert exc_info.value.code == "INTERNAL_ERROR"
             assert "warning" in exc_info.value.message.lower()
@@ -396,7 +443,7 @@ class TestWarningsErrorHandling:
             mock_get_qdrant.return_value = mock_qdrant
 
             with pytest.raises(KnowledgeError) as exc_info:
-                await get_warnings(topic=None, limit=100)
+                await get_warnings(topic=None, limit=100, project_id=None, source_id=None)
 
             assert exc_info.value.code == "INTERNAL_ERROR"
             assert "error_type" in exc_info.value.details

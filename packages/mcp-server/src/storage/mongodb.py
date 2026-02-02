@@ -108,6 +108,41 @@ class MongoDBClient:
         except Exception:
             return False
 
+    @staticmethod
+    def _validate_project_id(project_id: str) -> None:
+        """Validate project_id format for safe collection naming.
+
+        Args:
+            project_id: Project ID to validate.
+
+        Raises:
+            ValueError: If project_id contains invalid characters.
+        """
+        import re
+
+        if not project_id or not re.match(r"^[a-zA-Z0-9_-]+$", project_id):
+            raise ValueError(
+                f"Invalid project_id '{project_id}': must be non-empty, "
+                "alphanumeric with underscores/hyphens only"
+            )
+
+    def _collection_name(self, base: str, project_id: str | None = None) -> str:
+        """Resolve a collection name with project_id prefix.
+
+        Args:
+            base: Base collection name (e.g., "sources", "chunks", "extractions")
+            project_id: Optional project_id override. Falls back to settings.project_id.
+
+        Returns:
+            Fully qualified collection name (e.g., "org_abc_sources")
+
+        Raises:
+            ValueError: If the effective project_id contains invalid characters.
+        """
+        effective_project_id = project_id or self._settings.project_id
+        self._validate_project_id(effective_project_id)
+        return f"{effective_project_id}_{base}"
+
     def _get_collection(self, name: str) -> Collection:
         """Get a collection by name.
 
@@ -124,19 +159,22 @@ class MongoDBClient:
             raise RuntimeError("MongoDB client not connected")
         return self._db[name]
 
-    async def get_source(self, source_id: str) -> dict[str, Any] | None:
+    async def get_source(
+        self, source_id: str, project_id: str | None = None
+    ) -> dict[str, Any] | None:
         """Retrieve a source by ID.
 
         Args:
             source_id: The source document ID (hex string)
+            project_id: Optional project_id override for multi-tenant scoping
 
         Returns:
             Source document or None if not found
         """
-        logger.debug("mongodb_get_source", source_id=source_id)
+        logger.debug("mongodb_get_source", source_id=source_id, project_id=project_id)
 
         def _query_sync() -> dict[str, Any] | None:
-            collection = self._get_collection(self._settings.sources_collection)
+            collection = self._get_collection(self._collection_name("sources", project_id))
 
             # Try to convert to ObjectId first (sources use ObjectId as _id)
             try:
@@ -153,19 +191,22 @@ class MongoDBClient:
 
         return await asyncio.to_thread(_query_sync)
 
-    async def list_sources(self, limit: int = 100) -> list[dict[str, Any]]:
+    async def list_sources(
+        self, limit: int = 100, project_id: str | None = None
+    ) -> list[dict[str, Any]]:
         """List all sources.
 
         Args:
             limit: Maximum number of sources to return
+            project_id: Optional project_id override for multi-tenant scoping
 
         Returns:
             List of source documents
         """
-        logger.debug("mongodb_list_sources", limit=limit)
+        logger.debug("mongodb_list_sources", limit=limit, project_id=project_id)
 
         def _query_sync() -> list[dict[str, Any]]:
-            collection = self._get_collection(self._settings.sources_collection)
+            collection = self._get_collection(self._collection_name("sources", project_id))
             cursor = collection.find({}).limit(limit)
             sources = []
             for doc in cursor:
@@ -175,19 +216,22 @@ class MongoDBClient:
 
         return await asyncio.to_thread(_query_sync)
 
-    async def get_chunks(self, source_id: str) -> list[dict[str, Any]]:
+    async def get_chunks(
+        self, source_id: str, project_id: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get all chunks for a source.
 
         Args:
             source_id: The source document ID
+            project_id: Optional project_id override for multi-tenant scoping
 
         Returns:
             List of chunk documents
         """
-        logger.debug("mongodb_get_chunks", source_id=source_id)
+        logger.debug("mongodb_get_chunks", source_id=source_id, project_id=project_id)
 
         def _query_sync() -> list[dict[str, Any]]:
-            collection = self._get_collection(self._settings.chunks_collection)
+            collection = self._get_collection(self._collection_name("chunks", project_id))
             cursor = collection.find({"source_id": source_id})
             chunks = []
             for doc in cursor:
@@ -201,12 +245,14 @@ class MongoDBClient:
         self,
         extraction_type: str | None = None,
         topics: list[str] | None = None,
+        project_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Query extractions with optional filters.
 
         Args:
             extraction_type: Filter by extraction type (decision, pattern, warning, etc.)
             topics: Filter by topics (documents matching any topic)
+            project_id: Optional project_id override for multi-tenant scoping
 
         Returns:
             List of extraction documents
@@ -215,10 +261,13 @@ class MongoDBClient:
             "mongodb_get_extractions",
             extraction_type=extraction_type,
             topics=topics,
+            project_id=project_id,
         )
 
         def _query_sync() -> list[dict[str, Any]]:
-            collection = self._get_collection(self._settings.extractions_collection)
+            collection = self._get_collection(
+                self._collection_name("extractions", project_id)
+            )
             # Build query filter
             query: dict[str, Any] = {}
             if extraction_type:
@@ -235,7 +284,9 @@ class MongoDBClient:
 
         return await asyncio.to_thread(_query_sync)
 
-    async def get_chunk_by_id(self, chunk_id: str) -> dict[str, Any] | None:
+    async def get_chunk_by_id(
+        self, chunk_id: str, project_id: str | None = None
+    ) -> dict[str, Any] | None:
         """Retrieve a single chunk by ID.
 
         Used for enriching search results with full chunk content.
@@ -244,14 +295,15 @@ class MongoDBClient:
 
         Args:
             chunk_id: The chunk document ID
+            project_id: Optional project_id override for multi-tenant scoping
 
         Returns:
             Chunk document or None if not found
         """
-        logger.debug("mongodb_get_chunk_by_id", chunk_id=chunk_id)
+        logger.debug("mongodb_get_chunk_by_id", chunk_id=chunk_id, project_id=project_id)
 
         def _query_sync() -> dict[str, Any] | None:
-            collection = self._get_collection(self._settings.chunks_collection)
+            collection = self._get_collection(self._collection_name("chunks", project_id))
             result = collection.find_one({"_id": chunk_id})
             if result:
                 # Convert ObjectId to string for API responses
@@ -260,7 +312,9 @@ class MongoDBClient:
 
         return await asyncio.to_thread(_query_sync)
 
-    async def get_extraction_by_id(self, extraction_id: str) -> dict[str, Any] | None:
+    async def get_extraction_by_id(
+        self, extraction_id: str, project_id: str | None = None
+    ) -> dict[str, Any] | None:
         """Retrieve a single extraction by ID.
 
         Used for enriching search results with full extraction content.
@@ -268,14 +322,19 @@ class MongoDBClient:
 
         Args:
             extraction_id: The extraction document ID (hex string from Qdrant payload)
+            project_id: Optional project_id override for multi-tenant scoping
 
         Returns:
             Extraction document or None if not found
         """
-        logger.debug("mongodb_get_extraction_by_id", extraction_id=extraction_id)
+        logger.debug(
+            "mongodb_get_extraction_by_id", extraction_id=extraction_id, project_id=project_id
+        )
 
         def _query_sync() -> dict[str, Any] | None:
-            collection = self._get_collection(self._settings.extractions_collection)
+            collection = self._get_collection(
+                self._collection_name("extractions", project_id)
+            )
 
             # Try to convert to ObjectId first (extractions use ObjectId as _id)
             try:

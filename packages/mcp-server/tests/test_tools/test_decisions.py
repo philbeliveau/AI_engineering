@@ -34,7 +34,7 @@ class TestGetDecisionsEndpoint:
             mock_qdrant.list_extractions = AsyncMock(return_value=[])
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_decisions(topic=None, limit=100)
+            result = await get_decisions(topic=None, limit=100, project_id=None, source_id=None)
 
             assert isinstance(result, DecisionsResponse)
             assert result.metadata.query == "all"
@@ -50,30 +50,27 @@ class TestGetDecisionsEndpoint:
             mock_qdrant.list_extractions = AsyncMock(return_value=[])
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_decisions(topic="rag", limit=100)
+            result = await get_decisions(topic="rag", limit=100, project_id=None, source_id=None)
 
             assert result.metadata.query == "rag"
             mock_qdrant.list_extractions.assert_called_once_with(
                 extraction_type="decision",
                 limit=100,
                 topic="rag",
+                project_id=None,
+                source_id=None,
             )
 
     @pytest.mark.asyncio
     async def test_get_decisions_with_results(self):
-        """Test get_decisions with actual results."""
+        """Test get_decisions with actual results via MongoDB enrichment."""
         from src.tools.decisions import get_decisions
 
         mock_results = [
             {
                 "id": "dec-1",
                 "payload": {
-                    "content": {
-                        "question": "Should we use RAG or fine-tuning?",
-                        "options": ["RAG", "Fine-tuning", "Hybrid"],
-                        "considerations": ["Cost", "Latency", "Quality"],
-                        "recommended_approach": "RAG for most use cases",
-                    },
+                    "extraction_id": "extract-dec-1",
                     "topics": ["rag", "fine-tuning"],
                     "source_title": "LLM Engineering Handbook",
                     "source_id": "src-1",
@@ -82,19 +79,36 @@ class TestGetDecisionsEndpoint:
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "question": "Should we use RAG or fine-tuning?",
+                "options": ["RAG", "Fine-tuning", "Hybrid"],
+                "considerations": ["Cost", "Latency", "Quality"],
+                "recommended_approach": "RAG for most use cases",
+            },
+            "topics": ["rag", "fine-tuning"],
+            "source_id": "src-1",
+            "chunk_id": "chunk-1",
+        }
+
         with patch("src.tools.decisions.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_decisions(topic=None, limit=100)
+            with patch("src.tools.decisions.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            assert len(result.results) == 1
-            assert result.results[0].id == "dec-1"
-            assert result.results[0].question == "Should we use RAG or fine-tuning?"
-            assert result.results[0].options == ["RAG", "Fine-tuning", "Hybrid"]
-            assert result.results[0].source_title == "LLM Engineering Handbook"
-            assert "LLM Engineering Handbook" in result.metadata.sources_cited
+                result = await get_decisions(topic=None, limit=100, project_id=None, source_id=None)
+
+                assert len(result.results) == 1
+                assert result.results[0].id == "dec-1"
+                assert result.results[0].question == "Should we use RAG or fine-tuning?"
+                assert result.results[0].options == ["RAG", "Fine-tuning", "Hybrid"]
+                assert result.results[0].source_title == "LLM Engineering Handbook"
+                assert "LLM Engineering Handbook" in result.metadata.sources_cited
 
     @pytest.mark.asyncio
     async def test_get_decisions_empty_results(self):
@@ -106,7 +120,7 @@ class TestGetDecisionsEndpoint:
             mock_qdrant.list_extractions = AsyncMock(return_value=[])
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_decisions(topic="nonexistent", limit=100)
+            result = await get_decisions(topic="nonexistent", limit=100, project_id=None, source_id=None)
 
             assert len(result.results) == 0
             assert result.metadata.result_count == 0
@@ -118,26 +132,21 @@ class TestGetDecisionsEndpoint:
         from src.tools.decisions import get_decisions
 
         with patch("src.tools.decisions.get_qdrant_client", return_value=None):
-            result = await get_decisions(topic=None, limit=100)
+            result = await get_decisions(topic=None, limit=100, project_id=None, source_id=None)
 
             assert len(result.results) == 0
             assert result.metadata.result_count == 0
 
     @pytest.mark.asyncio
     async def test_get_decisions_maps_content_correctly(self):
-        """Test that decision payload fields are mapped correctly."""
+        """Test that decision fields are mapped correctly via MongoDB enrichment."""
         from src.tools.decisions import get_decisions
 
         mock_results = [
             {
                 "id": "dec-2",
                 "payload": {
-                    "content": {
-                        "question": "Which vector database?",
-                        "options": ["Qdrant", "Pinecone", "Weaviate"],
-                        "considerations": ["Performance", "Cost", "Features"],
-                        "recommended_approach": "Qdrant for self-hosted",
-                    },
+                    "extraction_id": "extract-dec-2",
                     "topics": ["vector-db", "infrastructure"],
                     "source_title": "Building RAG Systems",
                     "source_id": "src-2",
@@ -146,19 +155,36 @@ class TestGetDecisionsEndpoint:
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "question": "Which vector database?",
+                "options": ["Qdrant", "Pinecone", "Weaviate"],
+                "considerations": ["Performance", "Cost", "Features"],
+                "recommended_approach": "Qdrant for self-hosted",
+            },
+            "topics": ["vector-db", "infrastructure"],
+            "source_id": "src-2",
+            "chunk_id": "chunk-2",
+        }
+
         with patch("src.tools.decisions.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_decisions(topic=None, limit=100)
+            with patch("src.tools.decisions.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            decision = result.results[0]
-            assert decision.question == "Which vector database?"
-            assert decision.recommended_approach == "Qdrant for self-hosted"
-            assert decision.topics == ["vector-db", "infrastructure"]
-            assert decision.source_id == "src-2"
-            assert decision.chunk_id == "chunk-2"
+                result = await get_decisions(topic=None, limit=100, project_id=None, source_id=None)
+
+                decision = result.results[0]
+                assert decision.question == "Which vector database?"
+                assert decision.recommended_approach == "Qdrant for self-hosted"
+                assert decision.topics == ["vector-db", "infrastructure"]
+                assert decision.source_id == "src-2"
+                assert decision.chunk_id == "chunk-2"
 
 
 class TestDecisionsEndpointRouter:
@@ -188,14 +214,14 @@ class TestDecisionPayloadMapping:
 
     @pytest.mark.asyncio
     async def test_handles_string_content(self):
-        """Test mapping when content is a string instead of dict."""
+        """Test mapping when MongoDB content is a string instead of dict."""
         from src.tools.decisions import get_decisions
 
         mock_results = [
             {
                 "id": "dec-3",
                 "payload": {
-                    "content": "Simple question text",
+                    "extraction_id": "extract-dec-3",
                     "extraction_title": "Decision Title",
                     "topics": [],
                     "source_title": "Source",
@@ -204,47 +230,68 @@ class TestDecisionPayloadMapping:
             }
         ]
 
+        mock_extraction = {
+            "content": "Simple question text",
+            "topics": [],
+            "source_id": "src-3",
+        }
+
         with patch("src.tools.decisions.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_decisions(topic=None, limit=100)
+            with patch("src.tools.decisions.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            assert len(result.results) == 1
-            assert result.results[0].question == "Simple question text"
+                result = await get_decisions(topic=None, limit=100, project_id=None, source_id=None)
+
+                assert len(result.results) == 1
+                assert result.results[0].question == "Simple question text"
 
     @pytest.mark.asyncio
     async def test_handles_missing_optional_fields(self):
-        """Test mapping when optional fields are missing."""
+        """Test mapping when MongoDB content has minimal fields."""
         from src.tools.decisions import get_decisions
 
         mock_results = [
             {
                 "id": "dec-4",
                 "payload": {
-                    "content": {
-                        "question": "Minimal decision",
-                    },
+                    "extraction_id": "extract-dec-4",
                     "source_title": "Source",
                     "source_id": "src-4",
                 },
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "question": "Minimal decision",
+            },
+            "source_id": "src-4",
+        }
+
         with patch("src.tools.decisions.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_decisions(topic=None, limit=100)
+            with patch("src.tools.decisions.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            decision = result.results[0]
-            assert decision.question == "Minimal decision"
-            assert decision.options == []
-            assert decision.considerations == []
-            assert decision.recommended_approach is None
-            assert decision.topics == []
+                result = await get_decisions(topic=None, limit=100, project_id=None, source_id=None)
+
+                decision = result.results[0]
+                assert decision.question == "Minimal decision"
+                assert decision.options == []
+                assert decision.considerations == []
+                assert decision.recommended_approach is None
+                assert decision.topics == []
 
     @pytest.mark.asyncio
     async def test_handles_dict_content_missing_question(self):
@@ -270,7 +317,7 @@ class TestDecisionPayloadMapping:
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_decisions(topic=None, limit=100)
+            result = await get_decisions(topic=None, limit=100, project_id=None, source_id=None)
 
             decision = result.results[0]
             assert decision.question == "Fallback Decision Question"
@@ -373,7 +420,7 @@ class TestDecisionsErrorHandling:
             mock_get_qdrant.return_value = mock_qdrant
 
             with pytest.raises(KnowledgeError) as exc_info:
-                await get_decisions(topic=None, limit=100)
+                await get_decisions(topic=None, limit=100, project_id=None, source_id=None)
 
             assert exc_info.value.code == "INTERNAL_ERROR"
             assert "decision" in exc_info.value.message.lower()
@@ -392,7 +439,7 @@ class TestDecisionsErrorHandling:
             mock_get_qdrant.return_value = mock_qdrant
 
             with pytest.raises(KnowledgeError) as exc_info:
-                await get_decisions(topic=None, limit=100)
+                await get_decisions(topic=None, limit=100, project_id=None, source_id=None)
 
             assert exc_info.value.code == "INTERNAL_ERROR"
             assert "error_type" in exc_info.value.details

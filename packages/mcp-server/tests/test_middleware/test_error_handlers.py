@@ -220,15 +220,32 @@ class TestErrorHandlerIntegration:
 
     @pytest.mark.asyncio
     async def test_forbidden_error_returns_403(self):
-        """Test that authorization errors return 403."""
-        from httpx import ASGITransport, AsyncClient
-        from src.server import app
+        """Test that ForbiddenError is handled correctly via the KnowledgeError handler.
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            # Send request without auth to restricted endpoint
-            response = await client.get("/get_methodologies")
+        Since all current endpoints are PUBLIC tier, we test the handler directly
+        by raising ForbiddenError and verifying the error response format.
+        """
+        import json
+        from fastapi import Request
+        from unittest.mock import MagicMock
+        from src.exceptions import ForbiddenError
+        from src.middleware.error_handlers import knowledge_error_handler
 
-            assert response.status_code == 403
-            data = response.json()
-            assert data["error"]["code"] == "FORBIDDEN"
+        request = MagicMock(spec=Request)
+        request.url.path = "/test"
+        request.method = "GET"
+
+        exc = ForbiddenError(
+            message="Insufficient tier for /test",
+            details={
+                "required_tier": "REGISTERED",
+                "current_tier": "PUBLIC",
+                "path": "/test",
+            },
+        )
+
+        response = await knowledge_error_handler(request, exc)
+
+        assert response.status_code == 403
+        data = json.loads(response.body.decode())
+        assert data["error"]["code"] == "FORBIDDEN"

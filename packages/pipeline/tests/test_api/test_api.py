@@ -6,6 +6,7 @@ Tests all endpoints:
 - POST /ingest/url
 - POST /extract/{source_id}
 - GET /sources/{source_id}
+- DELETE /sources/{source_id}
 """
 
 import pytest
@@ -486,3 +487,147 @@ class TestProjectIsolation:
             assert len(calls) == 2
             assert calls[0][1]["config"].project_id == "project-a"
             assert calls[1][1]["config"].project_id == "project-b"
+
+
+# =============================================================================
+# Test Delete Source Endpoint
+# =============================================================================
+
+
+class TestDeleteSourceEndpoint:
+    """Tests for DELETE /sources/{source_id} endpoint (Story 11.1 Task 7)."""
+
+    def test_delete_source_success(self, client):
+        """Should delete source and return counts."""
+        mock_source = MagicMock()
+
+        with patch("api.MongoDBClient") as mock_mongo, \
+             patch("api.QdrantStorageClient") as mock_qdrant:
+            mock_mongo_inst = MagicMock()
+            mock_mongo_inst.get_source.return_value = mock_source
+            mock_mongo_inst.delete_source.return_value = True
+            mock_mongo_inst.delete_chunks_by_source.return_value = 12
+            mock_mongo_inst.delete_extractions_by_source.return_value = 5
+            mock_mongo.return_value = mock_mongo_inst
+
+            mock_qdrant_inst = MagicMock()
+            mock_qdrant.return_value = mock_qdrant_inst
+
+            response = client.delete("/sources/abc123")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["deleted"]["sources"] == 1
+            assert data["deleted"]["chunks"] == 12
+            assert data["deleted"]["extractions"] == 5
+            assert data["deleted"]["vectors"] == "deleted"
+            assert data["project_id"] == "default"
+
+    def test_delete_source_not_found(self, client):
+        """Should return 404 for nonexistent source_id."""
+        from src.exceptions import NotFoundError
+
+        with patch("api.MongoDBClient") as mock_mongo:
+            mock_mongo_inst = MagicMock()
+            mock_mongo_inst.get_source.side_effect = NotFoundError("source", "no-such-id")
+            mock_mongo.return_value = mock_mongo_inst
+
+            response = client.delete("/sources/no-such-id")
+
+            assert response.status_code == 404
+            data = response.json()
+            assert data["error"]["code"] == "NOT_FOUND"
+
+    def test_delete_source_with_project_header(self, client):
+        """Should scope deletion to correct project via X-Project-ID header."""
+        mock_source = MagicMock()
+
+        with patch("api.MongoDBClient") as mock_mongo, \
+             patch("api.QdrantStorageClient") as mock_qdrant:
+            mock_mongo_inst = MagicMock()
+            mock_mongo_inst.get_source.return_value = mock_source
+            mock_mongo_inst.delete_source.return_value = True
+            mock_mongo_inst.delete_chunks_by_source.return_value = 3
+            mock_mongo_inst.delete_extractions_by_source.return_value = 2
+            mock_mongo.return_value = mock_mongo_inst
+
+            mock_qdrant_inst = MagicMock()
+            mock_qdrant.return_value = mock_qdrant_inst
+
+            response = client.delete(
+                "/sources/abc123",
+                headers={"X-Project-ID": "org_abc"},
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["project_id"] == "org_abc"
+
+            # Verify project_id was passed to all operations
+            mock_mongo_inst.get_source.assert_called_once_with("abc123", project_id="org_abc")
+            mock_mongo_inst.delete_source.assert_called_once_with("abc123", project_id="org_abc")
+            mock_mongo_inst.delete_chunks_by_source.assert_called_once_with(
+                "abc123", project_id="org_abc"
+            )
+            mock_mongo_inst.delete_extractions_by_source.assert_called_once_with(
+                "abc123", project_id="org_abc"
+            )
+            mock_qdrant_inst.delete_by_source.assert_called_once_with(
+                "knowledge_vectors", "abc123", project_id="org_abc"
+            )
+
+    def test_delete_source_qdrant_includes_project_id(self, client):
+        """Should pass project_id to Qdrant delete for data isolation."""
+        mock_source = MagicMock()
+
+        with patch("api.MongoDBClient") as mock_mongo, \
+             patch("api.QdrantStorageClient") as mock_qdrant:
+            mock_mongo_inst = MagicMock()
+            mock_mongo_inst.get_source.return_value = mock_source
+            mock_mongo_inst.delete_source.return_value = True
+            mock_mongo_inst.delete_chunks_by_source.return_value = 0
+            mock_mongo_inst.delete_extractions_by_source.return_value = 0
+            mock_mongo.return_value = mock_mongo_inst
+
+            mock_qdrant_inst = MagicMock()
+            mock_qdrant.return_value = mock_qdrant_inst
+
+            response = client.delete(
+                "/sources/src-1",
+                headers={"X-Project-ID": "org_xyz"},
+            )
+
+            assert response.status_code == 200
+            mock_qdrant_inst.delete_by_source.assert_called_once_with(
+                "knowledge_vectors", "src-1", project_id="org_xyz"
+            )
+
+    def test_delete_source_partial_failure_continues(self, client):
+        """Should continue other deletes even if one operation fails."""
+        mock_source = MagicMock()
+
+        with patch("api.MongoDBClient") as mock_mongo, \
+             patch("api.QdrantStorageClient") as mock_qdrant:
+            mock_mongo_inst = MagicMock()
+            mock_mongo_inst.get_source.return_value = mock_source
+            mock_mongo_inst.delete_source.return_value = True
+            # Chunks delete fails
+            mock_mongo_inst.delete_chunks_by_source.side_effect = RuntimeError("DB error")
+            mock_mongo_inst.delete_extractions_by_source.return_value = 4
+            mock_mongo.return_value = mock_mongo_inst
+
+            mock_qdrant_inst = MagicMock()
+            mock_qdrant.return_value = mock_qdrant_inst
+
+            response = client.delete("/sources/abc123")
+
+            assert response.status_code == 200
+            data = response.json()
+            # Sources deleted
+            assert data["deleted"]["sources"] == 1
+            # Chunks failed — stays at 0
+            assert data["deleted"]["chunks"] == 0
+            # Extractions still deleted
+            assert data["deleted"]["extractions"] == 4
+            # Qdrant still called
+            assert data["deleted"]["vectors"] == "deleted"

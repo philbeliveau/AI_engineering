@@ -62,6 +62,7 @@ async def _enrich_result(
     result_type: str,
     mongodb: MongoDBClient,
     source_cache: dict[str, dict[str, Any] | None],
+    project_id: str | None = None,
 ) -> SearchResult | None:
     """Enrich a search hit with source metadata.
 
@@ -70,6 +71,7 @@ async def _enrich_result(
         result_type: "chunk" or "extraction"
         mongodb: MongoDB client for enrichment
         source_cache: Cache of source lookups
+        project_id: Optional project_id override for multi-tenant scoping
 
     Returns:
         SearchResult with source attribution, or None if source not found
@@ -85,7 +87,7 @@ async def _enrich_result(
 
     # Get source from cache or fetch
     if source_id not in source_cache:
-        source_cache[source_id] = await mongodb.get_source(source_id)
+        source_cache[source_id] = await mongodb.get_source(source_id, project_id=project_id)
 
     source_data = source_cache[source_id]
     if not source_data:
@@ -125,7 +127,9 @@ async def _enrich_result(
         content = ""
         if extraction_id:
             try:
-                extraction = await mongodb.get_extraction_by_id(extraction_id)
+                extraction = await mongodb.get_extraction_by_id(
+                    extraction_id, project_id=project_id
+                )
                 if extraction:
                     content_data = extraction.get("content", {})
                     if isinstance(content_data, dict):
@@ -268,6 +272,10 @@ async def search_knowledge(
         le=100,
         description="Results to return. Use 10-15 for exploration, 5 for focused queries.",
     ),
+    project_id: str | None = Query(
+        None,
+        description="Project ID for multi-tenant scoping. Defaults to server's global PROJECT_ID.",
+    ),
 ) -> SearchKnowledgeResponse:
     """Search across all knowledge content semantically.
 
@@ -282,7 +290,7 @@ async def search_knowledge(
         SearchKnowledgeResponse with results and metadata
     """
     start_time = time.time()
-    logger.info("search_knowledge_start", query=query, limit=limit)
+    logger.info("search_knowledge_start", query=query, limit=limit, project_id=project_id)
 
     qdrant = get_qdrant_client()
     mongodb = get_mongodb_client()
@@ -304,8 +312,10 @@ async def search_knowledge(
     if qdrant:
         # Parallel search of chunks and extractions collections
         chunk_results, extraction_results = await asyncio.gather(
-            qdrant.search_chunks(query_vector=query_vector, limit=limit),
-            qdrant.search_extractions(query_vector=query_vector, limit=limit),
+            qdrant.search_chunks(query_vector=query_vector, limit=limit, project_id=project_id),
+            qdrant.search_extractions(
+                query_vector=query_vector, limit=limit, project_id=project_id
+            ),
         )
 
     # Merge and sort by score (descending)
@@ -327,7 +337,9 @@ async def search_knowledge(
         result_type = item["type"]
 
         if mongodb:
-            enriched = await _enrich_result(hit, result_type, mongodb, source_cache)
+            enriched = await _enrich_result(
+                hit, result_type, mongodb, source_cache, project_id=project_id
+            )
             if enriched:
                 results.append(enriched)
                 sources_cited.add(enriched.source.title)

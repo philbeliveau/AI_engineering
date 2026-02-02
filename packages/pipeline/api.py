@@ -7,6 +7,7 @@ Endpoints:
     POST /ingest/url - Ingest a document from URL
     POST /extract/{source_id} - Run extraction on an ingested source
     GET /sources/{source_id} - Get source metadata and status
+    DELETE /sources/{source_id} - Delete source and all associated data
     GET /health - Health check endpoint
 
 All endpoints support project namespacing via X-Project-ID header (defaults to "default").
@@ -68,6 +69,22 @@ class SourceResponse(BaseModel):
     status: str
     chunk_count: int
     extraction_count: int
+    project_id: str
+
+
+class DeletedCounts(BaseModel):
+    """Counts of deleted items per storage layer."""
+
+    sources: int
+    chunks: int
+    extractions: int
+    vectors: str
+
+
+class DeleteResponse(BaseModel):
+    """Response model for source deletion."""
+
+    deleted: DeletedCounts
     project_id: str
 
 
@@ -517,9 +534,9 @@ async def get_source_status(
     mongodb.connect()
 
     try:
-        source = mongodb.get_source(source_id)
-        chunk_count = mongodb.count_chunks_by_source(source_id)
-        extractions = mongodb.get_extractions_by_source(source_id)
+        source = mongodb.get_source(source_id, project_id=project_id)
+        chunk_count = mongodb.count_chunks_by_source(source_id, project_id=project_id)
+        extractions = mongodb.get_extractions_by_source(source_id, project_id=project_id)
         extraction_count = len(extractions)
 
         return SourceResponse(
@@ -529,6 +546,93 @@ async def get_source_status(
             chunk_count=chunk_count,
             extraction_count=extraction_count,
             project_id=source.project_id or project_id,
+        )
+    finally:
+        mongodb.close()
+
+
+@app.delete("/sources/{source_id}", response_model=DeleteResponse)
+async def delete_source(
+    request: Request,
+    source_id: str,
+) -> DeleteResponse:
+    """Delete a source and all associated data (chunks, extractions, vectors).
+
+    Args:
+        request: FastAPI request object.
+        source_id: MongoDB source document ID.
+
+    Returns:
+        DeleteResponse with counts of deleted items per storage layer.
+
+    Raises:
+        HTTPException: If source not found (404).
+    """
+    project_id = get_project_id(request)
+
+    logger.info(
+        "delete_source_started",
+        source_id=source_id,
+        project_id=project_id,
+    )
+
+    mongodb = MongoDBClient()
+    mongodb.connect()
+
+    try:
+        # Check source exists first — raises NotFoundError if missing
+        mongodb.get_source(source_id, project_id=project_id)
+
+        # Delete from all 4 storage layers; log failures but continue
+        sources_deleted = 0
+        chunks_deleted = 0
+        extractions_deleted = 0
+        vectors_status = "skipped"
+
+        try:
+            deleted = mongodb.delete_source(source_id, project_id=project_id)
+            sources_deleted = 1 if deleted else 0
+        except Exception as e:
+            logger.error("delete_source_mongodb_failed", source_id=source_id, error=str(e))
+
+        try:
+            chunks_deleted = mongodb.delete_chunks_by_source(source_id, project_id=project_id)
+        except Exception as e:
+            logger.error("delete_chunks_mongodb_failed", source_id=source_id, error=str(e))
+
+        try:
+            extractions_deleted = mongodb.delete_extractions_by_source(
+                source_id, project_id=project_id
+            )
+        except Exception as e:
+            logger.error("delete_extractions_mongodb_failed", source_id=source_id, error=str(e))
+
+        try:
+            qdrant = QdrantStorageClient()
+            qdrant.delete_by_source("knowledge_vectors", source_id, project_id=project_id)
+            vectors_status = "deleted"
+        except Exception as e:
+            logger.error("delete_vectors_qdrant_failed", source_id=source_id, error=str(e))
+            vectors_status = "failed"
+
+        logger.info(
+            "delete_source_complete",
+            source_id=source_id,
+            project_id=project_id,
+            sources=sources_deleted,
+            chunks=chunks_deleted,
+            extractions=extractions_deleted,
+            vectors=vectors_status,
+        )
+
+        return DeleteResponse(
+            deleted=DeletedCounts(
+                sources=sources_deleted,
+                chunks=chunks_deleted,
+                extractions=extractions_deleted,
+                vectors=vectors_status,
+            ),
+            project_id=project_id,
         )
     finally:
         mongodb.close()

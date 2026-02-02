@@ -2,7 +2,14 @@
 
 Tests embedding generation using FastEmbed (ONNX) with nomic-embed-text-v1.5 model.
 Produces 768-dimensional vectors with 8K token context.
+
+These tests require fastembed to be installed (provides ONNX-based embedding inference).
+They are skipped automatically when fastembed is not available (e.g., lightweight test environments).
 """
+
+import pytest
+
+fastembed = pytest.importorskip("fastembed", reason="fastembed not installed")
 
 
 class TestEmbeddingService:

@@ -169,6 +169,14 @@ async def get_patterns(
         le=500,
         description="Max results. Use 10-20 for specific implementations.",
     ),
+    project_id: str | None = Query(
+        default=None,
+        description="Project ID for multi-tenant scoping. Defaults to server's global PROJECT_ID.",
+    ),
+    source_id: str | None = Query(
+        default=None,
+        description="Filter results to a single source document.",
+    ),
 ) -> PatternsResponse:
     """Query pattern extractions with optional topic filter.
 
@@ -189,7 +197,10 @@ async def get_patterns(
         PatternsResponse with results and metadata
     """
     start_time = time.time()
-    logger.info("get_patterns_start", topic=topic, limit=limit)
+    logger.info(
+        "get_patterns_start", topic=topic, limit=limit,
+        project_id=project_id, source_id=source_id,
+    )
 
     qdrant = get_qdrant_client()
     if not qdrant:
@@ -212,6 +223,8 @@ async def get_patterns(
             extraction_type="pattern",
             limit=limit,
             topic=topic,
+            project_id=project_id,
+            source_id=source_id,
         )
     except RuntimeError as e:
         logger.error("get_patterns_qdrant_error", error=str(e), topic=topic)
@@ -240,7 +253,9 @@ async def get_patterns(
         # Try to get full content from MongoDB
         if mongodb and extraction_id:
             try:
-                extraction = await mongodb.get_extraction_by_id(extraction_id)
+                extraction = await mongodb.get_extraction_by_id(
+                    extraction_id, project_id=project_id
+                )
                 if extraction:
                     pattern = _map_pattern_from_mongodb(item["id"], extraction, payload)
                 else:

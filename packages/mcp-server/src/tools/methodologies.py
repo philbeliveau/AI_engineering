@@ -197,6 +197,14 @@ async def get_methodologies(
         le=500,
         description="Max results. Use 5-10 for specific processes.",
     ),
+    project_id: str | None = Query(
+        default=None,
+        description="Project ID for multi-tenant scoping. Defaults to server's global PROJECT_ID.",
+    ),
+    source_id: str | None = Query(
+        default=None,
+        description="Filter results to a single source document.",
+    ),
     auth_context: AuthContext = Depends(require_tier(UserTier.PUBLIC)),
 ) -> MethodologyResponse:
     """Get step-by-step methodology extractions from the knowledge base.
@@ -220,6 +228,8 @@ async def get_methodologies(
         "get_methodologies_start",
         topic=topic,
         limit=limit,
+        project_id=project_id,
+        source_id=source_id,
         user_tier=auth_context.tier.value,
     )
 
@@ -245,6 +255,8 @@ async def get_methodologies(
         extraction_type="methodology",
         limit=limit,
         topic=topic,
+        project_id=project_id,
+        source_id=source_id,
     )
 
     # Build source cache for enrichment
@@ -255,15 +267,17 @@ async def get_methodologies(
     for item in raw_results:
         point_id = item["id"]
         payload = item.get("payload", {})
-        source_id = payload.get("source_id", "")
+        item_source_id = payload.get("source_id", "")
         extraction_id = payload.get("extraction_id")
 
         # Get source title from MongoDB or payload
         source_title = payload.get("source_title", "Unknown Source")
-        if mongodb and source_id and source_title == "Unknown Source":
-            if source_id not in source_cache:
-                source_cache[source_id] = await mongodb.get_source(source_id)
-            source_data = source_cache.get(source_id)
+        if mongodb and item_source_id and source_title == "Unknown Source":
+            if item_source_id not in source_cache:
+                source_cache[item_source_id] = await mongodb.get_source(
+                    item_source_id, project_id=project_id
+                )
+            source_data = source_cache.get(item_source_id)
             if source_data:
                 source_title = source_data.get("title", "Unknown Source")
 
@@ -271,7 +285,9 @@ async def get_methodologies(
         methodology = None
         if mongodb and extraction_id:
             try:
-                extraction = await mongodb.get_extraction_by_id(extraction_id)
+                extraction = await mongodb.get_extraction_by_id(
+                    extraction_id, project_id=project_id
+                )
                 if extraction:
                     methodology = _map_methodology_from_mongodb(point_id, extraction, payload, source_title)
                 else:

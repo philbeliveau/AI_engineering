@@ -32,6 +32,43 @@ class MongoDBClient:
     """
 
     @staticmethod
+    def _validate_project_id(project_id: str) -> None:
+        """Validate project_id format for safe collection naming.
+
+        Args:
+            project_id: Project ID to validate.
+
+        Raises:
+            ValidationError: If project_id contains invalid characters.
+        """
+        import re
+
+        if not project_id or not re.match(r"^[a-zA-Z0-9_-]+$", project_id):
+            raise ValidationError(
+                f"Invalid project_id '{project_id}': must be non-empty, "
+                "alphanumeric with underscores/hyphens only",
+                details={"project_id": project_id},
+            )
+
+    @staticmethod
+    def _collection_name(base: str, project_id: str | None = None) -> str:
+        """Resolve a collection name with project_id prefix.
+
+        Args:
+            base: Base collection name (e.g., "sources", "chunks", "extractions")
+            project_id: Optional project_id override. Falls back to settings.project_id.
+
+        Returns:
+            Fully qualified collection name (e.g., "org_abc_sources")
+
+        Raises:
+            ValidationError: If the effective project_id contains invalid characters.
+        """
+        effective_project_id = project_id or settings.project_id
+        MongoDBClient._validate_project_id(effective_project_id)
+        return f"{effective_project_id}_{base}"
+
+    @staticmethod
     def _validate_object_id(id_str: str, resource: str) -> ObjectId:
         """Validate and convert string to ObjectId.
 
@@ -224,11 +261,12 @@ class MongoDBClient:
             logger.error("source_creation_failed", error=str(e))
             raise StorageError("create_source", {"error": str(e)}) from e
 
-    def get_source(self, source_id: str) -> Source:
+    def get_source(self, source_id: str, project_id: str | None = None) -> Source:
         """Get a source by ID.
 
         Args:
             source_id: The source ObjectId as string.
+            project_id: Optional project_id override for multi-tenant scoping.
 
         Returns:
             The Source model.
@@ -244,7 +282,7 @@ class MongoDBClient:
         oid = self._validate_object_id(source_id, "source")
 
         try:
-            doc = self._db[settings.sources_collection].find_one({"_id": oid})
+            doc = self._db[self._collection_name("sources", project_id)].find_one({"_id": oid})
             if not doc:
                 raise NotFoundError("source", source_id)
             # Convert MongoDB _id to string id for Pydantic model
@@ -303,11 +341,12 @@ class MongoDBClient:
             logger.error("source_update_failed", source_id=source_id, error=str(e))
             raise StorageError("update_source", {"error": str(e)}) from e
 
-    def delete_source(self, source_id: str) -> bool:
+    def delete_source(self, source_id: str, project_id: str | None = None) -> bool:
         """Delete a source document.
 
         Args:
             source_id: The source ObjectId as string.
+            project_id: Optional project_id override for multi-tenant scoping.
 
         Returns:
             True if deleted, False if not found.
@@ -322,7 +361,9 @@ class MongoDBClient:
         oid = self._validate_object_id(source_id, "source")
 
         try:
-            result = self._db[settings.sources_collection].delete_one({"_id": oid})
+            result = self._db[self._collection_name("sources", project_id)].delete_one(
+                {"_id": oid}
+            )
             deleted = result.deleted_count > 0
             if deleted:
                 logger.info("source_deleted", source_id=source_id)
@@ -331,11 +372,14 @@ class MongoDBClient:
             logger.error("source_delete_failed", source_id=source_id, error=str(e))
             raise StorageError("delete_source", {"error": str(e)}) from e
 
-    def list_sources(self, status: Optional[str] = None) -> list[Source]:
+    def list_sources(
+        self, status: Optional[str] = None, project_id: str | None = None
+    ) -> list[Source]:
         """List all sources with optional status filter.
 
         Args:
             status: Optional status to filter by.
+            project_id: Optional project_id override for multi-tenant scoping.
 
         Returns:
             List of Source models.
@@ -352,7 +396,7 @@ class MongoDBClient:
                 query["status"] = status
 
             sources = []
-            for doc in self._db[settings.sources_collection].find(query):
+            for doc in self._db[self._collection_name("sources", project_id)].find(query):
                 doc["id"] = str(doc.pop("_id"))
                 sources.append(Source.model_validate(doc))
             return sources
@@ -449,11 +493,12 @@ class MongoDBClient:
             logger.error("chunks_by_source_failed", source_id=source_id, error=str(e))
             raise StorageError("get_chunks_by_source", {"error": str(e)}) from e
 
-    def delete_chunks_by_source(self, source_id: str) -> int:
+    def delete_chunks_by_source(self, source_id: str, project_id: str | None = None) -> int:
         """Delete all chunks for a source.
 
         Args:
             source_id: The source ObjectId as string.
+            project_id: Optional project_id override for multi-tenant scoping.
 
         Returns:
             Number of chunks deleted.
@@ -465,7 +510,7 @@ class MongoDBClient:
             raise StorageError("delete_chunks_by_source", {"error": "Not connected"})
 
         try:
-            result = self._db[settings.chunks_collection].delete_many({"source_id": source_id})
+            result = self._db[self._collection_name("chunks", project_id)].delete_many({"source_id": source_id})
             deleted_count = result.deleted_count
             logger.info("chunks_deleted_by_source", source_id=source_id, count=deleted_count)
             return deleted_count
@@ -473,11 +518,14 @@ class MongoDBClient:
             logger.error("chunks_delete_by_source_failed", source_id=source_id, error=str(e))
             raise StorageError("delete_chunks_by_source", {"error": str(e)}) from e
 
-    def count_chunks_by_source(self, source_id: str) -> int:
+    def count_chunks_by_source(
+        self, source_id: str, project_id: str | None = None
+    ) -> int:
         """Count chunks for a source.
 
         Args:
             source_id: The source ObjectId as string.
+            project_id: Optional project_id override for multi-tenant scoping.
 
         Returns:
             Number of chunks for the source.
@@ -489,7 +537,9 @@ class MongoDBClient:
             raise StorageError("count_chunks_by_source", {"error": "Not connected"})
 
         try:
-            return self._db[settings.chunks_collection].count_documents({"source_id": source_id})
+            return self._db[self._collection_name("chunks", project_id)].count_documents(
+                {"source_id": source_id}
+            )
         except PyMongoError as e:
             logger.error("chunks_count_by_source_failed", source_id=source_id, error=str(e))
             raise StorageError("count_chunks_by_source", {"error": str(e)}) from e
@@ -563,11 +613,14 @@ class MongoDBClient:
             logger.error("extraction_get_failed", extraction_id=extraction_id, error=str(e))
             raise StorageError("get_extraction", {"error": str(e)}) from e
 
-    def get_extractions_by_source(self, source_id: str) -> list[Extraction]:
+    def get_extractions_by_source(
+        self, source_id: str, project_id: str | None = None
+    ) -> list[Extraction]:
         """Get all extractions for a source.
 
         Args:
             source_id: The source ObjectId as string.
+            project_id: Optional project_id override for multi-tenant scoping.
 
         Returns:
             List of Extraction models.
@@ -580,7 +633,9 @@ class MongoDBClient:
 
         try:
             extractions = []
-            for doc in self._db[settings.extractions_collection].find({"source_id": source_id}):
+            for doc in self._db[self._collection_name("extractions", project_id)].find(
+                {"source_id": source_id}
+            ):
                 doc["id"] = str(doc.pop("_id"))
                 extractions.append(Extraction.model_validate(doc))
             return extractions
@@ -627,11 +682,12 @@ class MongoDBClient:
             )
             raise StorageError("get_extractions_by_type", {"error": str(e)}) from e
 
-    def delete_extractions_by_source(self, source_id: str) -> int:
+    def delete_extractions_by_source(self, source_id: str, project_id: str | None = None) -> int:
         """Delete all extractions for a source.
 
         Args:
             source_id: The source ObjectId as string.
+            project_id: Optional project_id override for multi-tenant scoping.
 
         Returns:
             Number of extractions deleted.
@@ -643,7 +699,7 @@ class MongoDBClient:
             raise StorageError("delete_extractions_by_source", {"error": "Not connected"})
 
         try:
-            result = self._db[settings.extractions_collection].delete_many({"source_id": source_id})
+            result = self._db[self._collection_name("extractions", project_id)].delete_many({"source_id": source_id})
             deleted_count = result.deleted_count
             logger.info(
                 "extractions_deleted_by_source", source_id=source_id, count=deleted_count

@@ -175,6 +175,10 @@ async def list_sources(
         le=500,
         description="Max sources to return. Use default for full inventory.",
     ),
+    project_id: str | None = Query(
+        default=None,
+        description="Project ID for multi-tenant scoping. Defaults to server's global PROJECT_ID.",
+    ),
 ) -> SourceListResponse:
     """List all available knowledge sources.
 
@@ -194,7 +198,7 @@ async def list_sources(
 
     # Global try/except for debugging - catches any unhandled exception
     try:
-        return await _list_sources_impl(request, limit, start_time)
+        return await _list_sources_impl(request, limit, start_time, project_id=project_id)
     except Exception as e:
         logger.error(
             "list_sources_unhandled_exception",
@@ -219,6 +223,7 @@ async def _list_sources_impl(
     request: Request,
     limit: int,
     start_time: float,
+    project_id: str | None = None,
 ) -> SourceListResponse:
     """Implementation of list_sources - separated for exception handling."""
 
@@ -246,7 +251,7 @@ async def _list_sources_impl(
 
     # Get all sources from MongoDB
     try:
-        sources = await mongodb.list_sources(limit=limit)
+        sources = await mongodb.list_sources(limit=limit, project_id=project_id)
     except Exception as e:
         logger.error("mongodb_list_sources_failed", error=str(e), error_type=type(e).__name__)
         latency_ms = int((time.time() - start_time) * 1000)
@@ -266,7 +271,9 @@ async def _list_sources_impl(
     all_extraction_counts: dict[str, dict[str, int]] = {}
     if qdrant and source_ids:
         try:
-            all_extraction_counts = await qdrant.count_extractions_by_sources(source_ids)
+            all_extraction_counts = await qdrant.count_extractions_by_sources(
+                source_ids, project_id=project_id
+            )
         except Exception as e:
             # Graceful degradation: return empty counts on Qdrant errors
             logger.warning(
@@ -370,6 +377,10 @@ async def compare_sources(
         le=50,
         description="Extractions per source. Use 5-10 for focused comparison.",
     ),
+    project_id: str | None = Query(
+        default=None,
+        description="Project ID for multi-tenant scoping. Defaults to server's global PROJECT_ID.",
+    ),
     auth_context: AuthContext = Depends(require_tier(UserTier.PUBLIC)),
 ) -> CompareSourcesResponse:
     """Compare extractions across multiple sources for a topic.
@@ -419,38 +430,39 @@ async def compare_sources(
 
     # Validate all source IDs exist and build source cache
     source_cache: dict[str, dict[str, Any]] = {}
-    for source_id in source_ids:
-        source = await mongodb.get_source(source_id)
+    for sid in source_ids:
+        source = await mongodb.get_source(sid, project_id=project_id)
         if not source:
             logger.warning(
                 "source_not_found",
-                source_id=source_id,
+                source_id=sid,
             )
             raise NotFoundError(
                 resource="source",
-                resource_id=source_id,
+                resource_id=sid,
             )
-        source_cache[source_id] = source
+        source_cache[sid] = source
 
     # Get extractions for comparison
     extractions_by_source = await qdrant.get_extractions_for_comparison(
         source_ids=source_ids,
         topic=topic,
         limit_per_source=limit_per_source,
+        project_id=project_id,
     )
 
     # Build comparison results
     results: list[ComparisonResult] = []
     sources_cited: list[str] = []
 
-    for source_id in source_ids:
-        source = source_cache[source_id]
+    for sid in source_ids:
+        source = source_cache[sid]
         source_title = source.get("title", "Unknown Source")
         sources_cited.append(source_title)
 
         # Convert extractions to summaries with MongoDB lookup
         extraction_summaries: list[ExtractionSummary] = []
-        for extraction_item in extractions_by_source.get(source_id, []):
+        for extraction_item in extractions_by_source.get(sid, []):
             payload = extraction_item.get("payload", {})
             extraction_id = payload.get("extraction_id")
             extraction_type = payload.get("extraction_type", "unknown")
@@ -459,7 +471,9 @@ async def compare_sources(
             content: dict[str, Any] = {}
             if mongodb and extraction_id:
                 try:
-                    extraction_doc = await mongodb.get_extraction_by_id(extraction_id)
+                    extraction_doc = await mongodb.get_extraction_by_id(
+                        extraction_id, project_id=project_id
+                    )
                     if extraction_doc:
                         content = extraction_doc.get("content", {})
                 except Exception as e:
@@ -477,7 +491,7 @@ async def compare_sources(
 
         results.append(
             ComparisonResult(
-                source_id=source_id,
+                source_id=sid,
                 source_title=source_title,
                 extractions=extraction_summaries,
             )

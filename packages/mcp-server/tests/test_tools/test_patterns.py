@@ -34,7 +34,7 @@ class TestGetPatternsEndpoint:
             mock_qdrant.list_extractions = AsyncMock(return_value=[])
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_patterns(topic=None, limit=100)
+            result = await get_patterns(topic=None, limit=100, project_id=None, source_id=None)
 
             assert isinstance(result, PatternsResponse)
             assert result.metadata.query == "all"
@@ -50,32 +50,27 @@ class TestGetPatternsEndpoint:
             mock_qdrant.list_extractions = AsyncMock(return_value=[])
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_patterns(topic="embeddings", limit=100)
+            result = await get_patterns(topic="embeddings", limit=100, project_id=None, source_id=None)
 
             assert result.metadata.query == "embeddings"
             mock_qdrant.list_extractions.assert_called_once_with(
                 extraction_type="pattern",
                 limit=100,
                 topic="embeddings",
+                project_id=None,
+                source_id=None,
             )
 
     @pytest.mark.asyncio
     async def test_get_patterns_with_results(self):
-        """Test get_patterns with actual results."""
+        """Test get_patterns with actual results via MongoDB enrichment."""
         from src.tools.patterns import get_patterns
 
         mock_results = [
             {
                 "id": "pat-1",
                 "payload": {
-                    "content": {
-                        "name": "Retry with Exponential Backoff",
-                        "problem": "API calls can fail temporarily",
-                        "solution": "Implement retry logic with increasing delays",
-                        "code_example": "async def retry(fn, max_retries=3): ...",
-                        "context": "When calling external LLM APIs",
-                        "trade_offs": ["Increased latency", "More complex code"],
-                    },
+                    "extraction_id": "extract-pat-1",
                     "topics": ["reliability", "api"],
                     "source_title": "Production LLM Systems",
                     "source_id": "src-1",
@@ -84,19 +79,38 @@ class TestGetPatternsEndpoint:
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "name": "Retry with Exponential Backoff",
+                "problem": "API calls can fail temporarily",
+                "solution": "Implement retry logic with increasing delays",
+                "code_example": "async def retry(fn, max_retries=3): ...",
+                "context": "When calling external LLM APIs",
+                "trade_offs": ["Increased latency", "More complex code"],
+            },
+            "topics": ["reliability", "api"],
+            "source_id": "src-1",
+            "chunk_id": "chunk-1",
+        }
+
         with patch("src.tools.patterns.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_patterns(topic=None, limit=100)
+            with patch("src.tools.patterns.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            assert len(result.results) == 1
-            assert result.results[0].id == "pat-1"
-            assert result.results[0].name == "Retry with Exponential Backoff"
-            assert result.results[0].code_example == "async def retry(fn, max_retries=3): ..."
-            assert result.results[0].source_title == "Production LLM Systems"
-            assert "Production LLM Systems" in result.metadata.sources_cited
+                result = await get_patterns(topic=None, limit=100, project_id=None, source_id=None)
+
+                assert len(result.results) == 1
+                assert result.results[0].id == "pat-1"
+                assert result.results[0].name == "Retry with Exponential Backoff"
+                assert result.results[0].code_example == "async def retry(fn, max_retries=3): ..."
+                assert result.results[0].source_title == "Production LLM Systems"
+                assert "Production LLM Systems" in result.metadata.sources_cited
 
     @pytest.mark.asyncio
     async def test_get_patterns_empty_results(self):
@@ -108,7 +122,7 @@ class TestGetPatternsEndpoint:
             mock_qdrant.list_extractions = AsyncMock(return_value=[])
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_patterns(topic="nonexistent", limit=100)
+            result = await get_patterns(topic="nonexistent", limit=100, project_id=None, source_id=None)
 
             assert len(result.results) == 0
             assert result.metadata.result_count == 0
@@ -120,28 +134,21 @@ class TestGetPatternsEndpoint:
         from src.tools.patterns import get_patterns
 
         with patch("src.tools.patterns.get_qdrant_client", return_value=None):
-            result = await get_patterns(topic=None, limit=100)
+            result = await get_patterns(topic=None, limit=100, project_id=None, source_id=None)
 
             assert len(result.results) == 0
             assert result.metadata.result_count == 0
 
     @pytest.mark.asyncio
     async def test_get_patterns_maps_content_correctly(self):
-        """Test that pattern payload fields are mapped correctly."""
+        """Test that pattern fields are mapped correctly via MongoDB enrichment."""
         from src.tools.patterns import get_patterns
 
         mock_results = [
             {
                 "id": "pat-2",
                 "payload": {
-                    "content": {
-                        "name": "Semantic Caching",
-                        "problem": "Repeated similar queries are expensive",
-                        "solution": "Cache responses keyed by embedding similarity",
-                        "code_example": None,
-                        "context": "High-traffic LLM applications",
-                        "trade_offs": ["Memory usage", "Cache invalidation"],
-                    },
+                    "extraction_id": "extract-pat-2",
                     "topics": ["caching", "performance"],
                     "source_title": "LLM Optimization Guide",
                     "source_id": "src-2",
@@ -150,20 +157,39 @@ class TestGetPatternsEndpoint:
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "name": "Semantic Caching",
+                "problem": "Repeated similar queries are expensive",
+                "solution": "Cache responses keyed by embedding similarity",
+                "code_example": None,
+                "context": "High-traffic LLM applications",
+                "trade_offs": ["Memory usage", "Cache invalidation"],
+            },
+            "topics": ["caching", "performance"],
+            "source_id": "src-2",
+            "chunk_id": "chunk-2",
+        }
+
         with patch("src.tools.patterns.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_patterns(topic=None, limit=100)
+            with patch("src.tools.patterns.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            pattern = result.results[0]
-            assert pattern.name == "Semantic Caching"
-            assert pattern.problem == "Repeated similar queries are expensive"
-            assert pattern.solution == "Cache responses keyed by embedding similarity"
-            assert pattern.code_example is None
-            assert pattern.context == "High-traffic LLM applications"
-            assert pattern.trade_offs == ["Memory usage", "Cache invalidation"]
+                result = await get_patterns(topic=None, limit=100, project_id=None, source_id=None)
+
+                pattern = result.results[0]
+                assert pattern.name == "Semantic Caching"
+                assert pattern.problem == "Repeated similar queries are expensive"
+                assert pattern.solution == "Cache responses keyed by embedding similarity"
+                assert pattern.code_example is None
+                assert pattern.context == "High-traffic LLM applications"
+                assert pattern.trade_offs == ["Memory usage", "Cache invalidation"]
 
 
 class TestPatternsEndpointRouter:
@@ -193,14 +219,14 @@ class TestPatternPayloadMapping:
 
     @pytest.mark.asyncio
     async def test_handles_string_content(self):
-        """Test mapping when content is a string instead of dict."""
+        """Test mapping when MongoDB content is a string instead of dict."""
         from src.tools.patterns import get_patterns
 
         mock_results = [
             {
                 "id": "pat-3",
                 "payload": {
-                    "content": "Simple solution text",
+                    "extraction_id": "extract-pat-3",
                     "extraction_title": "Pattern Title",
                     "topics": [],
                     "source_title": "Source",
@@ -209,49 +235,70 @@ class TestPatternPayloadMapping:
             }
         ]
 
+        mock_extraction = {
+            "content": "Simple solution text",
+            "topics": [],
+            "source_id": "src-3",
+        }
+
         with patch("src.tools.patterns.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_patterns(topic=None, limit=100)
+            with patch("src.tools.patterns.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            assert len(result.results) == 1
-            assert result.results[0].solution == "Simple solution text"
+                result = await get_patterns(topic=None, limit=100, project_id=None, source_id=None)
+
+                assert len(result.results) == 1
+                assert result.results[0].solution == "Simple solution text"
 
     @pytest.mark.asyncio
     async def test_handles_missing_optional_fields(self):
-        """Test mapping when optional fields are missing."""
+        """Test mapping when MongoDB content has minimal fields."""
         from src.tools.patterns import get_patterns
 
         mock_results = [
             {
                 "id": "pat-4",
                 "payload": {
-                    "content": {
-                        "name": "Minimal Pattern",
-                        "problem": "A problem",
-                        "solution": "A solution",
-                    },
+                    "extraction_id": "extract-pat-4",
                     "source_title": "Source",
                     "source_id": "src-4",
                 },
             }
         ]
 
+        mock_extraction = {
+            "content": {
+                "name": "Minimal Pattern",
+                "problem": "A problem",
+                "solution": "A solution",
+            },
+            "source_id": "src-4",
+        }
+
         with patch("src.tools.patterns.get_qdrant_client") as mock_get_qdrant:
             mock_qdrant = AsyncMock()
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_patterns(topic=None, limit=100)
+            with patch("src.tools.patterns.get_mongodb_client") as mock_get_mongo:
+                mock_mongo = AsyncMock()
+                mock_mongo.get_extraction_by_id = AsyncMock(return_value=mock_extraction)
+                mock_get_mongo.return_value = mock_mongo
 
-            pattern = result.results[0]
-            assert pattern.name == "Minimal Pattern"
-            assert pattern.code_example is None
-            assert pattern.context is None
-            assert pattern.trade_offs is None
-            assert pattern.topics == []
+                result = await get_patterns(topic=None, limit=100, project_id=None, source_id=None)
+
+                pattern = result.results[0]
+                assert pattern.name == "Minimal Pattern"
+                assert pattern.code_example is None
+                assert pattern.context is None
+                assert pattern.trade_offs is None
+                assert pattern.topics == []
 
     @pytest.mark.asyncio
     async def test_handles_dict_content_missing_name(self):
@@ -278,7 +325,7 @@ class TestPatternPayloadMapping:
             mock_qdrant.list_extractions = AsyncMock(return_value=mock_results)
             mock_get_qdrant.return_value = mock_qdrant
 
-            result = await get_patterns(topic=None, limit=100)
+            result = await get_patterns(topic=None, limit=100, project_id=None, source_id=None)
 
             pattern = result.results[0]
             assert pattern.name == "Fallback Pattern Name"
@@ -381,7 +428,7 @@ class TestPatternsErrorHandling:
             mock_get_qdrant.return_value = mock_qdrant
 
             with pytest.raises(KnowledgeError) as exc_info:
-                await get_patterns(topic=None, limit=100)
+                await get_patterns(topic=None, limit=100, project_id=None, source_id=None)
 
             assert exc_info.value.code == "INTERNAL_ERROR"
             assert "pattern" in exc_info.value.message.lower()
@@ -400,7 +447,7 @@ class TestPatternsErrorHandling:
             mock_get_qdrant.return_value = mock_qdrant
 
             with pytest.raises(KnowledgeError) as exc_info:
-                await get_patterns(topic=None, limit=100)
+                await get_patterns(topic=None, limit=100, project_id=None, source_id=None)
 
             assert exc_info.value.code == "INTERNAL_ERROR"
             assert "error_type" in exc_info.value.details

@@ -44,7 +44,7 @@ class TestSearchKnowledgeEndpoint:
                     mock_mongo.get_source = AsyncMock(return_value=None)
                     mock_get_mongo.return_value = mock_mongo
 
-                    result = await search_knowledge(query="test query", limit=10)
+                    result = await search_knowledge(query="test query", limit=10, project_id=None)
 
                     assert isinstance(result, SearchKnowledgeResponse)
                     assert result.metadata.query == "test query"
@@ -85,7 +85,7 @@ class TestSearchKnowledgeEndpoint:
                     mock_mongo.get_source = AsyncMock(return_value=mock_source)
                     mock_get_mongo.return_value = mock_mongo
 
-                    result = await search_knowledge(query="test query", limit=10)
+                    result = await search_knowledge(query="test query", limit=10, project_id=None)
 
                     assert len(result.results) == 1
                     assert result.results[0].id == "chunk-1"
@@ -134,7 +134,7 @@ class TestSearchKnowledgeEndpoint:
                     mock_mongo.get_source = AsyncMock(return_value=mock_source)
                     mock_get_mongo.return_value = mock_mongo
 
-                    result = await search_knowledge(query="test", limit=10)
+                    result = await search_knowledge(query="test", limit=10, project_id=None)
 
                     # Results should be sorted by score (highest first)
                     assert len(result.results) == 2
@@ -161,7 +161,7 @@ class TestSearchKnowledgeEndpoint:
                     mock_mongo = AsyncMock()
                     mock_get_mongo.return_value = mock_mongo
 
-                    result = await search_knowledge(query="no results query", limit=10)
+                    result = await search_knowledge(query="no results query", limit=10, project_id=None)
 
                     assert len(result.results) == 0
                     assert result.metadata.result_count == 0
@@ -196,7 +196,7 @@ class TestSearchKnowledgeEndpoint:
                     mock_mongo.get_source = AsyncMock(return_value=mock_source)
                     mock_get_mongo.return_value = mock_mongo
 
-                    result = await search_knowledge(query="test", limit=5)
+                    result = await search_knowledge(query="test", limit=5, project_id=None)
 
                     # Should have at most 5 results
                     assert len(result.results) <= 5
@@ -236,7 +236,7 @@ class TestSearchKnowledgeEndpoint:
                     mock_mongo.get_source = AsyncMock(return_value=mock_source)
                     mock_get_mongo.return_value = mock_mongo
 
-                    result = await search_knowledge(query="test", limit=10)
+                    result = await search_knowledge(query="test", limit=10, project_id=None)
 
                     assert len(result.results) == 1
                     source = result.results[0].source
@@ -304,7 +304,7 @@ class TestSearchPerformance:
                     mock_get_mongo.return_value = mock_mongo
 
                     start = time.time()
-                    await search_knowledge(query="performance test", limit=10)
+                    await search_knowledge(query="performance test", limit=10, project_id=None)
                     elapsed_ms = (time.time() - start) * 1000
 
                     # Endpoint logic should be very fast (<100ms) when storage is mocked
@@ -317,6 +317,7 @@ class TestSearchPerformance:
         This integration test validates AC6 with real embedding generation.
         Requires fastembed model to be available.
         """
+        pytest.importorskip("fastembed", reason="fastembed not installed")
         import time
 
         from src.tools.search import search_knowledge
@@ -332,7 +333,7 @@ class TestSearchPerformance:
                 mock_get_mongo.return_value = mock_mongo
 
                 start = time.time()
-                await search_knowledge(query="real embedding performance test", limit=10)
+                await search_knowledge(query="real embedding performance test", limit=10, project_id=None)
                 elapsed_ms = (time.time() - start) * 1000
 
                 # Full flow including embedding should be under 500ms
@@ -351,7 +352,7 @@ class TestSearchErrorHandling:
 
         with patch("src.tools.search.asyncio.to_thread", side_effect=Exception("Model load failed")):
             with pytest.raises(HTTPException) as exc_info:
-                await search_knowledge(query="test", limit=10)
+                await search_knowledge(query="test", limit=10, project_id=None)
 
             assert exc_info.value.status_code == 500
             assert "INTERNAL_ERROR" in str(exc_info.value.detail)
@@ -366,7 +367,7 @@ class TestSearchErrorHandling:
         with patch("src.tools.search.asyncio.to_thread", return_value=mock_embedding):
             with patch("src.tools.search.get_qdrant_client", return_value=None):
                 with patch("src.tools.search.get_mongodb_client", return_value=None):
-                    result = await search_knowledge(query="test", limit=10)
+                    result = await search_knowledge(query="test", limit=10, project_id=None)
 
                     # Should return empty results, not crash
                     assert len(result.results) == 0
@@ -399,7 +400,7 @@ class TestSearchErrorHandling:
                     mock_mongo.get_source = AsyncMock(return_value=None)
                     mock_get_mongo.return_value = mock_mongo
 
-                    result = await search_knowledge(query="test", limit=10)
+                    result = await search_knowledge(query="test", limit=10, project_id=None)
 
                     # Result should be skipped due to missing source_id
                     assert len(result.results) == 0
@@ -426,7 +427,7 @@ class TestSearchErrorHandling:
                     mock_qdrant.search_extractions = AsyncMock(return_value=[])
                     mock_get_qdrant.return_value = mock_qdrant
 
-                    result = await search_knowledge(query="test", limit=10)
+                    result = await search_knowledge(query="test", limit=10, project_id=None)
 
                     # Should return results with minimal attribution
                     assert len(result.results) == 1
@@ -502,7 +503,7 @@ class TestSearchIntegration:
                     mock_mongo.get_source = AsyncMock(return_value=mock_source)
                     mock_get_mongo.return_value = mock_mongo
 
-                    result = await search_knowledge(query="AI agent tools", limit=10)
+                    result = await search_knowledge(query="AI agent tools", limit=10, project_id=None)
 
                     # Verify response structure
                     assert result.metadata.query == "AI agent tools"
