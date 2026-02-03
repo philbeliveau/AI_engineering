@@ -96,3 +96,7 @@ development_status:
   5-6-streamlit-web-ingestion-interface: in-progress  # 2026-01-04: Code review fixes applied (libGL, connection leak, collection names). Task 7 (Railway deploy) pending.
   5-7-pipeline-api-service: review  # 2026-01-12: Complete - FastAPI service deployed to Railway (PROJECT_ID=enact)
   epic-5-retrospective: optional
+
+  # Epic 11: Multi-Organization Support (Enact Integration)
+  epic-11: in-progress
+  11-1-adapt-knowledge-services-multi-org: done  # Code review passed 2026-02-02: 3 rounds of fixes, 454+78 tests pass

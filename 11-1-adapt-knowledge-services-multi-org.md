@@ -291,12 +291,19 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - **[L1-FIXED]** Removed dead code in Pipeline `api.py` — `int(settings.environment == "local" and 8000 or 8000)` always evaluated to 8000, simplified to `uvicorn.run(app, host="0.0.0.0", port=8000)`
 - MCP server: 454 tests pass (up from 448), 0 failures
 
+### Code Review Fixes Applied (Round 3)
+- **[H1-FIXED]** MCP `_validate_project_id()` now raises `ValidationError` (from `src.exceptions`) instead of `ValueError`. Invalid project_id now returns HTTP 400 with structured error instead of opaque 500.
+- **[M2-FIXED]** Pipeline `api.py` FastAPI app version updated from `"1.0.0"` to `"0.2.0"` to match `pyproject.toml`.
+- **[M3-FIXED]** MCP `count_extractions_by_source` scroll limit increased from 1,000 to 10,000 to match `count_extractions_by_sources` batch version.
+- **[L1-FIXED]** MCP `test_mongodb_multitenancy.py` — replaced duplicate `test_rejects_none_like` (was identical to `test_rejects_empty_string`) with `test_rejects_whitespace_only`. All `ValueError` expectations updated to `ValidationError`.
+- MCP server: 454 tests pass, 0 failures
+- Pipeline: 27 unit/API tests pass, 0 failures
+
 ### Known Limitations (Documented by Review)
 - **Pipeline write methods not multi-tenant**: `create_source`, `update_source`, `create_chunk`, `create_extraction`, `save_extraction_from_extractor`, `create_chunks_bulk`, `create_extractions_bulk` still use hardcoded `settings.*_collection`. This is by design — ACs only scope read/delete paths. Future story needed for write-path multi-tenancy.
 - **Pipeline `extract_source` endpoint**: Does not pass `project_id` to `ExtractionPipeline()`. Pre-existing issue, not in scope for this story.
 - **Pipeline `update_source`**: Uses `settings.sources_collection` instead of `_collection_name()`. Pre-existing inconsistency.
 - **Pipeline `ensure_indexes`**: Creates indexes only on default project collections. Non-default org collections will lack indexes at scale.
-- **`uv.lock` uncommitted**: `packages/mcp-server/uv.lock` has local changes not committed.
 
 ### File List
 **MCP Server (Part A):**
@@ -345,3 +352,4 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 **Change Log:**
 - 2026-02-02: Tasks 8-11 complete — v0.2.0 tagged, Enact infra scaffolding created, Railway deployment documented
 - 2026-02-02: Code review round 2 — Added _validate_project_id tests (H3), capped scroll limit (M3), fixed dead code (L1), documented known limitations
+- 2026-02-02: Code review round 3 — Fixed ValueError->ValidationError in MCP _validate_project_id (H1), fixed Pipeline API version string (M2), increased count_extractions_by_source limit (M3), fixed duplicate test (L1)

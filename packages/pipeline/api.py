@@ -139,7 +139,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Knowledge Pipeline API",
     description="API for ingesting documents and extracting knowledge",
-    version="1.0.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 

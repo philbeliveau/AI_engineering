@@ -59,35 +59,45 @@ class TestValidateProjectId:
 
     def test_rejects_empty_string(self):
         """Reject empty string."""
-        with pytest.raises(ValueError):
+        from src.exceptions import ValidationError
+
+        with pytest.raises(ValidationError):
             MongoDBClient._validate_project_id("")
 
-    def test_rejects_none_like(self):
-        """Reject None passed as string (edge case)."""
-        with pytest.raises(ValueError):
-            MongoDBClient._validate_project_id("")
+    def test_rejects_whitespace_only(self):
+        """Reject whitespace-only string."""
+        from src.exceptions import ValidationError
+
+        with pytest.raises(ValidationError):
+            MongoDBClient._validate_project_id("   ")
 
     def test_rejects_special_characters(self):
         """Reject project IDs with dots, slashes, spaces, or other special chars."""
-        with pytest.raises(ValueError):
+        from src.exceptions import ValidationError
+
+        with pytest.raises(ValidationError):
             MongoDBClient._validate_project_id("org.abc")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValidationError):
             MongoDBClient._validate_project_id("../../admin")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValidationError):
             MongoDBClient._validate_project_id("org abc")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValidationError):
             MongoDBClient._validate_project_id("org$abc")
 
     def test_rejects_dollar_prefix(self):
         """Reject MongoDB operator injection attempts."""
-        with pytest.raises(ValueError):
+        from src.exceptions import ValidationError
+
+        with pytest.raises(ValidationError):
             MongoDBClient._validate_project_id("$where")
 
     def test_collection_name_validates(self):
         """_collection_name() calls _validate_project_id, so invalid IDs are rejected."""
+        from src.exceptions import ValidationError
+
         settings = Settings(project_id="default")
         client = MongoDBClient(settings)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValidationError):
             client._collection_name("sources", "../../hack")
 
 

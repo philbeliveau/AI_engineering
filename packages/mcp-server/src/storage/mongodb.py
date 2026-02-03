@@ -116,14 +116,17 @@ class MongoDBClient:
             project_id: Project ID to validate.
 
         Raises:
-            ValueError: If project_id contains invalid characters.
+            ValidationError: If project_id contains invalid characters.
         """
         import re
 
         if not project_id or not re.match(r"^[a-zA-Z0-9_-]+$", project_id):
-            raise ValueError(
-                f"Invalid project_id '{project_id}': must be non-empty, "
-                "alphanumeric with underscores/hyphens only"
+            from src.exceptions import ValidationError
+
+            raise ValidationError(
+                message=f"Invalid project_id '{project_id}': must be non-empty, "
+                "alphanumeric with underscores/hyphens only",
+                details={"project_id": project_id},
             )
 
     def _collection_name(self, base: str, project_id: str | None = None) -> str:
