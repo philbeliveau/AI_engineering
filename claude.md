@@ -1,6 +1,13 @@
 # Knowledge Pipeline - Claude Development Notes
 
-**Method 2: Direct HTTP (always works)**
+## Production Services (Railway Deployment)
+
+**IMPORTANT:** This project has TWO separate Railway services under the `knowledge-mcp` project:
+
+### 1. MCP Server (knowledge-mcp) - READ Operations
+**URL:** `https://knowledge-mcp-production.up.railway.app`
+**Purpose:** Query existing knowledge (search, patterns, warnings, decisions)
+**Location:** `packages/mcp-server/`
 
 ```bash
 # Semantic search (POST)
@@ -20,6 +27,86 @@ curl -s "https://knowledge-mcp-production.up.railway.app/list_sources"
 
 # Health check
 curl -s "https://knowledge-mcp-production.up.railway.app/health"
+```
+
+### 2. Pipeline API (streamlite) - WRITE Operations
+**URL:** `https://streamlite-production.up.railway.app`
+**Purpose:** Document ingestion, extraction, and source management
+**Location:** `packages/pipeline/` (combined Streamlit UI + FastAPI)
+**Architecture:** Nginx reverse proxy routing to Streamlit (port 8501) and FastAPI (port 8000)
+
+**Routing:**
+- `/` → Streamlit web UI
+- `/api/*` → Pipeline API endpoints
+- `/health` → Pipeline API health check
+
+**Pipeline API Endpoints:**
+```bash
+# Health check
+curl -s "https://streamlite-production.up.railway.app/health"
+
+# Upload file (multipart/form-data)
+curl -X POST "https://streamlite-production.up.railway.app/api/ingest" \
+  -H "X-Project-ID: knowledge-pipeline" \
+  -F "file=@/path/to/document.pdf"
+
+# Ingest from URL
+curl -X POST "https://streamlite-production.up.railway.app/api/ingest/url" \
+  -H "Content-Type: application/json" \
+  -H "X-Project-ID: knowledge-pipeline" \
+  -d '{"url": "https://example.com/article", "category": "reference"}'
+
+# Run extraction on ingested source
+curl -X POST "https://streamlite-production.up.railway.app/api/extract/{source_id}" \
+  -H "X-Project-ID: knowledge-pipeline"
+
+# Get source metadata
+curl "https://streamlite-production.up.railway.app/api/sources/{source_id}"
+
+# Delete source and all related data
+curl -X DELETE "https://streamlite-production.up.railway.app/api/sources/{source_id}"
+```
+
+**Multi-tenancy:** Use `X-Project-ID` header to namespace data (defaults to "default" if not provided)
+
+### Finding Service URLs with Railway CLI
+
+```bash
+# List all projects
+railway list
+
+# Link to knowledge-mcp project (from project root)
+# Then select a service:
+railway service  # Choose: knowledge-mcp OR streamlite
+
+# Get the domain/URL
+railway domain
+
+# Check status
+railway status
+```
+
+### Troubleshooting Common Issues
+
+**"Application not found" or 404 errors:**
+- ✅ **Correct:** `https://streamlite-production.up.railway.app/api/ingest`
+- ❌ **Wrong:** `https://knowledge-mcp-production.up.railway.app/api/ingest` (MCP server doesn't have /api/ingest)
+- ❌ **Wrong:** `https://pipeline-production.up.railway.app/api/ingest` (service name is "streamlite" not "pipeline")
+
+**Remember:**
+- MCP Server = READ operations (search, query knowledge)
+- Pipeline API = WRITE operations (upload, ingest, extract)
+- Both services are under the same Railway project but have different URLs
+
+**Testing service health:**
+```bash
+# MCP Server
+curl -s "https://knowledge-mcp-production.up.railway.app/health"
+
+# Pipeline API
+curl -s "https://streamlite-production.up.railway.app/health"
+```
+
 ## Project Overview
 
 Building an AI engineering knowledge system that extracts structured knowledge from methodology books and serves it via MCP to Claude Code users.
@@ -153,11 +240,11 @@ RUNTIME QUERIES (Zero API costs)
 Builder → Claude Code → MCP Tools → Vector Search → Pre-extracted Data → Synthesis
 ```
 
-## Production MCP Server
+## Claude Desktop MCP Configuration
 
-**Live:** https://knowledge-mcp-production.up.railway.app
+**See "Production Services" section above for complete service URLs and endpoints.**
 
-Add to your Claude config (`claude_desktop_config.json`):
+Add the MCP Server to your Claude Desktop config (`claude_desktop_config.json`):
 
 ```json
 {
@@ -169,6 +256,8 @@ Add to your Claude config (`claude_desktop_config.json`):
   }
 }
 ```
+
+**Note:** This MCP server is for READ operations only. For document ingestion (WRITE operations), use the Pipeline API at `https://streamlite-production.up.railway.app/api/` (see Production Services section above).
 
 ## Database Overview (CRITICAL - READ THIS)
 
@@ -234,29 +323,6 @@ All 7 extractors are defined in:
 - `src/extractors/base.py:ExtractorRegistry` - Manages all extractors
 - `src/extractors/llm_client.py:LLMClient` - Handles Claude API calls
 - Each extractor inherits from `BaseExtractor` and implements custom extraction logic
-
-
-**Method 2: Direct HTTP (always works)**
-
-```bash
-# Semantic search (POST)
-curl -s -X POST "https://knowledge-mcp-production.up.railway.app/search_knowledge?query=YOUR_QUERY&limit=10"
-
-# Get patterns (GET)
-curl -s "https://knowledge-mcp-production.up.railway.app/get_patterns?topic=YOUR_TOPIC"
-
-# Get warnings (GET)
-curl -s "https://knowledge-mcp-production.up.railway.app/get_warnings?topic=YOUR_TOPIC"
-
-# Get decisions (GET)
-curl -s "https://knowledge-mcp-production.up.railway.app/get_decisions?topic=YOUR_TOPIC"
-
-# List sources (GET)
-curl -s "https://knowledge-mcp-production.up.railway.app/list_sources"
-
-# Health check
-curl -s "https://knowledge-mcp-production.up.railway.app/health"
-
 ## Known Issues
 
 See `_bmad-output/docs/known-issues.md` for documented bugs and workarounds, including:

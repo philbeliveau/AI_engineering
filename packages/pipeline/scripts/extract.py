@@ -183,11 +183,12 @@ def main() -> int:
 
             # Run extraction (hierarchical or flat)
             if args.hierarchical:
-                result = pipeline.extract_hierarchical(
+                import asyncio
+                result = asyncio.run(pipeline.extract_hierarchical(
                     source_id=args.source_id,
                     extractor_types=args.extractors,
                     quiet=args.quiet,
-                )
+                ))
             else:
                 result = pipeline.extract(
                     source_id=args.source_id,

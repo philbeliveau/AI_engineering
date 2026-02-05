@@ -478,7 +478,7 @@ class ExtractionPipeline:
             "extractor_types": [e.extraction_type.value for e in extractors],
         }
 
-    def extract_hierarchical(
+    async def extract_hierarchical(
         self,
         source_id: str,
         extractor_types: Optional[list[ExtractionType]] = None,
@@ -551,9 +551,7 @@ class ExtractionPipeline:
             print()
 
         # Stage 4: Run hierarchical extraction
-        hierarchical_result = asyncio.run(
-            hierarchical_extractor.extract_document(chunks, source_id)
-        )
+        hierarchical_result = await hierarchical_extractor.extract_document(chunks, source_id)
 
         if not quiet:
             self._display_hierarchical_stats(hierarchical_result)

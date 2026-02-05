@@ -485,7 +485,7 @@ async def extract_source(
     start_time = time.time()
 
     with ExtractionPipeline() as pipeline:
-        result = pipeline.extract_hierarchical(source_id, quiet=True)
+        result = await pipeline.extract_hierarchical(source_id, quiet=True)
 
     duration = time.time() - start_time
 

@@ -325,12 +325,15 @@ def run_extraction(
     Returns:
         ExtractionPipelineResult with counts and statistics.
     """
+    import asyncio
+
     with ExtractionPipeline() as pipeline:
-        return pipeline.extract_hierarchical(
+        # Call async method from sync context (Streamlit runs in sync)
+        return asyncio.run(pipeline.extract_hierarchical(
             source_id=source_id,
             extractor_types=extractor_types,
             quiet=True,
-        )
+        ))
 
 
 def _format_extraction_content(extraction: Any) -> str:
